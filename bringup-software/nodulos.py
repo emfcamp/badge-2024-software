@@ -17,6 +17,14 @@ EPIN_BTN_3=(0x59, 0, (1<<0))
 EPIN_BTN_4=(0x59, 0, (1<<1))
 EPIN_BTN_5=(0x59, 0, (1<<2))
 EPIN_BTN_6=(0x59, 0, (1<<3))
+led_colours=[
+    (255, 0, 0),
+    (255, 255, 0),
+    (0, 255, 0),
+    (0, 255, 255),
+    (0, 0, 255),
+    (255, 0, 255),    
+]
 
 class nodulos:
     
@@ -99,11 +107,14 @@ class nodulos:
             self.leds.fill((0,0,0))
             for i,n in enumerate([EPIN_ND_A,EPIN_ND_B,EPIN_ND_C,EPIN_ND_D,EPIN_ND_E,EPIN_ND_F]):
                 if not self.check_egpio_state(n):
-                    self.leds[2+i*2]=(20,0,20)
-                    self.leds[13+i]=(20,10,40)
+                    self.leds[13+i]=led_colours[i]
             for i,n in enumerate([EPIN_BTN_1,EPIN_BTN_2,EPIN_BTN_3,EPIN_BTN_4,EPIN_BTN_5,EPIN_BTN_6]):
                 if not self.check_egpio_state(n):
-                    self.leds[1+i*2]=(20,0,20)
+                    if i:
+                        self.leds[i*2]=led_colours[i]
+                    else:
+                       self.leds[12]=led_colours[i]
+                    self.leds[1+i*2]=led_colours[i]
             self.leds.write()
             time.sleep(0.1)
             
