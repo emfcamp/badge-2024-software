@@ -36,9 +36,6 @@ class bq25895:
         enable_HiZ                  register entry to put the Vbus input into High impedance mode
         input_voltage_limit_offset  register entry for the input voltage limit offset, range 0-3100mV 100mV resolution
         auto_dpdm                   register entry for automatic D+D- or PSEL detection
-        force_dpdm                  register entry to force D+D- detection
-        max_charge_adapter          register entry to enable MaxCharge adapter handshake
-        hv_dcp                      register entry to enable High voltage Dedicated Charging Port
         optimiser                   register entry to enable input current optimiser
         boost_frequency             register entry to set the boost converter frequency, 0 = 1.5MHz 1 = 500kHz(default)
         conversion_rate             register entry to enable the 1Hz sampling of ADCs
@@ -109,9 +106,10 @@ class bq25895:
     input_voltage_limit_offset = ScaledRegister( 0x01, 0x1F, 0, 100, 0 )
     # reg 02
     auto_dpdm = Register( 0x02, 0x01, 0 )
-    force_dpdm = Register(0x02, 0x02, 1 )
-    max_charge_adapter = Register( 0x02, 0x04, 2 )
-    hv_dcp = Register( 0x02, 0x08, 3 )
+    #the following use D+/D- to detect input and these are not connected
+    #force_dpdm = Register(0x02, 0x02, 1 )
+    #max_charge_adapter = Register( 0x02, 0x04, 2 )
+    #hv_dcp = Register( 0x02, 0x08, 3 )
     optimiser = Register( 0x02, 0x10, 4 )
     boost_frequency = Register( 0x02, 0x20, 5 )
     conversion_rate = Register( 0x02, 0x40, 6 )
@@ -193,7 +191,7 @@ class bq25895:
 
     #bit lists
     charging_status_list = [ 'Not Charging', 'Pre-Charging', 'Fast Charging' ]
-    Vbus_status_list = [ 'No Input', 'USB CDP', 'USB DCP', 'Adjustable HV DCP', 'Unkown Adapter', 'Non Standard Adapter', 'OTG' ]
+    Vbus_status_list = [ 'No Input', 'USB Host SDP', 'USB CDP', 'USB DCP', 'Adjustable HV DCP', 'Unkown Adapter', 'Non Standard Adapter', 'OTG' ]
     USB_input_status_list = [ 'USB 100', 'USB 500' ]
     Vsys_regulation_status_list = [ 'Not in Vsys Regulation', 'In Vsys Regulation' ]
     power_good_status_list = [ 'Power not good', 'Power good' ]
@@ -311,6 +309,27 @@ class bq25895:
             self.write_bits( self.otg_boost, 1 )
         else:
             self.write_bits( self.otg_boost, 0 )
+    
+    def disconnect_battery( self ):
+        """
+        Disconnect the battery from the IC
+        """
+        self.write_bits( self.batfet_disable, 1 )
+        
+    def connect_battery( self ):
+        """
+        Connect the battery to the IC
+        """
+        self.write_bits( self.batfet_disable, 0 )
+    
+    def set_input_current_limit( self, limit ):
+        """
+        Set the Input current limit
+        
+        Args:
+            limit (int): Limit in mA, range 100-3250mA resolution 50mA
+        """
+        self.write_scaled( self.input_Ilim, limit )
     
     def get_status( self ):
         """
