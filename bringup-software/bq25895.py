@@ -263,7 +263,7 @@ class bq25895:
         regVal = self.i2c.readfrom_mem( self.ADDRESS, scaledregister.register, 1 )
         regVal = regVal & (~scaledregister.mask)
         temp = ( (( value - scaledregister.offset ) / scaledregister.scaling ) << scaledregister.position ) & scaledregister.mask
-        regVal = scaledregister.mask | int(temp)
+        regVal = regVal | int(temp)
         self.i2c.writeto_mem( self.ADDRESS, scaledregister, regVal )
     
     def enable_conversion( self, enable=True, single=False ):
