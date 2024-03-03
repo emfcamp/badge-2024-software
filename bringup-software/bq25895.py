@@ -89,7 +89,7 @@ class bq25895:
         self.i2c = i2c_instance
     
     # address
-    ADDRESS = const(0x35)
+    ADDRESS = const(0x6A)
 
     Register = namedtuple('Register', ['register', 'mask', 'position'])
     ScaledRegister = namedtuple('ScaledRegister', ['register', 'mask', 'position', 'scaling', 'offset'])
@@ -173,14 +173,14 @@ class bq25895:
     absolute_VINDPM_threshold = ScaledRegister( 0x0D, 0x7F, 0, 0.2, 2.6 )
     force_abolute_threshold = Register( 0x0D, 0x80, 7 )
     # reg 0E read only
-    battery_voltage = ScaledRegister( 0x0E, 0x7F, 0, 2.304, 0.02 )
+    battery_voltage = ScaledRegister( 0x0E, 0x7F, 0, 0.02, 2.304 )
     #thermal status not used
     # reg 0F read only
-    system_voltage = ScaledRegister( 0x0F, 0x7F, 0, 2.304, 0.02 )
+    system_voltage = ScaledRegister( 0x0F, 0x7F, 0, 0.02, 2.304 )
     # reg 10 read only
     # thermistor not used
     # reg 11 read only
-    Vbus_voltage = ScaledRegister( 0x11, 0x7F, 0, 2.6, 0.1 )
+    Vbus_voltage = ScaledRegister( 0x11, 0x7F, 0, 0.1, 2.6 )
     Vbus_good = Register( 0x11, 0x80, 7 )
     # reg 12 read only
     charge_current = ScaledRegister( 0x12, 0x7F, 0, 0.05, 0 )
@@ -196,7 +196,7 @@ class bq25895:
     register_reset = Register( 0x14, 0x80, 7 )
 
     #bit lists
-    charging_status_list = [ 'Not Charging', 'Pre-Charging', 'Fast Charging' ]
+    charging_status_list = [ 'Not Charging', 'Pre-Charging', 'Fast Charging', 'Terminated' ]
     Vbus_status_list = [ 'No Input', 'USB Host SDP', 'USB CDP', 'USB DCP', 'Adjustable HV DCP', 'Unkown Adapter', 'Non Standard Adapter', 'OTG' ]
     USB_input_status_list = [ 'USB 100', 'USB 500' ]
     Vsys_regulation_status_list = [ 'Not in Vsys Regulation', 'In Vsys Regulation' ]
@@ -219,7 +219,7 @@ class bq25895:
                 -position
         :rtype: (int)
         """
-        regVal = self.i2c.readfrom_mem( self.ADDRESS, register.register, 1 )
+        regVal = self.i2c.readfrom_mem( self.ADDRESS, register.register, 1 )[0]
         return ( ( regVal & register.mask) >> register.position ) 
     
     def write_bits( self, register, value ):
@@ -232,10 +232,10 @@ class bq25895:
                 -mask
                 -position
         """
-        regVal = self.i2c.readfrom_mem( self.ADDRESS, register.register, 1 )
+        regVal = self.i2c.readfrom_mem( self.ADDRESS, register.register, 1 )[0]
         regVal = regVal & (~register.mask)
         regVal = regVal | ( value << register.position )
-        self.i2c.writeto_mem( self.ADDRESS, register, regVal )
+        self.i2c.writeto_mem( self.ADDRESS, register.register, bytes([regVal]) )
     
     def read_scaled( self, scaledregister ):
         """
@@ -250,7 +250,7 @@ class bq25895:
                 -offset
         :rtype: (float)
         """
-        regVal = self.i2c.readfrom_mem( self.ADDRESS, scaledregister.register, 1 )
+        regVal = self.i2c.readfrom_mem( self.ADDRESS, scaledregister.register, 1 )[0]
         return ( float( ( regVal & scaledregister.mask ) >> scaledregister.position ) * scaledregister.scaling ) + scaledregister.offset
     
     def write_scaled( self, scaledregister, value ):
@@ -266,11 +266,11 @@ class bq25895:
                 -offset
             value(float): value to be scaled
         """
-        regVal = self.i2c.readfrom_mem( self.ADDRESS, scaledregister.register, 1 )
+        regVal = self.i2c.readfrom_mem( self.ADDRESS, scaledregister.register, 1 )[0]
         regVal = regVal & (~scaledregister.mask)
         temp = ( int(( value - scaledregister.offset ) / scaledregister.scaling ) << scaledregister.position ) & scaledregister.mask
         regVal = regVal | temp
-        self.i2c.writeto_mem( self.ADDRESS, scaledregister, regVal )
+        self.i2c.writeto_mem( self.ADDRESS, scaledregister.register, bytes([regVal]) )
     
     def enable_conversion( self, enable=True, single=False ):
         """
@@ -344,7 +344,7 @@ class bq25895:
         
         :rtype: (dict)
         """
-        read = self.i2c.readfrom_mem( self.ADDRESS, 0x0B, 1 )
+        read = self.i2c.readfrom_mem( self.ADDRESS, 0x0B, 1 )[0]
         status = dict([('VsysRegulation', 0), ('USB input', 0), ('power good', 0), ('Charge', 0 ), ('Vbus', 0)])
         status['VsysRegulation'] = ( read & self.Vsys_status.mask ) >> self.Vsys_status.position
         status['USB input'] = ( read & self.USB_input_status.mask ) >> self.USB_input_status.position
@@ -360,8 +360,8 @@ class bq25895:
         
         :rtype: (dict)
         """
-        read = self.i2c.readfrom_mem( self.ADDRESS, 0x0C, 1 )
-        read = self.i2c.readfrom_mem( self.ADDRESS, 0x0C, 1 )
+        read = self.i2c.readfrom_mem( self.ADDRESS, 0x0C, 1 )[0]
+        read = self.i2c.readfrom_mem( self.ADDRESS, 0x0C, 1 )[0]
         fault = dict([('Battery', 0), ('Charge', 0), ('Boost', 0), ('Watchdog',0)])
         fault['Battery'] = ( read & self.battery_fault.mask ) >> self.battery_fault.position
         fault['Charge'] = ( read & self.charge_fault.mask ) >> self.charge_fault.position
@@ -416,24 +416,29 @@ class bq25895:
         # use single byte writes to reduce I2C traffic instead of read modify write since we just reset registers to known values
         # Leave input current limit (REG0x00 at 500mA until PD is complete 
         # Disable the boost output, leave minimum system voltage at 3.5V and charging enabled
-        self.i2c.writeto_mem( self.ADDRESS, 0x03, 0x1A )
+        self.i2c.writeto_mem( self.ADDRESS, 0x03, bytes([0x1A]) )
         # start ADC conversions running at a 1s interval and disable detection using D+/D- and ICO
-        self.i2c.writeto_mem( self.ADDRESS, 0x02, 0x60 )
+        self.i2c.writeto_mem( self.ADDRESS, 0x02, bytes([0x60]) )
         # disable the watchdog to allow charging while apps have control
-        self.i2c.writeto_mem( self.ADDRESS, 0x07, 0x8C )
+        self.i2c.writeto_mem( self.ADDRESS, 0x07, bytes([0x8C]) )
         
 
 if __name__ == '__main__':
     from machine import  Pin, I2C
     from utime import sleep_ms
     i2c = I2C(0, scl=Pin(46), sda=Pin(45), freq=400000)
+    pin_reset_i2c=Pin(9,Pin.OUT)
+    pin_reset_i2c.on()
+    i2c.writeto(0x77,bytes([(0x1<<7)]))
     pmic = bq25895(i2c)
-    #turn boost off
-    pmic.write_bits( pmic.otg_boost, 0 )
+    pmic.init()
     #start 1Hz ADC sampling
     pmic.enable_conversion()
     #report status and faults with various methods
     print( "Status" + str( pmic.get_status() ) )    
+    status = pmic.get_status()
+    for key in status:
+        print( key + " " + str( pmic.status_dict[ key ][ status[ key ] ] ) )
     Faults = pmic.get_fault()
     for key in Faults:
         print( key + " " + str( pmic.fault_dict[ key ][ Faults[ key ] ] ) )

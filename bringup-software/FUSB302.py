@@ -9,6 +9,7 @@ This is a work in progress.
 
 from micropython import const
 from collections import namedtuple
+from utime import sleep
 
 class fusb302:
     """
@@ -36,8 +37,7 @@ class fusb302:
     # reg 02 Switches0
     pulldown_cc1 = Register( 0x02, 0x01, 0 )
     pulldown_cc2 = Register( 0x02, 0x02, 1 )
-    measure_cc1 = Register( 0x02, 0x04, 2 )
-    measure_cc2 = Register( 0x02, 0x08, 3 )
+    measure_cc = Register( 0x02, 0x0C, 2 )
     Vconn_on_cc1 = Register( 0x02, 0x10, 4 )
     Vconn_on_cc2 = Register( 0x02, 0x20, 5 )
     host_current_on_cc1 = Register( 0x02, 0x40, 6 )
@@ -195,10 +195,10 @@ class fusb302:
                 -position
         :rtype: (int)
         """
-        regVal = self.i2c.readfrom_mem( self.ADDRESS, register.register, 1 )
+        regVal = self.i2c.readfrom_mem( self.ADDRESS, register.register, 1 )[0]
         return ( ( regVal & register.mask) >> register.position ) 
     
-    def write_bits( self, register, value ):
+    def write_bits( self, reg, value ):
         """
         Writes a value to selected bits of a register
         
@@ -208,10 +208,10 @@ class fusb302:
                 -mask
                 -position
         """
-        regVal = self.i2c.readfrom_mem( self.ADDRESS, register.register, 1 )
-        regVal = regVal & (~register.mask)
-        regVal = regVal | ( value << register.position )
-        self.i2c.writeto_mem( self.ADDRESS, register, regVal )
+        regVal = self.i2c.readfrom_mem( self.ADDRESS, reg.register, 1 )[0]
+        regVal = regVal & (~reg.mask)
+        regVal = regVal | ( value << reg.position )
+        self.i2c.writeto_mem( self.ADDRESS, reg.register, bytes([regVal]) )
     
     def read_scaled( self, scaledregister ):
         """
@@ -226,7 +226,7 @@ class fusb302:
                 -offset
         :rtype: (float)
         """
-        regVal = self.i2c.readfrom_mem( self.ADDRESS, scaledregister.register, 1 )
+        regVal = self.i2c.readfrom_mem( self.ADDRESS, scaledregister.register, 1 )[0]
         return ( float( ( regVal & scaledregister.mask ) >> scaledregister.position ) * scaledregister.scaling ) + scaledregister.offset
     
     def write_scaled( self, scaledregister, value ):
@@ -242,11 +242,11 @@ class fusb302:
                 -offset
             value(float): value to be scaled
         """
-        regVal = self.i2c.readfrom_mem( self.ADDRESS, scaledregister.register, 1 )
+        regVal = self.i2c.readfrom_mem( self.ADDRESS, scaledregister.register, 1 )[0]
         regVal = regVal & (~scaledregister.mask)
         temp = ( int(( value - scaledregister.offset ) / scaledregister.scaling ) << scaledregister.position ) & scaledregister.mask
         regVal = regVal | int(temp)
-        self.i2c.writeto_mem( self.ADDRESS, scaledregister, regVal )
+        self.i2c.writeto_mem( self.ADDRESS, scaledregister.register, bytes([regVal]) )
     
     def set_bit( self, register, input_byte, value ):
         """
@@ -293,7 +293,27 @@ class fusb302:
         """
         Reset the PD logic
         """
-        self.write_bits( self.reset_PD, 1 )
+        self.write_bits( self.pd_reset, 1 )
+        
+    def flush_tx( self ):
+        """
+        Flush the transmit buffer
+        """
+        self.write_bits( self.tx_flush, 1 )
+
+    def flush_rx( self ):
+        """
+        Flush the receive buffer
+        """
+        self.write_bits( self.rx_flush, 1 )
+        
+    def rx_empty( self ):
+        """
+        are bytes available
+        
+        :rtype: (int)
+        """ 
+        return self.read_bits( self.rx_fifo_empty )
         
     def power_up( self ):
         """
@@ -301,9 +321,9 @@ class fusb302:
             [0] Bandgap and wake circuit.
             [1]: Receiver powered and current references for Measure block
             [2]: Measure block powered.
-            [3]: Enable internal oscillator.(not used?)
+            [3]: Enable internal oscillator.
         """
-        self.i2c.writeto_mem( self.ADDRESS, self.enable_oscillator.register, 0x07 )
+        self.i2c.writeto_mem( self.ADDRESS, self.enable_oscillator.register, bytes([0x0F]) )
 
     def get_Status0( self ):
         """
@@ -312,7 +332,7 @@ class fusb302:
         
         :rtype: (dict)
         """
-        read = self.i2c.readfrom_mem( self.ADDRESS, self.vbus_ok.register, 1 )
+        read = self.i2c.readfrom_mem( self.ADDRESS, self.vbus_ok.register, 1 )[0]
         status = dict( [ 
                 ( 'VBUSOK', 0 ),
                 ( 'ACTIVITY', 0 ), 
@@ -338,7 +358,7 @@ class fusb302:
                
         :rtype: (dict)
         """
-        read = self.i2c.readfrom_mem( self.ADDRESS, self.vbus_ok.register, 1 )
+        read = self.i2c.readfrom_mem( self.ADDRESS, self.vbus_ok.register, 1 )[0]
         status = dict( [ 
                 ( 'OCP', 0 ), 
                 ( 'OVRTEMP', 0 ), 
@@ -365,7 +385,7 @@ class fusb302:
                
         :rtype: (dict)
         """
-        read = self.i2c.readfrom_mem( self.ADDRESS, self.vbus_ok.register, 1 )
+        read = self.i2c.readfrom_mem( self.ADDRESS, self.vbus_ok.register, 1 )[0]
         status = dict( [ ( 'HARDRST', 0 ), ( 'SOFTRST', 0 ), ( 'POWER', 0 ), ( 'RETRYFAIL', 0 ), ( 'SOFTFAIL', 0 ) ] )
         status['HARDRST'] = ( read & self.hard_reset_order.mask ) >> self.hard_reset_order.position
         status['SOFTRST'] = ( read & self.soft_reset_order.mask ) >> self.soft_reset_order.position
@@ -381,7 +401,7 @@ class fusb302:
         
         :rtype: (dict)
         """
-        read = self.i2c.readfrom_mem( self.ADDRESS, self.vbus_ok.register, 1 )
+        read = self.i2c.readfrom_mem( self.ADDRESS, self.vbus_ok.register, 1 )[0]
         status = dict( [ 
             ( 'RXSOP', 0 ),
             ( 'RXSOP1DB', 0 ), 
@@ -401,9 +421,9 @@ class fusb302:
         
         :rtype: (dict)
         """
-        Interrupta = self.i2c.readfrom_mem( self.ADDRESS, self.hardreset_int.register, 1 )
-        Interruptb = self.i2c.readfrom_mem( self.ADDRESS, self.good_crc_sent_int.register, 1 )
-        Interrupt = self.i2c.readfrom_mem( self.ADDRESS, self.bc_level_int.register, 1 )
+        Interrupta = self.i2c.readfrom_mem( self.ADDRESS, self.hardreset_int.register, 1 )[0]
+        Interruptb = self.i2c.readfrom_mem( self.ADDRESS, self.good_crc_sent_int.register, 1 )[0]
+        Interrupt = self.i2c.readfrom_mem( self.ADDRESS, self.bc_level_int.register, 1 )[0]
         current_interrupts = dict( [ 
                 ( 'I_HARDRST', 0 ), 
                 ( 'I_SOFTRST', 0 ), 
@@ -411,7 +431,6 @@ class fusb302:
                 ( 'I_HARDSENT', 0 ), 
                 ( 'I_RETRYFAIL', 0 ), 
                 ( 'I_SOFTFAIL', 0 ), 
-                #( 'I_TOGDONE', 0 ), 
                 ( 'I_OCP_TEMP', 0 ), 
                 ( 'I_GCRCSENT', 0 ), 
                 ( 'I_BC_LVL', 0 ), 
@@ -429,7 +448,6 @@ class fusb302:
         current_interrupts['I_HARDSENT'] = ( Interrupta & self.hard_sent_int.mask ) >> self.hard_sent_int.position
         current_interrupts['I_RETRYFAIL'] = ( Interrupta & self.retry_fail_int.mask ) >> self.retry_fail_int.position
         current_interrupts['I_SOFTFAIL'] = ( Interrupta & self.soft_fail_int.mask ) >> self.soft_fail_int.position
-        #current_interrupts['I_TOGDONE'] = ( Interrupta & self.toggle_done_int.mask ) >> self.toggle_done_int.position
         current_interrupts['I_OCP_TEMP'] = ( Interrupta & self.ocp_temp_int.mask ) >> self.ocp_temp_int.position
         current_interrupts['I_GCRCSENT'] = ( Interruptb & self.good_crc_sent_int.mask ) >> self.good_crc_sent_int.position
         current_interrupts['I_BC_LVL'] = ( Interrupt & self.bc_level_int.mask ) >> self.bc_level_int.position
@@ -446,27 +464,29 @@ class fusb302:
         """
         Set the over current protection level
         """
-        
+            
   
     def determine_input_current_limit( self ):
         """ 
         Determine the input current limit
-        To be called on attach ( VbusOK rising edge )
+        To be called on attach ( VbusOK rising edge ) before comms starts
         """
+        # disable Vbus measurement andset CC threshold
+        self.i2c.writeto_mem( self.ADDRESS, 0x04, bytes([0x3E]) )
+        # measure CC1
+        self.write_bits( self.measure_cc, 1 )
+        self.cc_select = 1
+        sleep(0.001)
         status = self.get_Status0()
         if status[ 'BC_LVL' ] == 0:
             #Ra connected to this CC, change to other CC connection 
-            if self.cc_select == 1:
-                self.write_bits( self.measure_cc1, 0 )
-                self.write_bits( self.measure_cc2, 1 )
-                self.cc_select = 2
-            else:
-                self.write_bits( self.measure_cc2, 0 )
-                self.write_bits( self.measure_cc1, 1 )
-                self.cc_select = 1
+            self.cc_select = 2
+            self.write_bits( self.measure_cc, 2 )
+            sleep(0.001)
             #re-read status
             status = self.get_Status0()
         #determine current level.
+        self.input_current_limit = 500
         if status[ 'BC_LVL' ] > 0:
             if status[ 'BC_LVL' ] == 2:
                 self.input_current_limit = 1500
@@ -475,8 +495,7 @@ class fusb302:
             else:
                 #what should this be
                 self.input_current_limit = 500
-            
-                
+        self.setup_pd()     
     
     def reset_input_current_limit( self ):
         """ 
@@ -501,55 +520,74 @@ class fusb302:
         """
         # put device into a known state, including toggle off.
         self.reset() 
-        # disable all interrupts, we'll configure these as we need them.
-        
         self.power_up()
-        #set comp threshold to 2.226V
-        self.write_scaled( self.measurement_Vcc, 2226 )
-        #switch the measurment to cc1 keeping pull downs enabled.
-        #self.write_bits( self.measure_cc1, 1 )
-        self.i2c.writeto_mem( self.ADDRESS, self.measure_cc1.register, 0x07 )
+        #set comp threshold to 2.226V for CC determination and enable Vbus measurement for VbusOK interrupt
+        self.i2c.writeto_mem( self.ADDRESS, 0x04, bytes([0x7E]) )
         # setup over current protection
         
-        # setup interrupt masks todo: do we need wake?
-        self.i2c.writeto_mem( self.ADDRESS, self.mask_vbus_ok.register, 0xA5 )
-        self.i2c.writeto_mem( self.ADDRESS, self.mask_ocp_temp_int.register, 0x80 )
         # register? an isr for the VbusOk for attach detection 
         
         self.input_current_limit = 500
-        self.cc_select = 1
-        #setup auto retries for PD
-        self.write_bits( self.auto_retry, 1 )
-        #flush buffers, enable interrupts
-        self.write_bits( self.tx_flush, 1 )
-        self.write_bits( self.rx_flush, 1 )
+        self.cc_select = 0
+        #setup 3 auto retries for PD
+        self.i2c.writeto_mem( self.ADDRESS, 0x09, bytes([0x07]) )
+        # unmask Vbus ok, OCP and good CRC sent interrupts
+        self.i2c.writeto_mem( self.ADDRESS, 0x0A, bytes([0x7F]) )
+        self.i2c.writeto_mem( self.ADDRESS, 0x0E, bytes([0x7F]) )
+        self.i2c.writeto_mem( self.ADDRESS, 0x0F, bytes([0x00]) )
+        # flush buffers and enable interrupts
+        self.i2c.writeto_mem( self.ADDRESS, 0x06, bytes([0x64]) )
+        self.i2c.writeto_mem( self.ADDRESS, 0x07, bytes([0x04]) )
         
-        #set auto good crc response last as we need to respond within a timeout.
-        self.write_bits( self.auto_crc, 1 )
+        #set bits for good crc and auto response last as we need to respond within a timeout.
+        self.i2c.writeto_mem( self.ADDRESS, 0x03, bytes([0xA4]) )
         
     def setup_host( self ):
         """
         Initialise the fusb302 to a device
         """
+        # put device into a known state
         self.reset() 
         self.power_up()
         # set power and data roles
-        self.i2c.writeto_mem( self.ADDRESS, self.datarole.register, 0xB0 )
-        #todo
+        self.i2c.writeto_mem( self.ADDRESS, 0x03, bytes([0xB0]) )
+        # setup pull ups and measure on cc1
+        self.i2c.writeto_mem( self.ADDRESS, 0x02, bytes([0xC4]) )
+        self.cc_select = 1
+        # set measurement level 
+        self.i2c.writeto_mem( self.ADDRESS, 0x04, bytes([0x25]) )
+        #setup 3 auto retries for PD
+        self.i2c.writeto_mem( self.ADDRESS, 0x09, bytes([0x07]) )
+        # unmask BC level, activity, OCP and good CRC sent interrupts
+        self.i2c.writeto_mem( self.ADDRESS, 0x0A, bytes([0xBE]) )
+        self.i2c.writeto_mem( self.ADDRESS, 0x0E, bytes([0x7F]) )
+        self.i2c.writeto_mem( self.ADDRESS, 0x0F, bytes([0x00]) )
+        # flush buffers enable interrupts and set host current to the 1.5A current limit
+        self.i2c.writeto_mem( self.ADDRESS, 0x06, bytes([0x68]) )
+        self.i2c.writeto_mem( self.ADDRESS, 0x07, bytes([0x04]) )
+        self.setup_pd()
         
-           
+    def setup_pd( self ):
+        """
+        get the bmc ready for comms
+        """
+        self.write_bits( self.rx_flush, 1 )
+        if self.cc_select == 1:
+            self.write_bits( self.enable_bmc_cc1, 1 )
+        elif self.cc_select == 2:
+            self.write_bits( self.enable_bmc_cc2, 1 )
+        self.write_bits( self.tx_flush, 1 )
+        self.write_bits( self.rx_flush, 1 )
+        self.reset_PD()
         
 if __name__ == '__main__':
     from machine import  Pin, I2C
     from utime import sleep_ms
     i2c = I2C(0, scl=Pin(46), sda=Pin(45), freq=400000)
-    host = fusb302(i2c)
-    switches0 = host.set_bit( host.pulldown_cc1, 0, 1 )
-    switches0 = host.set_bit( host.pulldown_cc2, switches0, 1 )
-    switches0 = host.set_bit( host.measure_cc1, switches0, 1 )
-    switches0 = host.set_bit( host.measure_cc2, switches0, 1 )
-    print( switches0 )
-    
-    measure = host.set_scaled( host.measurement_Vcc, 0, 2646 )
-    measure = host.set_bit( host.measure_Vbus, measure, 0 )
-    print( measure )    
+    pin_reset_i2c=Pin(9,Pin.OUT)
+    pin_reset_i2c.on()
+    i2c.writeto(0x77,bytes([(0x1<<7)]))
+    usb_in = fusb302(i2c)
+    usb_in.setup_device()
+    usb_in.determine_input_current_limit()
+    print( "input current limit: " + str(usb_in.get_input_current_limit()) + "mA" )
