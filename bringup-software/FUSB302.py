@@ -166,22 +166,7 @@ class fusb302:
     # reg 43 fifo access
     rxtx_fifo = Register( 0x43, 0xFF, 0 )
     
-    # FIFO tokens
-    TXON       = const( 0xA1 )
-    TX_SOP1    = const( 0x12 )
-    TX_SOP2    = const( 0x13 )
-    TX_SOP3    = const( 0x1B )
-    TX_RESET1  = const( 0x15 )
-    TX_RESET2  = const( 0x16 )
-    TX_PACKSYM = const( 0x80 )
-    TX_JAM_CRC = const( 0xFF )
-    TX_EOP     = const( 0x14 )
-    TX_OFF     = const( 0xFE )
-    RX_SOP     = const( 0xE0 )
-    RX_SOP1    = const( 0xC0 )
-    RX_SOP2    = const( 0xA0 )
-    RX_SOP1DB  = const( 0x80 )
-    RX_SOP2DB  = const( 0x60 )
+
         
     #helpers
     def read_bits( self, register ):
@@ -563,7 +548,7 @@ class fusb302:
         self.i2c.writeto_mem( self.ADDRESS, 0x0E, bytes([0x7F]) )
         self.i2c.writeto_mem( self.ADDRESS, 0x0F, bytes([0x00]) )
         # flush buffers enable interrupts and set host current to the 1.5A current limit
-        self.i2c.writeto_mem( self.ADDRESS, 0x06, bytes([0x68]) )
+        self.i2c.writeto_mem( self.ADDRESS, 0x06, bytes([0x48]) )
         self.i2c.writeto_mem( self.ADDRESS, 0x07, bytes([0x04]) )
         self.setup_pd()
         
@@ -579,7 +564,131 @@ class fusb302:
         self.write_bits( self.tx_flush, 1 )
         self.write_bits( self.rx_flush, 1 )
         self.reset_PD()
+    
+    # FIFO tokens
+    TXON       = const( 0xA1 )
+    TX_SOP1    = const( 0x12 )
+    TX_SOP2    = const( 0x13 )
+    TX_SOP3    = const( 0x1B )
+    TX_RESET1  = const( 0x15 )
+    TX_RESET2  = const( 0x16 )
+    TX_PACKSYM = const( 0x80 )
+    TX_JAM_CRC = const( 0xFF )
+    TX_EOP     = const( 0x14 )
+    TX_OFF     = const( 0xFE )
+    RX_SOP     = const( 0xE0 )
+    RX_SOP1    = const( 0xC0 )
+    RX_SOP2    = const( 0xA0 )
+    RX_SOP1DB  = const( 0x80 )
+    RX_SOP2DB  = const( 0x60 )
+    
+    
+    """ 
+    following taken from 
+    https://github.com/CRImier/HaD_talking_pd/blob/main/main.py 
+    with a little modification
+    """
+    def get_rxb(self, l=80):
+        # read the FIFO contents
+        return self.i2c.readfrom_mem(0x22, 0x43, l)
+
+    def request_pdo(self, num, current, max_current, msg_id=0):
         
+        sop_seq = [0x12, 0x12, 0x12, 0x13, 0x80]
+        eop_seq = [0xff, 0x14, 0xfe, 0xa1]
+        obj_count = 1
+        pdo_len = 2 + (4*obj_count)
+        pdo = [0 for i in range(pdo_len)]
+
+        pdo[0] |= 0b10 << 6 # PD 3.0
+        pdo[0] |= 0b00010 # request
+
+        pdo[1] |= obj_count << 4
+        pdo[1] |= (msg_id & 0b111) << 1 # message ID
+
+        # packing max current into fields
+        max_current_b = max_current // 10
+        max_current_l = max_current_b & 0xff
+        max_current_h = max_current_b >> 8
+        pdo[2] = max_current_l
+        pdo[3] |= max_current_h
+
+        # packing current into fields
+        current_b = current // 10
+        current_l = current_b & 0x3f
+        current_h = current_b >> 6
+        pdo[3] |= current_l << 2
+        pdo[4] |= current_h
+
+        pdo[5] |= (num+1) << 4 # object position
+        pdo[5] |= 0b1 # no suspend
+
+        sop_seq[4] |= pdo_len
+
+        self.i2c.writeto_mem(0x22, 0x43, bytes(sop_seq) )
+        self.i2c.writeto_mem(0x22, 0x43, bytes(pdo) )
+        self.i2c.writeto_mem(0x22, 0x43, bytes(eop_seq) )        
+    
+    
+    pdo_types = ['fixed', 'batt', 'var', 'pps']
+    pps_types = ['spr', 'epr', 'res', 'res']
+
+    def read_pdos( self ):
+        pdo_list = []
+        header = self.get_rxb(1)[0]
+        print(header)
+        if header == 0xe0:
+            b1, b0 = self.get_rxb(2)
+            pdo_count = (b0 >> 4) & 0b111
+            read_len = pdo_count*4
+            pdos = self.get_rxb(read_len)
+            print(pdos.hex())
+            _ = self.get_rxb(4) # crc
+            for pdo_i in range(pdo_count):
+                pdo_bytes = pdos[(pdo_i*4):][:4]
+                print( pdo_bytes.hex() )
+                parsed_pdo = self.parse_pdo(pdo_bytes)
+                pdo_list.append(parsed_pdo)
+        return pdo_list
+
+    def select_pdo(self, pdos):
+        """
+        
+        """
+        for i, pdo in enumerate(pdos):
+            if pdo[0] != 'fixed': # skipping variable PDOs for now
+                pass
+            voltage = pdo[1]
+            if voltage == 9000:
+                return (i, 500) 
+            
+    def parse_pdo(self, pdo):
+        pdo_t = self.pdo_types[pdo[3] >> 6]
+        if pdo_t == 'fixed':
+            current_h = pdo[1] & 0b11
+            current_b = ( current_h << 8 ) | pdo[0]
+            current = current_b * 10
+            voltage_h = pdo[2] & 0b1111
+            voltage_b = ( voltage_h << 6 ) | (pdo[1] >> 2)
+            voltage = voltage_b * 50
+            peak_current = (pdo[2] >> 4) & 0b11
+            return (pdo_t, voltage, current, peak_current, pdo[3])
+        elif pdo_t in ['batt', 'var']:
+            # TODO am not motivated to parse these
+            return (pdo_t, pdo)
+        elif pdo_t == 'pps':
+            t = (pdo[3] >> 4) & 0b11
+            limited = (pdo[3] >> 5) & 0b1
+            max_voltage_h = pdo[3] & 0b1
+            max_voltage_b = (max_voltage_h << 7) | pdo[2] >> 1
+            max_voltage = max_voltage_b * 100
+            min_voltage = pdo[1] * 100
+            max_current_b = pdo[0] & 0b1111111
+            max_current = max_current_b * 50
+            return ('pps', self.pps_types[t], max_voltage, min_voltage, max_current, limited)
+            
+            
+            
 if __name__ == '__main__':
     from machine import  Pin, I2C
     from utime import sleep_ms
