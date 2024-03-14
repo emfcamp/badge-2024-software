@@ -456,7 +456,7 @@ class fusb302:
         Determine the input current limit
         To be called on attach ( VbusOK rising edge ) before comms starts
         """
-        # disable Vbus measurement andset CC threshold
+        # disable Vbus measurement and set CC threshold
         self.i2c.writeto_mem( self.ADDRESS, 0x04, bytes([0x3E]) )
         # measure CC1
         self.write_bits( self.measure_cc, 1 )
@@ -496,6 +496,16 @@ class fusb302:
         :rtype: (int) current in mA
         """
         return self.input_current_limit
+    
+    def attached( self ):
+        """
+        get the attached status
+        """
+        status = self.get_Status0()    
+        if self.host:
+            return ( status['COMP'] == 0 )
+        else:
+            return ( status['VBUSOK'] == 1 )
         
     def setup_device( self ):
         """
@@ -526,6 +536,7 @@ class fusb302:
         
         #set bits for good crc and auto response last as we need to respond within a timeout.
         self.i2c.writeto_mem( self.ADDRESS, 0x03, bytes([0xA4]) )
+        self.host = False
         
     def setup_host( self ):
         """
@@ -551,6 +562,7 @@ class fusb302:
         self.i2c.writeto_mem( self.ADDRESS, 0x06, bytes([0x48]) )
         self.i2c.writeto_mem( self.ADDRESS, 0x07, bytes([0x04]) )
         self.setup_pd()
+        self.host = True
         
     def setup_pd( self ):
         """
@@ -566,7 +578,7 @@ class fusb302:
         self.reset_PD()
     
     # FIFO tokens
-    TXON       = const( 0xA1 )
+    TX_ON      = const( 0xA1 )
     TX_SOP1    = const( 0x12 )
     TX_SOP2    = const( 0x13 )
     TX_SOP3    = const( 0x1B )
@@ -594,8 +606,8 @@ class fusb302:
 
     def request_pdo(self, num, current, max_current, msg_id=0):
         
-        sop_seq = [0x12, 0x12, 0x12, 0x13, 0x80]
-        eop_seq = [0xff, 0x14, 0xfe, 0xa1]
+        sop_seq = [self.TX_SOP1, self.TX_SOP1, self.TX_SOP1, self.TX_SOP2, self.TX_PACKSYM]
+        eop_seq = [self.TX_JAM_CRC, self.TX_EOP, self.TX_OFF, self.TX_ON]
         obj_count = 1
         pdo_len = 2 + (4*obj_count)
         pdo = [0 for i in range(pdo_len)]
@@ -627,7 +639,7 @@ class fusb302:
 
         self.i2c.writeto_mem(0x22, 0x43, bytes(sop_seq) )
         self.i2c.writeto_mem(0x22, 0x43, bytes(pdo) )
-        self.i2c.writeto_mem(0x22, 0x43, bytes(eop_seq) )        
+        self.i2c.writeto_mem(0x22, 0x43, bytes(eop_seq) )
     
     
     pdo_types = ['fixed', 'batt', 'var', 'pps']
@@ -687,7 +699,30 @@ class fusb302:
             max_current = max_current_b * 50
             return ('pps', self.pps_types[t], max_voltage, min_voltage, max_current, limited)
             
-            
+    def request_capability( self ):
+        """
+        ask for the power supply options
+        """
+        seq = \
+            [self.TX_SOP1, 
+             self.TX_SOP1, 
+             self.TX_SOP1, 
+             self.TX_SOP2, 
+             self.TX_PACKSYM, 
+             0x47, 
+             0xE0, 
+             self.TX_JAM_CRC, 
+             self.TX_EOP, 
+             self.TX_OFF, 
+             self.TX_ON]
+        
+        self.i2c.writeto_mem(0x22, 0x43, bytes(seq) )
+        
+    def soft_reset( self ):
+        """
+        reset the protocol layer on other port
+        """
+        self.i2c.writeto_mem(0x22, 0x43, bytes(self.TX_RESET1) )
             
 if __name__ == '__main__':
     from machine import  Pin, I2C
