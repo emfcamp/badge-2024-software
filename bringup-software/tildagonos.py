@@ -26,7 +26,7 @@ led_colours=[
     (255, 0, 255),    
 ]
 
-class nodulos:
+class tildagonos:
     
     def __init__(self):
         self.pin_reset_i2c=Pin(9,Pin.OUT)
@@ -100,7 +100,7 @@ class nodulos:
     def set_led_power(self, state):
         self.set_egpio_pin(EPIN_LED_POWER, state)
         
-    def indicate_nodule_insertion(self):
+    def indicate_hexpansion_insertion(self):
         self.set_led_power(True)
         while True:
             self.read_egpios()
