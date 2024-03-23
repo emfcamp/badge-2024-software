@@ -4,18 +4,11 @@ set(SDKCONFIG_DEFAULTS
     boards/sdkconfig.base
     boards/sdkconfig.usb
     boards/sdkconfig.ble
+    boards/sdkconfig.240mhz
     boards/sdkconfig.spiram_sx
-    boards/ESP32_GENERIC_S3/sdkconfig.board
+    boards/tildagon/sdkconfig.board
 )
 
-if(MICROPY_BOARD_VARIANT STREQUAL "SPIRAM_OCT")
-    set(SDKCONFIG_DEFAULTS
-        ${SDKCONFIG_DEFAULTS}
-        boards/sdkconfig.240mhz
-        boards/sdkconfig.spiram_quad
-    )
-
-    list(APPEND MICROPY_DEF_BOARD
-        MICROPY_HW_BOARD_NAME="Generic ESP32S3 module with Octal-SPIRAM"
-    )
+if(NOT MICROPY_FROZEN_MANIFEST)
+    set(MICROPY_FROZEN_MANIFEST ${CMAKE_CURRENT_LIST_DIR}/manifest.py)
 endif()
