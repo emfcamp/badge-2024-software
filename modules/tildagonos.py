@@ -29,7 +29,7 @@ led_colours=[
 ]
 
 class tildagonos:
-    
+    instance = None
     def __init__(self):
         self.pin_reset_i2c=Pin(9,Pin.OUT)
         self.pin_reset_i2c.on()
@@ -48,6 +48,8 @@ class tildagonos:
         self.egpio_c = AW9523B(self.i2c_expansion.get_downstream_bus(BUS_SYSTEM), 0x5a)
 
         self.LED_POWER = AW9523BPin(self.egpio_a, (0, 2), mode=Pin.ALT)
+
+        tildagonos.instance = self
         
     def init_display(self):
         self.spi=SPI(1,40000000, sck=Pin(8), mosi=Pin(7))
@@ -124,3 +126,10 @@ class tildagonos:
         else:
             self.system_i2c.writeto(0x77,bytes([0]))
             self.cur_i2c_bus=None
+
+    @staticmethod()
+    def system_irq_handler(pin):
+        # Add some interrupt handling code here?
+        # probably good to micropython.schedule deferred stuff
+        # that's not as urgent
+        pass
