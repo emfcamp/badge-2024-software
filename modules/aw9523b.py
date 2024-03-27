@@ -100,23 +100,6 @@ class AW9523B:
         self.bus = bus
         self.addr = addr
 
-        self.port_get_input_value = AW9523B.port_getter(0x00)
-        self.port_get_output_value = AW9523B.port_getter(0x02)
-        self.port_set_output_value = AW9523B.port_setter(0x02)
-        self.port_get_direction = AW9523B.port_getter(0x04)
-        self.port_set_direction = AW9523B.port_setter(0x04)
-        self.port_get_irq_enabled = AW9523B.port_getter(0x06)
-        self.port_set_irq_enabled = AW9523B.port_setter(0x06)
-        self.port_get_mode = AW9523B.port_getter(0x12)
-        self.port_set_mode = AW9523B.port_setter(0x12)
-
-        # self.pin_read = AW9523B.pin_getter(0x00)
-        self.pin_write = AW9523B.pin_setter(0x02)
-        self.pin_set_direction = AW9523B.pin_setter(0x04)
-        self.pin_get_irq_enabled = AW9523B.pin_getter(0x06)
-        self.pin_set_irq_enabled = AW9523B.pin_setter(0x06)
-        self.pin_get_mode = AW9523B.pin_getter(0x12)
-        self.pin_set_mode = AW9523B.pin_setter(0x12)
 
         self.port_values = [0,0]
         self.irq_handlers = [[None for _ in range(8)] for _ in range(2)]
@@ -132,25 +115,29 @@ class AW9523B:
         self.bus.writeto_mem(self.addr, 0x11, bytes([0x10]))
 
 
-    def port_getter(cls, base):
+    @staticmethod
+    def port_getter(base):
         def getter(self, port):
             return int(self.bus.readfrom_mem(self.addr, base+port, 1)[0])
         return getter
 
-    def port_setter(cls, base):
+    @staticmethod
+    def port_setter(base):
         def setter(self, port, value):
             return self.bus.writeto_mem(self.addr, base+port, bytes([value]))
         return setter
     
-    def pin_getter(cls, base):
-        port_getter = cls.port_getter(base)
+    @staticmethod
+    def pin_getter(base):
+        port_getter = AW9523B.port_getter(base)
         def getter(self, pin):
             return True if (port_getter(self, pin[0]) & (1<<pin[1])) else False
         return getter
     
-    def pin_setter(cls, base):
-        port_getter = cls.port_getter(base)
-        port_setter = cls.port_setter(base)
+    @staticmethod
+    def pin_setter(base):
+        port_getter = AW9523B.port_getter(base)
+        port_setter = AW9523B.port_setter(base)
         def setter(self, pin, value):
             portvalue = port_getter(self, pin[0])
             if value:
@@ -159,6 +146,27 @@ class AW9523B:
                 portvalue &= 0xff^(1<<pin[1])
             port_setter(self, pin[0], portvalue)
         return setter
+
+    @classmethod
+    def init_getters_setters(cls):
+        cls.port_get_input_value = AW9523B.port_getter(0x00)
+        cls.port_get_output_value = AW9523B.port_getter(0x02)
+        cls.port_set_output_value = AW9523B.port_setter(0x02)
+        cls.port_get_direction = AW9523B.port_getter(0x04)
+        cls.port_set_direction = AW9523B.port_setter(0x04)
+        cls.port_get_irq_enabled = AW9523B.port_getter(0x06)
+        cls.port_set_irq_enabled = AW9523B.port_setter(0x06)
+        cls.port_get_mode = AW9523B.port_getter(0x12)
+        cls.port_set_mode = AW9523B.port_setter(0x12)
+
+        # self.pin_read = AW9523B.pin_getter(0x00)
+        cls.pin_write = AW9523B.pin_setter(0x02)
+        cls.pin_set_direction = AW9523B.pin_setter(0x04)
+        cls.pin_get_irq_enabled = AW9523B.pin_getter(0x06)
+        cls.pin_set_irq_enabled = AW9523B.pin_setter(0x06)
+        cls.pin_get_mode = AW9523B.pin_getter(0x12)
+        cls.pin_set_mode = AW9523B.pin_setter(0x12)
+
             
     def pin_read(self, pin):
         value = self.port_get_input_value(pin[0])
@@ -199,3 +207,5 @@ class AW9523B:
             self.irq_handlers[pin[0]][pin[1]] = (handler, obj)
         else:
             self.irq_handlers[pin[0]][pin[1]] = None
+
+AW9523B.init_getters_setters()
