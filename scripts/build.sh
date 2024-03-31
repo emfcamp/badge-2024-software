@@ -10,10 +10,8 @@ cd /firmware
 cd micropython
 make -C mpy-cross
 
-git apply -q -R --check ../tildagon/i2c.patch || git apply ../tildagon/i2c.patch
-
 cd ports/esp32/boards
-ln -sfn /firmware/tildagon ./tildagon
+ln -sfn ../../../../tildagon ./tildagon
 
 cd ..
 make submodules BOARD=tildagon USER_C_MODULES=/firmware/drivers/micropython.cmake
