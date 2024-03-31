@@ -21,6 +21,10 @@ set(SDKCONFIG_DEFAULTS
     boards/tildagon/sdkconfig.board
 )
 
+# Start-up tasks
+set(MICROPY_SOURCE_BOARD
+    ${MICROPY_BOARD_DIR}/board_init.c
+)
 
 # Baked-in Python modules
 if(NOT MICROPY_FROZEN_MANIFEST)
