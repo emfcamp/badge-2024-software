@@ -13,7 +13,7 @@ void tildagon_usb_task(void *param __attribute__((__unused__))) {
 
     while(1) {
     //     gpio_set_level(DEBUG_LED, 1);
-    //     vTaskDelay(500 / portTICK_PERIOD_MS);
+         vTaskDelay(500 / portTICK_PERIOD_MS);
     //     gpio_set_level(DEBUG_LED, 0);
     //     vTaskDelay(500 / portTICK_PERIOD_MS);
     }
