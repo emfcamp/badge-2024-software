@@ -24,14 +24,18 @@ for i in range(its):
     time.sleep(0.05)
 
 
-def yay():
-    while True:
+def bestagons(n):
+    while n:
         red = random.random()
         blue = random.random()
         green = random.random()
         size = random.randint(10, 100)
-        ctx = display.get_ctx().save().rgb(red,green,blue).round_rectangle(random.randint(-120, 120), random.randint(-120, 120), size, size, size/2).fill()
+        ctx = display.get_ctx().save().rgba(red,green,blue, 0.2)
+        display.hexagon(ctx, random.randint(-120, 120), random.randint(-120, 120), size)
         ctx = ctx.restore()
         display.end_frame(ctx)
+        n -= 1
 
+
+bestagons(10)
 n.indicate_hexpansion_insertion()
