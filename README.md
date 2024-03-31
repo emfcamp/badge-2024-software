@@ -14,6 +14,10 @@ Pull the firmware build image:
 
 To make the docker container with the right version of the ESP-IDF for the latest micropython.
 
+Before you build the first time, apply any patches to vendored content:
+
+    ./scripts/firstTime.sh
+
 Then to build the images run:
 
     docker run -it --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware matthewwilkes/esp_idf:5.2.1

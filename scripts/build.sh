@@ -10,7 +10,7 @@ cd micropython
 make -C mpy-cross
 
 cd ports/esp32/boards
-ln -sfn /firmware/tildagon ./tildagon
+ln -sfn ../../../../tildagon ./tildagon
 
 cd ..
 make submodules BOARD=tildagon USER_C_MODULES=/firmware/drivers/micropython.cmake
