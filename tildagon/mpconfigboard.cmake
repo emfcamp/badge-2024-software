@@ -9,6 +9,11 @@ set(SDKCONFIG_DEFAULTS
     boards/tildagon/sdkconfig.board
 )
 
+
+set(MICROPY_SOURCE_BOARD
+    ${MICROPY_BOARD_DIR}/board_init.c
+)
+
 if(NOT MICROPY_FROZEN_MANIFEST)
     set(MICROPY_FROZEN_MANIFEST ${CMAKE_CURRENT_LIST_DIR}/manifest.py)
 endif()
