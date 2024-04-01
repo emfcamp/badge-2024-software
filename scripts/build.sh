@@ -10,6 +10,8 @@ cd /firmware
 cd micropython
 make -C mpy-cross
 
+git apply -R --check ../tildagon/i2c.patch || git apply ../tildagon/i2c.patch
+
 cd ports/esp32/boards
 ln -sfn /firmware/tildagon ./tildagon
 
