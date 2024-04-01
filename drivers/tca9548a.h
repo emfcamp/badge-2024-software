@@ -4,8 +4,6 @@
 #include "driver/i2c.h"
 #include "hal/i2c_ll.h"
 
-#include "freertos/semphr.h"
-
 typedef struct _tca9548a_i2c_mux {
   i2c_port_t port : 8;
   uint16_t addr;
