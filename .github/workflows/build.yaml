@@ -1,0 +1,29 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: cache docker build
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/.docker
+          key: ${{ runner.os }}-docker-${{ hashFiles('**/Dockerfile') }}-${{ hashFiles('**/scripts/build.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-docker-
+      - name: build dockerfile
+        run: docker build . -t tildagon_builder
+      - name: build
+        run: docker run -v ${{github.workspace}}/:/firmware tildagon_builder TARGET=es432s3
+      - name: upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-artifacts
+          path: 
+            micropython/ports/esp32/build-tildagon/micropython.*
