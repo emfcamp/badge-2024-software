@@ -59,7 +59,10 @@ static tildagon_mux_i2c_obj_t tildagon_mux_i2c_obj[8];
 static tca9548a_i2c_mux_t tildagon_i2c_mux;
 
 const tca9548a_i2c_mux_t *tildagon_get_i2c_mux() {
-  if(tildagon_i2c_mux.addr == 0) {
+    return &tildagon_i2c_mux;
+}
+
+void tildagon_i2c_init() {
     tildagon_i2c_mux.addr = 0x77;
     
     i2c_config_t conf = {
@@ -74,8 +77,6 @@ const tca9548a_i2c_mux_t *tildagon_get_i2c_mux() {
     int timeout = I2C_SCLK_FREQ / 1000000 * TILDAGON_HOST_I2C_TIMEOUT;
     i2c_set_timeout(TILDAGON_HOST_I2C_PORT, (timeout > I2C_LL_MAX_TIMEOUT) ? I2C_LL_MAX_TIMEOUT : timeout);
     i2c_driver_install(TILDAGON_HOST_I2C_PORT, I2C_MODE_MASTER, 0, 0, 0);
-  }
-  return &tildagon_i2c_mux;
 }
 
 int tildagon_mux_i2c_transfer(mp_obj_base_t *self_in, uint16_t addr, size_t n, mp_machine_i2c_buf_t *bufs, unsigned int flags) {

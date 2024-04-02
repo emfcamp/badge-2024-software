@@ -17,5 +17,7 @@
 
 const tca9548a_i2c_mux_t *tildagon_get_i2c_mux();
 
+void tildagon_i2c_init();
+
 
 #endif // _MICROPY_PY_TILDAGON_I2C
