@@ -10,16 +10,24 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: true
-      - name: cache docker build
+      - name: cache docker
         uses: actions/cache@v2
         with:
-          path: /home/runner/.docker
-          key: ${{ runner.os }}-docker-${{ hashFiles('**/Dockerfile') }}-${{ hashFiles('**/scripts/build.sh') }}
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('**/Dockerfile') }}-${{'**/build.sh'}}
           restore-keys: |
-            ${{ runner.os }}-docker-
-      - name: build dockerfile
-        run: docker build . -t tildagon_builder
-      - name: build
+            ${{ runner.os }}-buildx-
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: tildagon_builder
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+          load: true
+      - name: run build container
         run: docker run -v ${{github.workspace}}/:/firmware tildagon_builder TARGET=es432s3
       - name: upload artifact
         uses: actions/upload-artifact@v2
