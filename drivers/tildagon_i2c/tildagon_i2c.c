@@ -155,7 +155,7 @@ mp_obj_t tildagon_mux_i2c_make_new(const mp_obj_type_t *type, size_t n_args, siz
 
     // Get I2C bus
     mp_int_t i2c_id = mp_obj_get_int(args[ARG_id].u_obj);
-    if (!(MP_I2C_MUX_PORT_MIN <= i2c_id && i2c_id < MP_I2C_MUX_PORT_MAX)) {
+    if (!(MP_I2C_MUX_PORT_MIN <= i2c_id && i2c_id <= MP_I2C_MUX_PORT_MAX)) {
         mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("I2C(%d) doesn't exist"), i2c_id);
     }
 
