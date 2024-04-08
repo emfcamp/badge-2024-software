@@ -18,7 +18,6 @@ esp_err_t tca9548a_cmd_set_downstream(const tca9548a_i2c_mux_t *self, tca9548a_i
 }
 
 i2c_cmd_handle_t tca9548a_cmd_link_create(const tca9548a_i2c_mux_t *self, tca9548a_i2c_port_t port) {
-    tca9548a_cmd_set_downstream(self, port);
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     return cmd;
 }

@@ -85,6 +85,12 @@ int tildagon_mux_i2c_transfer(mp_obj_base_t *self_in, uint16_t addr, size_t n, m
     if (addr == self->mux->addr) {
         return -MP_ENODEV;
     }
+    
+    esp_err_t mux_err = tca9548a_cmd_set_downstream(self->mux, self->port);
+    if (mux_err != ESP_OK) {
+        // TODO: not sure what error would be the right one to return here
+        return -abs(mux_err);
+    }
 
     i2c_cmd_handle_t cmd = tca9548a_cmd_link_create(self->mux, self->port);
     int data_len = 0;
