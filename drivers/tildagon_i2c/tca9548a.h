@@ -6,13 +6,15 @@
 
 #include "freertos/semphr.h"
 
+typedef unsigned char tca9548a_i2c_port_t;
+
 typedef struct _tca9548a_i2c_mux {
   i2c_port_t port : 8;
   uint16_t addr;
   SemaphoreHandle_t mtx;
+  tca9548a_i2c_port_t active_port;
 } tca9548a_i2c_mux_t;
 
-typedef unsigned char tca9548a_i2c_port_t;
 
 /**
  * tca9548a_master_cmd_begin
@@ -27,14 +29,4 @@ typedef unsigned char tca9548a_i2c_port_t;
 */
 esp_err_t tca9548a_master_cmd_begin(const tca9548a_i2c_mux_t *self, tca9548a_i2c_port_t port, i2c_cmd_handle_t cmd, TickType_t ticks_to_wait);
 
-/**
- * tca9548a_cmd_set_downstream
- * 
- * Enables the specified downstream port on the I2C provided i2c mux.
- * Only one port is active at a time.
- * 
- * @param self - mux object to set the downstream port for
- * @param port - the port to switch to
-*/
-esp_err_t tca9548a_cmd_set_downstream(const tca9548a_i2c_mux_t *self, tca9548a_i2c_port_t port);
 #endif // _TCA9548A_H

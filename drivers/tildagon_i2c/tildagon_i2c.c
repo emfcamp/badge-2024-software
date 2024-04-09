@@ -69,6 +69,7 @@ void tildagon_i2c_init() {
     }
     xSemaphoreGive(&tildagon_i2c_mux.mtx);
     tildagon_i2c_mux.addr = 0x77;
+    tildagon_i2c_mux.active_port = -1;
     
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,

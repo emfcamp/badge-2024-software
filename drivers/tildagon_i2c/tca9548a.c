@@ -4,7 +4,16 @@
 #include "tca9548a.h"
 
 
-esp_err_t tca9548a_cmd_set_downstream(const tca9548a_i2c_mux_t *self, tca9548a_i2c_port_t port, TickType_t ticks_to_wait) {
+/**
+ * tca9548a_cmd_set_downstream
+ * 
+ * Enables the specified downstream port on the I2C provided i2c mux.
+ * Only one port is active at a time.
+ * 
+ * @param self - mux object to set the downstream port for
+ * @param port - the port to switch to
+*/
+static esp_err_t tca9548a_cmd_set_downstream(const tca9548a_i2c_mux_t *self, tca9548a_i2c_port_t port, TickType_t ticks_to_wait) {
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 
     i2c_master_start(cmd);
@@ -25,10 +34,13 @@ esp_err_t tca9548a_master_cmd_begin(const tca9548a_i2c_mux_t *self, tca9548a_i2c
       return ESP_ERR_TIMEOUT;
     }
     esp_err_t ret;
-    ret = tca9548a_cmd_set_downstream(self->mux, port, ticks_to_wait);
-    if (mux_err != ESP_OK || pdFALSE != xTaskCheckForTimeOut(&timeout, &ticks_to_wait)) {
-        xSemaphoreGive(self->mtx);
-        return ret;
+    if (port != self->active_port) {
+        ret = tca9548a_cmd_set_downstream(self->mux, port, ticks_to_wait);
+        if (mux_err != ESP_OK || pdFALSE != xTaskCheckForTimeOut(&timeout, &ticks_to_wait)) {
+            xSemaphoreGive(self->mtx);
+            return ret;
+        }
+        self->active_port = port;
     }
     ret = i2c_master_cmd_begin(self->port, cmd, ticks_to_wait);
     xSemaphoreGive(self->mtx);
