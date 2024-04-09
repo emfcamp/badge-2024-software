@@ -64,9 +64,6 @@ const tca9548a_i2c_mux_t *tildagon_get_i2c_mux() {
 
 void tildagon_i2c_init() {
     tildagon_i2c_mux.mtx = xSemaphoreCreateMutex();
-    if (tildagon_i2c_mux.mtx == NULL) {
-      return NULL;
-    }
     xSemaphoreGive(&tildagon_i2c_mux.mtx);
     tildagon_i2c_mux.addr = 0x77;
     tildagon_i2c_mux.active_port = -1;

@@ -35,12 +35,12 @@ esp_err_t tca9548a_master_cmd_begin(const tca9548a_i2c_mux_t *self, tca9548a_i2c
     }
     esp_err_t ret;
     if (port != self->active_port) {
-        ret = tca9548a_cmd_set_downstream(self->mux, port, ticks_to_wait);
-        if (mux_err != ESP_OK || pdFALSE != xTaskCheckForTimeOut(&timeout, &ticks_to_wait)) {
+        ret = tca9548a_cmd_set_downstream(self, port, ticks_to_wait);
+        if (ret != ESP_OK || pdFALSE != xTaskCheckForTimeOut(&timeout, &ticks_to_wait)) {
             xSemaphoreGive(self->mtx);
             return ret;
         }
-        self->active_port = port;
+        ((tca9548a_i2c_mux_t*)self)->active_port = port;
     }
     ret = i2c_master_cmd_begin(self->port, cmd, ticks_to_wait);
     xSemaphoreGive(self->mtx);
