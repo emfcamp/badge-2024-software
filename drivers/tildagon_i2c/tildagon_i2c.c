@@ -63,7 +63,9 @@ const tca9548a_i2c_mux_t *tildagon_get_i2c_mux() {
 }
 
 void tildagon_i2c_init() {
+    tildagon_i2c_mux.mtx = xSemaphoreCreateMutex();
     tildagon_i2c_mux.addr = 0x77;
+    tildagon_i2c_mux.active_port = -1;
     
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,
@@ -85,8 +87,9 @@ int tildagon_mux_i2c_transfer(mp_obj_base_t *self_in, uint16_t addr, size_t n, m
     if (addr == self->mux->addr) {
         return -MP_ENODEV;
     }
+    
 
-    i2c_cmd_handle_t cmd = tca9548a_cmd_link_create(self->mux, self->port);
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     int data_len = 0;
 
     if (flags & MP_MACHINE_I2C_FLAG_WRITE1) {
@@ -117,7 +120,7 @@ int tildagon_mux_i2c_transfer(mp_obj_base_t *self_in, uint16_t addr, size_t n, m
     }
 
     // TODO proper timeout
-    esp_err_t err = tca9548a_master_cmd_begin(self->mux, cmd, 100 * (3 + data_len) / portTICK_PERIOD_MS);
+    esp_err_t err = tca9548a_master_cmd_begin(self->mux, self->port, cmd, 100 * (3 + data_len) / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
 
     if (err == ESP_FAIL) {
@@ -155,7 +158,7 @@ mp_obj_t tildagon_mux_i2c_make_new(const mp_obj_type_t *type, size_t n_args, siz
 
     // Get I2C bus
     mp_int_t i2c_id = mp_obj_get_int(args[ARG_id].u_obj);
-    if (!(MP_I2C_MUX_PORT_MIN <= i2c_id && i2c_id < MP_I2C_MUX_PORT_MAX)) {
+    if (!(MP_I2C_MUX_PORT_MIN <= i2c_id && i2c_id <= MP_I2C_MUX_PORT_MAX)) {
         mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("I2C(%d) doesn't exist"), i2c_id);
     }
 

@@ -9,8 +9,8 @@
 #error "unsupported I2C for ESP32 SoC variant"
 #endif
 
-#define TILDAGON_HOST_I2C_SDA (8)
-#define TILDAGON_HOST_I2C_SCL (9)
+#define TILDAGON_HOST_I2C_SDA (45)
+#define TILDAGON_HOST_I2C_SCL (46)
 #define TILDAGON_HOST_I2C_FREQ (400000)
 #define TILDAGON_HOST_I2C_PORT (0)
 #define TILDAGON_HOST_I2C_TIMEOUT (50000)
