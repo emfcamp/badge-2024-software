@@ -17,7 +17,7 @@ esp_err_t tca9548a_cmd_set_downstream(const tca9548a_i2c_mux_t *self, tca9548a_i
     return ret;
 }
 
-esp_err_t tca9548a_master_cmd_begin(const tca9548a_i2c_mux_t *self, i2c_cmd_handle_t cmd, TickType_t ticks_to_wait) {
+esp_err_t tca9548a_master_cmd_begin(const tca9548a_i2c_mux_t *self, tca9548a_i2c_port_t port, i2c_cmd_handle_t cmd, TickType_t ticks_to_wait) {
     TimeOut_t timeout;
     vTaskSetTimeOutState(&timeout);
     if (pdTRUE != xSemaphoreTake(self->mtx, ticks_to_wait) 
@@ -25,7 +25,7 @@ esp_err_t tca9548a_master_cmd_begin(const tca9548a_i2c_mux_t *self, i2c_cmd_hand
       return ESP_ERR_TIMEOUT;
     }
     esp_err_t ret;
-    ret = tca9548a_cmd_set_downstream(self->mux, self->port, ticks_to_wait);
+    ret = tca9548a_cmd_set_downstream(self->mux, port, ticks_to_wait);
     if (mux_err != ESP_OK || pdFALSE != xTaskCheckForTimeOut(&timeout, &ticks_to_wait)) {
         xSemaphoreGive(self->mtx);
         return ret;

@@ -21,10 +21,11 @@ typedef unsigned char tca9548a_i2c_port_t;
  * on the bus upstream of the i2c mux. Additionally sets the downstream MUX port.
  * 
  * @param self - mux object to begin the i2c transactions for
+ * @param port - the downstream port to set
  * @param cmd - command link to send
  * @param ticks_to_wait - maximum timeout
 */
-esp_err_t tca9548a_master_cmd_begin(const tca9548a_i2c_mux_t *self, i2c_cmd_handle_t cmd, TickType_t ticks_to_wait);
+esp_err_t tca9548a_master_cmd_begin(const tca9548a_i2c_mux_t *self, tca9548a_i2c_port_t port, i2c_cmd_handle_t cmd, TickType_t ticks_to_wait);
 
 /**
  * tca9548a_cmd_set_downstream

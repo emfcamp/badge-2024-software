@@ -123,7 +123,7 @@ int tildagon_mux_i2c_transfer(mp_obj_base_t *self_in, uint16_t addr, size_t n, m
     }
 
     // TODO proper timeout
-    esp_err_t err = tca9548a_master_cmd_begin(self->mux, cmd, 100 * (3 + data_len) / portTICK_PERIOD_MS);
+    esp_err_t err = tca9548a_master_cmd_begin(self->mux, self->port, cmd, 100 * (3 + data_len) / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
 
     if (err == ESP_FAIL) {
