@@ -63,6 +63,11 @@ const tca9548a_i2c_mux_t *tildagon_get_i2c_mux() {
 }
 
 void tildagon_i2c_init() {
+    tildagon_i2c_mux.mtx = xSemaphoreCreateMutex();
+    if (tildagon_i2c_mux.mtx == NULL) {
+      return NULL;
+    }
+    xSemaphoreGive(&tildagon_i2c_mux.mtx);
     tildagon_i2c_mux.addr = 0x77;
     
     i2c_config_t conf = {
@@ -86,13 +91,8 @@ int tildagon_mux_i2c_transfer(mp_obj_base_t *self_in, uint16_t addr, size_t n, m
         return -MP_ENODEV;
     }
     
-    esp_err_t mux_err = tca9548a_cmd_set_downstream(self->mux, self->port);
-    if (mux_err != ESP_OK) {
-        // TODO: not sure what error would be the right one to return here
-        return -abs(mux_err);
-    }
 
-    i2c_cmd_handle_t cmd = tca9548a_cmd_link_create(self->mux, self->port);
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     int data_len = 0;
 
     if (flags & MP_MACHINE_I2C_FLAG_WRITE1) {
