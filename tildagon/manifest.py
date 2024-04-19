@@ -37,4 +37,4 @@ freeze("$(MPY_DIR)/../modules")
 #include("$(MPY_DIR)/extmod/uasyncio/manifest.py")
 #include("$(MPY_DIR)/extmod/webrepl/manifest.py")
 include("$(MPY_DIR)/lib/micropython-lib/micropython/drivers/led/neopixel/manifest.py")
-
+include("$(MPY_DIR)/extmod/asyncio/manifest.py")
