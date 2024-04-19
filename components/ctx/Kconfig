@@ -1,0 +1,10 @@
+menu "Ctx Config"
+    choice FLOW3R_CTX_FLAVOUR
+        prompt "Ctx flavour"
+        default FLOW3R_CTX_FLAVOUR_FULL
+        config FLOW3R_CTX_FLAVOUR_FULL
+            bool "Full (all fonts, high memory, for main app, cherry)"
+        config FLOW3R_CTX_FLAVOUR_SMOL
+            bool "Smol (one font, low memory, for recovery, vanilla)"
+    endchoice
+endmenu
