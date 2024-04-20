@@ -3,8 +3,7 @@ import time
 import display
 
 from perf_timer import PerfTimer
-
-TARGET_FRAMETIME_US = 16_000 # Not really reachable I guess lol
+from eventbus import eventbus
 
 class AppInfo:
     def __init__(self, app):
@@ -67,7 +66,8 @@ class Scheduler:
             await self._start_background_tasks(app)
         update_task = asyncio.create_task(self._update_task())
         render_task = asyncio.create_task(self._render_task())
-        await asyncio.gather(update_task, render_task)
+        event_task = asyncio.create_task(eventbus.run())
+        await asyncio.gather(update_task, render_task, event_task)
 
     def run_forever(self):
         asyncio.run(self._main())
