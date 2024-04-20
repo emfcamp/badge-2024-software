@@ -1,3 +1,4 @@
+import asyncio
 import math
 import display
 import random
@@ -56,3 +57,8 @@ class IntroApp:
         for hexagon in self.hexagons:
             hexagon.draw(ctx)
         self.draw_text(ctx)
+
+    async def background_update(self):
+        while True:
+            await asyncio.sleep(1)
+            print("fps:", display.get_fps())
