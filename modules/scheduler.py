@@ -71,3 +71,8 @@ class Scheduler:
 
     def run_forever(self):
         asyncio.run(self._main())
+
+    def run_for(self, time_s):
+        async def run():
+            await asyncio.wait_for(self._main(), time_s)
+        asyncio.run(run())

@@ -6,7 +6,7 @@ from tildagonos import led_colours
 from eventbus import eventbus
 from machine import I2C
 from eeprom_i2c import EEPROM, T24C256
-import os
+import vfs
 
 class HexpansionInsertionEvent:
     def __init__(self, port):
@@ -35,37 +35,48 @@ class HexpansionInsertionApp:
     def draw(self, display):
         pass
 
-    async def handle_hexpansion_insertion(self, event):
-        print(event)
-        mountpoint = "/eeprom"
-        # TODO: Automatically determine eeprom size
+    def _mount_eeprom(self, eep, port):
+        mountpoint = f"/hexpansion_{port}"
+
         first_mount_failed = False
-        eep = EEPROM(I2C(event.port), T24C256)
         try:
-            print(f"Attempting to mount i2c eeprom from hexpansion port {event.port}")
-            os.mount(eep, mountpoint)
-        except Exception:
+            print(f"Attempting to mount i2c eeprom from hexpansion port {port}")
+            vfs.mount(eep, mountpoint)
+        except Exception as e:
             first_mount_failed = True
-            print("Failed to mount, reformatting...")
-            os.VfsLfs2.mkfs(eep)
+            print(f"Failed to mount: {e}")
+            print("Attempting reformat...")
+            vfs.VfsLfs2.mkfs(eep)
 
         if first_mount_failed:
             try:
-                print(f"Attempting to mount i2c eeprom from hexpansion port {event.port}")
-                os.mount(eep, mountpoint)
+                print(f"Attempting to mount i2c eeprom from hexpansion port {port}")
+                vfs.mount(eep, mountpoint)
             except Exception:
                 print("Mount failed after reformatting, giving up :(")
                 return
 
-        self.mountpoints[event.port] = mountpoint
+        self.mountpoints[port] = mountpoint
         print(f"Mounted eeprom to {mountpoint}")
 
+    async def handle_hexpansion_insertion(self, event):
+        print(event)
+
+        try:
+            # TODO: Automatically determine eeprom size
+            eep = EEPROM(I2C(event.port), T24C256)
+        except RuntimeError:
+            print("No eeprom found")
+            eep = None
+
+        if eep is not None:
+            self._mount_eeprom(eep, event.port)
 
     async def handle_hexpansion_removal(self, event):
         print(event)
         if event.port in self.mountpoints:
             print(f"Unmounting {self.mountpoints[event.port]}")
-            os.umount(self.mountpoints[event.port])
+            vfs.umount(self.mountpoints[event.port])
 
     async def background_update(self):
         self.tildagonos.set_led_power(True)
