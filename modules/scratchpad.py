@@ -15,9 +15,9 @@ display.gfx_init()
 
 sc = Scheduler()
 
-# sc.start_app(HexpansionInsertionApp(tildagonos=n))
+sc.start_app(HexpansionInsertionApp(tildagonos=n))
 # sc.start_app(TickApp())
-sc.start_app(IntroApp(text="I'm gay"), foreground=True)
+sc.start_app(IntroApp(text="EMF Camp", n_hexagons=3), foreground=True)
 
 sc.start_app(PingApp())
 sc.start_app(PongApp())

@@ -28,9 +28,9 @@ class Hexagon:
         display.hexagon(ctx, self.x + self.offset_x, self.y + self.offset_y, self.size)
 
 class IntroApp:
-    def __init__(self, text="EMF Camp"):
+    def __init__(self, text="EMF Camp", n_hexagons=10):
         self.text = text
-        self.hexagons = [Hexagon() for _ in range(10)]
+        self.hexagons = [Hexagon() for _ in range(n_hexagons)]
         self.time_elapsed = 0
 
     def update(self, delta):
