@@ -19,4 +19,4 @@ class PerfTimer:
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         delta = time.ticks_diff(time.ticks_us(), self.start)
-        print(f"{self.name} took {delta} us")
+        # print(f"{self.name} took {delta} us")

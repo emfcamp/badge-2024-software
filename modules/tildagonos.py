@@ -92,22 +92,3 @@ class tildagonos:
 
     def set_led_power(self, state):
         self.set_egpio_pin(EPIN_LED_POWER, state)
-
-    async def indicate_hexpansion_insertion(self):
-        self.set_led_power(True)
-        while True:
-            with PerfTimer("indicate hexpansion insertion"):
-                self.read_egpios()
-                self.leds.fill((0, 0, 0))
-                for i, n in enumerate([EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F]):
-                    if not self.check_egpio_state(n, readgpios=False):
-                        self.leds[13 + i] = led_colours[i]
-                for i, n in enumerate([EPIN_BTN_1, EPIN_BTN_2, EPIN_BTN_3, EPIN_BTN_4, EPIN_BTN_5, EPIN_BTN_6]):
-                    if not self.check_egpio_state(n, readgpios=False):
-                        if i:
-                            self.leds[i * 2] = led_colours[i]
-                        else:
-                            self.leds[12] = led_colours[i]
-                        self.leds[1 + i * 2] = led_colours[i]
-                self.leds.write()
-            await asyncio.sleep(0.1)

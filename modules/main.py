@@ -1,17 +1,18 @@
 # main.py -- put your code here!
-#
+
 # from tildagonos import tildagonos
 # from scheduler import Scheduler
 # from apps.indicate_hexpansion import HexpansionInsertionApp
 # from apps.tick_app import TickApp
 # from apps.intro_app import IntroApp
+
+import display
+display.gfx_init()
+
+print("Oh hi!")
 #
-# import display
-
-print("Oh hi")
-
 # n = tildagonos()
-# display.gfx_init()
+#
 #
 # sc = Scheduler()
 # sc.start_app(HexpansionInsertionApp(tildagonos=n))
