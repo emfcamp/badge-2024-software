@@ -100,10 +100,10 @@ class tildagonos:
                 self.read_egpios()
                 self.leds.fill((0, 0, 0))
                 for i, n in enumerate([EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F]):
-                    if not self.check_egpio_state(n):
+                    if not self.check_egpio_state(n, readgpios=False):
                         self.leds[13 + i] = led_colours[i]
                 for i, n in enumerate([EPIN_BTN_1, EPIN_BTN_2, EPIN_BTN_3, EPIN_BTN_4, EPIN_BTN_5, EPIN_BTN_6]):
-                    if not self.check_egpio_state(n):
+                    if not self.check_egpio_state(n, readgpios=False):
                         if i:
                             self.leds[i * 2] = led_colours[i]
                         else:
