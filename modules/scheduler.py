@@ -23,6 +23,8 @@ class Scheduler:
         self.last_render_time = time.ticks_us()
         self.last_update_times = []
 
+        self.sync_event = asyncio.Event()
+
     def start_app(self, app, foreground=False):
         self.apps.append(app)
         self.last_update_times.append(time.ticks_us())
@@ -44,28 +46,21 @@ class Scheduler:
                     delta_time = time.ticks_diff(cur_time, self.last_update_times[idx])
                     app.update(delta_time)
                     self.last_update_times[idx] = cur_time
+            self.sync_event.set()
             await asyncio.sleep(0)
 
     async def _render_task(self):
         while True:
+            await self.sync_event.wait()
+            self.sync_event.clear()
             with PerfTimer("render"):
-                cur_time = time.ticks_us()
-                time_since_last_render = time.ticks_diff(cur_time, self.last_render_time)
-
-                if time_since_last_render >= TARGET_FRAMETIME_US:
-                    self.last_render_time = cur_time
-                    ctx = display.get_ctx()
-                    ctx.save()
-                    if self.current_app:
-                        self.current_app.draw(ctx)
-                    ctx.restore()
-                    display.end_frame(ctx)
-
-                time_after_render = time.ticks_us()
-                render_took = time.ticks_diff(time_after_render, cur_time)
-
-                time_to_next_render = max(0, (TARGET_FRAMETIME_US - render_took) / 1000_000)
-            await asyncio.sleep(time_to_next_render)
+                ctx = display.get_ctx()
+                ctx.save()
+                if self.current_app:
+                    self.current_app.draw(ctx)
+                ctx.restore()
+                display.end_frame(ctx)
+            await asyncio.sleep(0)
 
     async def _main(self):
         for app in self.apps:
