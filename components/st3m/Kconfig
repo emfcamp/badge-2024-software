@@ -1,0 +1,10 @@
+menu "debug config"
+    choice DEBUG_GDB
+        prompt "gdb or tinyusb/mass storage"
+        default DEBUG_GDB_DISABLED
+        config DEBUG_GDB_DISABLED
+            bool "tinyusb/mass storage mode, no gdb"
+        config DEBUG_GDB_ENABLED
+            bool "usb gdb mode, no tinyusb/mass storage"
+    endchoice
+endmenu
