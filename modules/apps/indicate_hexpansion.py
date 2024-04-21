@@ -113,8 +113,7 @@ class HexpansionInsertionApp:
             eep = None
 
         if eep is not None:
-            self.format_requests.append((eep, event.port))
-            # self._mount_eeprom(eep, event.port)
+            self._mount_eeprom(eep, event.port)
 
     async def handle_hexpansion_removal(self, event):
         print(event)
