@@ -82,6 +82,7 @@ class HexpansionInsertionApp:
         self.tildagonos.set_led_power(True)
 
         hexpansion_plugin_states = [False] * 6
+        button_states = [False] * 6
 
         while True:
             with PerfTimer("indicate hexpansion insertion"):
@@ -100,12 +101,19 @@ class HexpansionInsertionApp:
                         eventbus.emit(HexpansionRemovalEvent(port=i + 1))
 
                 for i, n in enumerate([EPIN_BTN_1, EPIN_BTN_2, EPIN_BTN_3, EPIN_BTN_4, EPIN_BTN_5, EPIN_BTN_6]):
-                    if not self.tildagonos.check_egpio_state(n, readgpios=False):
+                    button_down = not self.tildagonos.check_egpio_state(n, readgpios=False)
+                    if button_down:
                         if i:
                             self.tildagonos.leds[i * 2] = led_colours[i]
                         else:
                             self.tildagonos.leds[12] = led_colours[i]
                         self.tildagonos.leds[1 + i * 2] = led_colours[i]
+                    if button_down and not button_states[i]:
+                        button_states[i] = True
+                        eventbus.emit(ButtonDownEvent(button=i))
+                    if not button_down and button_states[i]:
+                        button_states[i] = False
+                        eventbus.emit(ButtonUpEvent(button=i))
 
                 self.tildagonos.leds.write()
             await asyncio.sleep(0.1)
