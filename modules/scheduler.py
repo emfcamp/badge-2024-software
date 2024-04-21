@@ -5,35 +5,88 @@ import display
 from perf_timer import PerfTimer
 from eventbus import eventbus
 
-class AppInfo:
+
+class RequestForegroundPushEvent:
     def __init__(self, app):
         self.app = app
-        self.running = False
-        self.last_updated = time.ticks_us()
-        self.background_tasks = []
+
+
+class RequestForegroundPopEvent:
+    def __init__(self, app):
+        self.app = app
 
 
 class Scheduler:
     def __init__(self):
-        self.current_app = None
         self.apps = []
-        self.background_tasks = []
+        self.background_tasks = {}
+        self.foreground_stack = []
 
         self.last_render_time = time.ticks_us()
         self.last_update_times = []
 
+        # To synchronize update and render tasks
         self.sync_event = asyncio.Event()
+
+        # Bg/fg management events
+        eventbus.on_async(RequestForegroundPushEvent, self._handle_request_foreground_push, self)
+        eventbus.on_async(RequestForegroundPopEvent, self._handle_request_foreground_pop, self)
 
     def start_app(self, app, foreground=False):
         self.apps.append(app)
         self.last_update_times.append(time.ticks_us())
         if foreground:
-            self.current_app = app
+            self.foreground_stack.append(app)
+
+    def stop_app(self, app):
+        try:
+            app_idx = self.apps.index(app)
+        except ValueError:
+            print(f"App not running: {app}")
+            return
+
+        try:
+            self.foreground_stack.remove(app)
+        except ValueError:
+            pass
+
+        try:
+            self.background_tasks[app].cancel()
+        except KeyError:
+            pass
+
+        del self.apps[app_idx]
+        del self.last_update_times[app_idx]
+
+    async def _handle_request_foreground_push(self, event):
+        app = event.app
+
+        if app not in self.apps:
+            print(f"Foreground request ignored for app that's not running: {app}")
+
+        if app in self.foreground_stack:
+            if self.foreground_stack[-1] is not app:
+                app_idx = self.foreground_stack.index(app)
+                del self.foreground_stack[app_idx]
+                self.foreground_stack.append(app)
+        else:
+            self.foreground_stack.append(app)
+
+    async def _handle_request_foreground_pop(self, event):
+        app = event.app
+
+        if app not in self.apps:
+            print(f"Background request ignored for app that's not running: {app}")
+
+        if app in self.foreground_stack:
+            self.foreground_stack.reverse()
+            self.foreground_stack.remove(app)
+            self.foreground_stack.reverse()
 
     async def _start_background_tasks(self, app):
         # TODO: check if this is async if possible? And more sanity checks. Maybe this is not the way to do it?
         try:
-            self.background_tasks.append(asyncio.create_task(app.background_update()))
+            self.background_tasks[app] = asyncio.create_task(app.background_update())
         except AttributeError:
             pass
 
@@ -55,8 +108,8 @@ class Scheduler:
             with PerfTimer("render"):
                 ctx = display.get_ctx()
                 ctx.save()
-                if self.current_app:
-                    self.current_app.draw(ctx)
+                for app in self.foreground_stack:
+                    app.draw(ctx)
                 ctx.restore()
                 display.end_frame(ctx)
             await asyncio.sleep(0)
@@ -75,4 +128,5 @@ class Scheduler:
     def run_for(self, time_s):
         async def run():
             await asyncio.wait_for(self._main(), time_s)
+
         asyncio.run(run())
