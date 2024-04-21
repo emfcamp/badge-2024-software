@@ -1,11 +1,15 @@
 import asyncio
+
+from app_components.dialog import YesNoDialog
 from perf_timer import PerfTimer
+from scheduler import RequestForegroundPushEvent, RequestForegroundPopEvent
 from tildagonos import EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F
 from tildagonos import EPIN_BTN_1, EPIN_BTN_2, EPIN_BTN_3, EPIN_BTN_4, EPIN_BTN_5, EPIN_BTN_6
 from tildagonos import led_colours
 from eventbus import eventbus
 from machine import I2C
 from eeprom_i2c import EEPROM, T24C256
+from events.input import ButtonDownEvent, ButtonUpEvent, Buttons
 import vfs
 
 class HexpansionInsertionEvent:
@@ -22,39 +26,78 @@ class HexpansionRemovalEvent:
     def __str__(self):
         return f"Hexpansion removed from port: {self.port}"
 
+class HexpansionFormattedEvent:
+    def __init__(self, port):
+        self.port = port
+
+class FormatRequest:
+    def __init__(self, eep, port, app):
+        self.eep = eep,
+        self.port = port
+
+    def update(self, delta):
+        pass
+
+    def draw(self, ctx):
+        pass
+
+
 class HexpansionInsertionApp:
     def __init__(self, tildagonos):
         self.tildagonos = tildagonos
         eventbus.on_async(HexpansionInsertionEvent, self.handle_hexpansion_insertion, self)
         eventbus.on_async(HexpansionRemovalEvent, self.handle_hexpansion_removal, self)
         self.mountpoints = {}
+        self.format_requests = []
+        self.format_dialog = None
+        self.format_dialog_port = None
+        self.buttons = Buttons(self)
 
     def update(self, delta):
-        pass
 
-    def draw(self, display):
-        pass
+        if len(self.format_requests) > 0 and self.format_dialog is None:
+            (eep, port) = self.format_requests.pop()
+            def format_eep():
+                self._format_eeprom(eep)
+                self._mount_eeprom(eep, port)
+                self.format_dialog = None
+                self.format_dialog_port = None
+
+            def close():
+                self.format_dialog = None
+                self.format_dialog_port = None
+                eventbus.emit(RequestForegroundPopEvent(self))
+
+            self.format_dialog = YesNoDialog(
+                message=["Format", f"hexpansion {port}?"],
+                on_yes=format_eep,
+                on_no=close,
+                app=self
+            )
+
+            self.format_dialog_port = port
+
+            eventbus.emit(RequestForegroundPushEvent(self))
+
+    def draw(self, ctx):
+        if self.format_dialog is not None:
+            self.format_dialog.draw(ctx)
+
+    def _format_eeprom(self, eep):
+        print("Formatting...")
+        vfs.VfsLfs2.mkfs(eep)
+
 
     def _mount_eeprom(self, eep, port):
         mountpoint = f"/hexpansion_{port}"
 
-        first_mount_failed = False
         try:
             print(f"Attempting to mount i2c eeprom from hexpansion port {port}")
             vfs.mount(eep, mountpoint)
         except Exception as e:
-            first_mount_failed = True
             print(f"Failed to mount: {e}")
-            print("Attempting reformat...")
-            vfs.VfsLfs2.mkfs(eep)
-
-        if first_mount_failed:
-            try:
-                print(f"Attempting to mount i2c eeprom from hexpansion port {port}")
-                vfs.mount(eep, mountpoint)
-            except Exception:
-                print("Mount failed after reformatting, giving up :(")
-                return
+            self.format_requests.append((eep, port))
+            return
 
         self.mountpoints[port] = mountpoint
         print(f"Mounted eeprom to {mountpoint}")
@@ -70,13 +113,21 @@ class HexpansionInsertionApp:
             eep = None
 
         if eep is not None:
-            self._mount_eeprom(eep, event.port)
+            self.format_requests.append((eep, event.port))
+            # self._mount_eeprom(eep, event.port)
 
     async def handle_hexpansion_removal(self, event):
         print(event)
         if event.port in self.mountpoints:
             print(f"Unmounting {self.mountpoints[event.port]}")
             vfs.umount(self.mountpoints[event.port])
+            del self.mountpoints[event.port]
+
+        if self.format_dialog_port == event.port and self.format_dialog is not None:
+            self.format_dialog._cleanup()
+            self.format_dialog = None
+            eventbus.emit(RequestForegroundPopEvent(self))
+
 
     async def background_update(self):
         self.tildagonos.set_led_power(True)
