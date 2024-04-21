@@ -1,6 +1,6 @@
 
 from tildagonos import tildagonos
-from scheduler import Scheduler
+from scheduler import scheduler as sc
 
 from apps.indicate_hexpansion import HexpansionInsertionApp
 from apps.tick_app import TickApp
@@ -14,7 +14,7 @@ from apps.test_app import TestApp
 n = tildagonos()
 # display.gfx_init()
 
-sc = Scheduler()
+# sc = Scheduler()
 
 sc.start_app(HexpansionInsertionApp(tildagonos=n))
 # sc.start_app(TickApp())

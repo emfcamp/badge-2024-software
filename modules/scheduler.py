@@ -16,6 +16,10 @@ class RequestForegroundPopEvent:
         self.app = app
 
 
+class RequestStartBackgroundTaskEvent:
+    def __init__(self, app):
+        self.app = app
+
 class Scheduler:
     def __init__(self):
         # All currently running apps
@@ -38,12 +42,22 @@ class Scheduler:
         eventbus.on_async(RequestForegroundPushEvent, self._handle_request_foreground_push, self)
         eventbus.on_async(RequestForegroundPopEvent, self._handle_request_foreground_pop, self)
 
+        # TODO: replace with starting apps using events
+        eventbus.on_async(RequestStartBackgroundTaskEvent, self._handle_start_bg_task, self)
+
     def start_app(self, app, foreground=False):
+
         self.apps.append(app)
         self.last_update_times.append(time.ticks_us())
+
+        eventbus.emit(RequestStartBackgroundTaskEvent(app))
+
         if foreground:
             self.foreground_stack.append(app)
+
         self._mark_focused()
+
+
 
     def stop_app(self, app):
         try:
@@ -105,6 +119,10 @@ class Scheduler:
 
         self._mark_focused()
 
+    async def _handle_start_bg_task(self, event):
+        if event.app not in self.background_tasks:
+            await self._start_background_tasks(event.app)
+
     async def _start_background_tasks(self, app):
         # TODO: check if this is async if possible? And more sanity checks. Maybe this is not the way to do it?
         try:
@@ -152,3 +170,5 @@ class Scheduler:
             await asyncio.wait_for(self._main(), time_s)
 
         asyncio.run(run())
+
+scheduler = Scheduler()

@@ -2,6 +2,7 @@ import asyncio
 import math
 import display
 import random
+import gc
 
 class Hexagon:
     def __init__(self):
@@ -61,4 +62,4 @@ class IntroApp:
     async def background_update(self):
         while True:
             await asyncio.sleep(1)
-            print("fps:", display.get_fps())
+            print("fps:", display.get_fps(), f"mem used: {gc.mem_alloc()}, mem free:{gc.mem_free()}")

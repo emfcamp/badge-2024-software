@@ -11,6 +11,7 @@ from machine import I2C
 from eeprom_i2c import EEPROM, T24C256
 from events.input import ButtonDownEvent, ButtonUpEvent, Buttons
 import vfs
+import sys
 
 class HexpansionInsertionEvent:
     def __init__(self, port):
@@ -19,6 +20,7 @@ class HexpansionInsertionEvent:
     def __str__(self):
         return f"Hexpansion inserted in port: {self.port}"
 
+
 class HexpansionRemovalEvent:
     def __init__(self, port):
         self.port = port
@@ -26,24 +28,17 @@ class HexpansionRemovalEvent:
     def __str__(self):
         return f"Hexpansion removed from port: {self.port}"
 
+
 class HexpansionFormattedEvent:
     def __init__(self, port):
         self.port = port
 
-class FormatRequest:
-    def __init__(self, eep, port, app):
-        self.eep = eep,
+class HexpansionMountedEvent:
+    def __init__(self, port):
         self.port = port
 
-    def update(self, delta):
-        pass
-
-    def draw(self, ctx):
-        pass
-
-
 class HexpansionInsertionApp:
-    def __init__(self, tildagonos):
+    def __init__(self, tildagonos, autolaunch=True):
         self.tildagonos = tildagonos
         eventbus.on_async(HexpansionInsertionEvent, self.handle_hexpansion_insertion, self)
         eventbus.on_async(HexpansionRemovalEvent, self.handle_hexpansion_removal, self)
@@ -52,11 +47,14 @@ class HexpansionInsertionApp:
         self.format_dialog = None
         self.format_dialog_port = None
         self.buttons = Buttons(self)
+        self.hexpansion_apps = {}
+        self.autolaunch = autolaunch
 
     def update(self, delta):
 
         if len(self.format_requests) > 0 and self.format_dialog is None:
             (eep, port) = self.format_requests.pop()
+
             def format_eep():
                 self._format_eeprom(eep)
                 self._mount_eeprom(eep, port)
@@ -83,10 +81,50 @@ class HexpansionInsertionApp:
         if self.format_dialog is not None:
             self.format_dialog.draw(ctx)
 
+    def _launch_hexpansion_app(self, port):
+        if port not in self.mountpoints:
+            return
+
+        mount = self.mountpoints[port]
+
+        old_sys_path = sys.path[:]
+
+        sys.path.clear()
+        sys.path.append(mount)
+
+        try:
+            package = __import__("app")
+            print("Found app package")
+        except ImportError as e:
+            print(e)
+            print(f"App module not found")
+            sys.path.clear()
+            for p in old_sys_path:
+                sys.path.append(p)
+            return
+
+        App = package.__app_export__ if hasattr(package, "__app_export__") else None
+
+        if App is None:
+            print("No exported app found")
+            sys.path.clear()
+            for p in old_sys_path:
+                sys.path.append(p)
+            return
+
+        print("Found app")
+
+        from scheduler import scheduler
+        scheduler.start_app(App())
+
+        sys.path.clear()
+        for p in old_sys_path:
+            sys.path.append(p)
+
+
     def _format_eeprom(self, eep):
         print("Formatting...")
         vfs.VfsLfs2.mkfs(eep)
-
 
     def _mount_eeprom(self, eep, port):
         mountpoint = f"/hexpansion_{port}"
@@ -101,6 +139,8 @@ class HexpansionInsertionApp:
 
         self.mountpoints[port] = mountpoint
         print(f"Mounted eeprom to {mountpoint}")
+        if self.autolaunch:
+            self._launch_hexpansion_app(port)
 
     async def handle_hexpansion_insertion(self, event):
         print(event)
@@ -126,7 +166,6 @@ class HexpansionInsertionApp:
             self.format_dialog._cleanup()
             self.format_dialog = None
             eventbus.emit(RequestForegroundPopEvent(self))
-
 
     async def background_update(self):
         self.tildagonos.set_led_power(True)
@@ -166,6 +205,4 @@ class HexpansionInsertionApp:
                         eventbus.emit(ButtonUpEvent(button=i))
 
                 self.tildagonos.leds.write()
-            await asyncio.sleep(0.1)
-
-
+            await asyncio.sleep(0)
