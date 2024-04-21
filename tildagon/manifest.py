@@ -30,7 +30,8 @@ def freeze_images(path, generated_dir):
 freeze("$(PORT_DIR)/modules")
 #freeze("$(MPY_DIR)/tools", ("upip.py", "upip_utarfile.py"))
 freeze("$(MPY_DIR)/lib/micropython-lib/micropython/net/ntptime", "ntptime.py")
-freeze("$(MPY_DIR)/../modules") # modules - don't freeze while developing as it overrides filesystem stuff apparently?
+freeze("$(MPY_DIR)/../modules", "main.py") # modules - don't freeze while developing as it overrides filesystem stuff apparently?
+# freeze("$(MPY_DIR)/../modules", "boot.py")
 module("bdevice.py", base_path="$(MPY_DIR)/../modules/lib")
 module("eep_i2c.py", base_path="$(MPY_DIR)/../modules/lib")
 module("eeprom_i2c.py", base_path="$(MPY_DIR)/../modules/lib")
