@@ -72,6 +72,7 @@ class Scheduler:
             app.__focused = False
         if len(self.foreground_stack) > 0:
             self.foreground_stack[-1].__focused = True
+            print(f"Focused app: {self.foreground_stack[-1]}")
 
     async def _handle_request_foreground_push(self, event):
         app = event.app
