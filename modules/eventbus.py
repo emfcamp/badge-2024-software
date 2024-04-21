@@ -50,7 +50,7 @@ class _EventBus:
             with PerfTimer("handle events"):
                 for app in self.handlers.keys():
                     for event_type in self.handlers[app]:
-                        if event_type is type(event):
+                        if isinstance(event, event_type):
                             for handler in self.handlers[app][event_type]:
                                 if not requires_focus or (requires_focus and app.__focused):
                                     handler(event)
@@ -58,7 +58,7 @@ class _EventBus:
                 async_tasks = []
                 for app in self.async_handlers.keys():
                     for event_type in self.async_handlers[app]:
-                        if event_type is type(event):
+                        if isinstance(event, event_type):
                             for handler in self.async_handlers[app][event_type]:
                                 if not requires_focus or (requires_focus and app.__focused):
                                     async_tasks.append(asyncio.create_task(handler(event)))
