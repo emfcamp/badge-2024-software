@@ -1,0 +1,10 @@
+idf_component_register(
+    SRCS
+		flow3r_bsp_display.c
+		flow3r_bsp_gc9a01.c
+    INCLUDE_DIRS
+		.
+    REQUIRES
+		driver
+		vfs
+)
