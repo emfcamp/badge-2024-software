@@ -45,19 +45,23 @@ class _EventBus:
         while True:
             event = await self.event_queue.get()
 
+            requires_focus = hasattr(event, 'requires_focus') and event.requires_focus
+
             with PerfTimer("handle events"):
                 for app in self.handlers.keys():
                     for event_type in self.handlers[app]:
                         if event_type is type(event):
                             for handler in self.handlers[app][event_type]:
-                                handler(event)
+                                if not requires_focus or (requires_focus and app.__focused):
+                                    handler(event)
 
                 async_tasks = []
                 for app in self.async_handlers.keys():
                     for event_type in self.async_handlers[app]:
                         if event_type is type(event):
                             for handler in self.async_handlers[app][event_type]:
-                                async_tasks.append(asyncio.create_task(handler(event)))
+                                if not requires_focus or (requires_focus and app.__focused):
+                                    async_tasks.append(asyncio.create_task(handler(event)))
 
             if len(async_tasks) > 0:
                 await asyncio.gather(*async_tasks)
