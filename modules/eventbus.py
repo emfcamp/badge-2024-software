@@ -31,6 +31,16 @@ class _EventBus:
     async def emit_async(self, event):
         await self.event_queue.put(event)
 
+    def remove(self, event_type, event_handler, app):
+        if app in self.handlers:
+            if event_type in self.handlers[app]:
+                if event_handler in self.handlers[app][event_type]:
+                    self.handlers[app][event_type].remove(event_handler)
+        if app in self.async_handlers:
+            if event_type in self.async_handlers[app]:
+                if event_handler in self.async_handlers[app][event_type]:
+                    self.async_handlers[app][event_type].remove(event_handler)
+
     def deregister(self, app):
         try:
             del self.handlers[app]
