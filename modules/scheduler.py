@@ -65,6 +65,8 @@ class Scheduler:
         del self.apps[app_idx]
         del self.last_update_times[app_idx]
 
+        eventbus.deregister(app)
+
     def _mark_focused(self):
         for app in self.apps:
             app.__focused = False
