@@ -128,10 +128,10 @@ class Scheduler:
             self.sync_event.clear()
             with PerfTimer("render"):
                 ctx = display.get_ctx()
-                ctx.save()
                 for app in self.foreground_stack:
+                    ctx.save()
                     app.draw(ctx)
-                ctx.restore()
+                    ctx.restore()
                 display.end_frame(ctx)
             await asyncio.sleep(0)
 
