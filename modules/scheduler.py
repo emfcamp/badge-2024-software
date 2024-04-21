@@ -18,8 +18,14 @@ class RequestForegroundPopEvent:
 
 class Scheduler:
     def __init__(self):
+        # All currently running apps
         self.apps = []
+
+        # Background tasks, running separately from the main update loop
         self.background_tasks = {}
+
+        # Apps to render
+        # The app on top is focused
         self.foreground_stack = []
 
         self.last_render_time = time.ticks_us()
@@ -37,6 +43,7 @@ class Scheduler:
         self.last_update_times.append(time.ticks_us())
         if foreground:
             self.foreground_stack.append(app)
+        self._mark_focused()
 
     def stop_app(self, app):
         try:
@@ -58,11 +65,18 @@ class Scheduler:
         del self.apps[app_idx]
         del self.last_update_times[app_idx]
 
+    def _mark_focused(self):
+        for app in self.apps:
+            app.__focused = False
+        if len(self.foreground_stack) > 0:
+            self.foreground_stack[-1].__focused = True
+
     async def _handle_request_foreground_push(self, event):
         app = event.app
 
         if app not in self.apps:
             print(f"Foreground request ignored for app that's not running: {app}")
+            return
 
         if app in self.foreground_stack:
             if self.foreground_stack[-1] is not app:
@@ -72,16 +86,21 @@ class Scheduler:
         else:
             self.foreground_stack.append(app)
 
+        self._mark_focused()
+
     async def _handle_request_foreground_pop(self, event):
         app = event.app
 
         if app not in self.apps:
             print(f"Background request ignored for app that's not running: {app}")
+            return
 
         if app in self.foreground_stack:
             self.foreground_stack.reverse()
             self.foreground_stack.remove(app)
             self.foreground_stack.reverse()
+
+        self._mark_focused()
 
     async def _start_background_tasks(self, app):
         # TODO: check if this is async if possible? And more sanity checks. Maybe this is not the way to do it?
