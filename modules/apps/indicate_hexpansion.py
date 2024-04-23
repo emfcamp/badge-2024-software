@@ -12,6 +12,7 @@ from eeprom_i2c import EEPROM, T24C256
 from events.input import ButtonDownEvent, ButtonUpEvent, Buttons
 import vfs
 import sys
+import struct
 
 class HexpansionInsertionEvent:
     def __init__(self, port):
@@ -36,6 +37,77 @@ class HexpansionFormattedEvent:
 class HexpansionMountedEvent:
     def __init__(self, port):
         self.port = port
+
+class HexpansionHeader:
+    _header_format = '<4s4sHHIHHH10s'
+    _magic = 'THEX'
+    def __init__(self,
+                 manifest_version: str,
+                 fs_offset: int,
+                 eeprom_page_size: int,
+                 eeprom_total_size: int,
+                 vid: int,
+                 pid: int,
+                 unique_id: int,
+                 friendly_name: str):
+        self.manifest_version = manifest_version
+        self.fs_offset = fs_offset
+        self.eeprom_page_size = eeprom_page_size
+        self.eeprom_total_size = eeprom_total_size
+        self.vid = vid
+        self.pid = pid
+        self.unique_id = unique_id
+        self.friendly_name = friendly_name
+
+        self.to_bytes()
+
+    def __str__(self):
+        return f'''HexpansionHeader[
+    manifest version: {self.manifest_version},
+    fs offset: {self.fs_offset},
+    eeprom page size: {self.eeprom_page_size},
+    eeprom total size: {self.eeprom_total_size},
+    vendor id: {'0x' + hex(self.vid)[2:].upper()},
+    product id: {'0x' + hex(self.pid)[2:].upper()},
+    unique id: {self.unique_id},
+    friendly name: {self.friendly_name},
+]'''
+
+    def to_bytes(self):
+        return struct.pack(
+            self._header_format,
+            self._magic,
+            self.manifest_version,
+            self.fs_offset,
+            self.eeprom_page_size,
+            self.eeprom_total_size,
+            self.vid,
+            self.pid,
+            self.unique_id,
+            self.friendly_name,
+        )
+
+    @classmethod
+    def from_bytes(cls, buf):
+        if len(buf) != 32:
+            raise RuntimeError("Invalid header length, should be 32")
+        if buf[0:4] != b'THEX':
+            raise RuntimeError(f"Invalid magic in hexpansion header: {buf[0:4]}")
+        if buf[4:8] != b'2024':
+            raise RuntimeError("Unknown manifest version. Supported: [2024]")
+        unpacked = struct.unpack(cls._header_format, buf)
+        return cls(
+            manifest_version=unpacked[1].decode().split("\x00")[0],
+            fs_offset=unpacked[2],
+            eeprom_page_size=unpacked[3],
+            eeprom_total_size=unpacked[4],
+            vid=unpacked[5],
+            pid=unpacked[6],
+            unique_id=unpacked[7],
+            friendly_name=unpacked[8].decode().split("\x00")[0]
+        )
+
+
 
 class HexpansionInsertionApp:
     def __init__(self, tildagonos, autolaunch=True):
@@ -127,6 +199,7 @@ class HexpansionInsertionApp:
         vfs.VfsLfs2.mkfs(eep)
 
     def _mount_eeprom(self, eep, port):
+
         mountpoint = f"/hexpansion_{port}"
 
         try:
@@ -142,14 +215,42 @@ class HexpansionInsertionApp:
         if self.autolaunch:
             self._launch_hexpansion_app(port)
 
-    async def handle_hexpansion_insertion(self, event):
-        print(event)
+    def _read_hexpansion_header(self, i2c) -> HexpansionHeader | None:
+        default_eeprom_addr = 0x50
+
+        devices = i2c.scan()
+        if default_eeprom_addr not in devices:
+            print(f"No device found at {hex(default_eeprom_addr)}")
+            return None
+
+        i2c.writeto(0x50, bytes([0, 0]))
+        header_bytes = i2c.readfrom(0x50, 32)
 
         try:
-            # TODO: Automatically determine eeprom size
-            eep = EEPROM(I2C(event.port), T24C256)
+            header = HexpansionHeader.from_bytes(header_bytes)
+        except RuntimeError as e:
+            print(f"Failed to decode header: {e}")
+            return None
+
+        return header
+
+    async def handle_hexpansion_insertion(self, event):
+        print(event)
+        # First, check the header
+        i2c = I2C(event.port)
+        header = self._read_hexpansion_header(i2c)
+        if header is None:
+            return
+
+        print("Found hexpansion header:")
+        print(header)
+
+        try:
+            eep = EEPROM(i2c=i2c,
+                         chip_size=header.eeprom_total_size,
+                         page_size=header.eeprom_page_size)
         except RuntimeError:
-            print("No eeprom found")
+            print("Could not initialize eeprom")
             eep = None
 
         if eep is not None:
