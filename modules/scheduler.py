@@ -16,9 +16,16 @@ class RequestForegroundPopEvent:
         self.app = app
 
 
-class RequestStartBackgroundTaskEvent:
+class RequestStartAppEvent:
+    def __init__(self, app, foreground=False):
+        self.app = app
+        self.foreground = foreground
+
+
+class RequestStopAppEvent:
     def __init__(self, app):
         self.app = app
+
 
 class Scheduler:
     def __init__(self):
@@ -42,22 +49,25 @@ class Scheduler:
         eventbus.on_async(RequestForegroundPushEvent, self._handle_request_foreground_push, self)
         eventbus.on_async(RequestForegroundPopEvent, self._handle_request_foreground_pop, self)
 
-        # TODO: replace with starting apps using events
-        eventbus.on_async(RequestStartBackgroundTaskEvent, self._handle_start_bg_task, self)
+        eventbus.on_async(RequestStartAppEvent, self._handle_start_app, self)
+        eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)
+
+    async def _handle_start_app(self, event: RequestStartAppEvent):
+        self.start_app(event.app, event.foreground)
+        await self._start_background_tasks(event.app)
 
     def start_app(self, app, foreground=False):
-
         self.apps.append(app)
         self.last_update_times.append(time.ticks_us())
-
-        eventbus.emit(RequestStartBackgroundTaskEvent(app))
 
         if foreground:
             self.foreground_stack.append(app)
 
         self._mark_focused()
 
-
+    async def _handle_stop_app(self, event: RequestStopAppEvent):
+        print(f"Stopping app: {event}")
+        self.stop_app(event.app)
 
     def stop_app(self, app):
         try:
@@ -170,5 +180,6 @@ class Scheduler:
             await asyncio.wait_for(self._main(), time_s)
 
         asyncio.run(run())
+
 
 scheduler = Scheduler()
