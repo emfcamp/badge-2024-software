@@ -1,6 +1,7 @@
 import asyncio
 
 from app_components.dialog import YesNoDialog
+from eeprom_partition import EEPROMPartition
 from perf_timer import PerfTimer
 from scheduler import RequestForegroundPushEvent, RequestForegroundPopEvent
 from tildagonos import EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F
@@ -249,12 +250,18 @@ class HexpansionInsertionApp:
             eep = EEPROM(i2c=i2c,
                          chip_size=header.eeprom_total_size,
                          page_size=header.eeprom_page_size)
+            partition = EEPROMPartition(eep=eep,
+                                        offset=header.fs_offset,
+                                        length=header.eeprom_total_size - header.fs_offset)
+            print("eeprom block count:", eep.ioctl(4, None))
+            print("partition block count:", partition.ioctl(4, None))
+            print("partition block size:", partition.ioctl(5, None))
         except RuntimeError:
             print("Could not initialize eeprom")
             eep = None
 
         if eep is not None:
-            self._mount_eeprom(eep, event.port)
+            self._mount_eeprom(partition, event.port)
 
     async def handle_hexpansion_removal(self, event):
         print(event)

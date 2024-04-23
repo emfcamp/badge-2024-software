@@ -7,7 +7,7 @@ class EEPROMPartition:
         self.eepy = eep
         self.partition_offset = offset
         self.partition_length = length
-        self._block_size = self.eepy._block_size ** 2
+        self._block_size = self.eepy._block_size
 
     def readblocks(self, block_num, buf, offset=0):
         addr = block_num * self._block_size + offset + self.partition_offset
