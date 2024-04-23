@@ -3,7 +3,7 @@ import asyncio
 from app_components.dialog import YesNoDialog
 from eeprom_partition import EEPROMPartition
 from perf_timer import PerfTimer
-from scheduler import RequestForegroundPushEvent, RequestForegroundPopEvent
+from scheduler import RequestForegroundPushEvent, RequestForegroundPopEvent, RequestStartAppEvent, RequestStopAppEvent
 from tildagonos import EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F
 from tildagonos import EPIN_BTN_1, EPIN_BTN_2, EPIN_BTN_3, EPIN_BTN_4, EPIN_BTN_5, EPIN_BTN_6
 from tildagonos import led_colours
@@ -14,6 +14,7 @@ from events.input import ButtonDownEvent, ButtonUpEvent, Buttons
 import vfs
 import sys
 import struct
+
 
 class HexpansionInsertionEvent:
     def __init__(self, port):
@@ -35,13 +36,16 @@ class HexpansionFormattedEvent:
     def __init__(self, port):
         self.port = port
 
+
 class HexpansionMountedEvent:
     def __init__(self, port):
         self.port = port
 
+
 class HexpansionHeader:
     _header_format = '<4s4sHHIHHH10s'
     _magic = 'THEX'
+
     def __init__(self,
                  manifest_version: str,
                  fs_offset: int,
@@ -107,7 +111,6 @@ class HexpansionHeader:
             unique_id=unpacked[7],
             friendly_name=unpacked[8].decode().split("\x00")[0]
         )
-
 
 
 class HexpansionInsertionApp:
@@ -186,14 +189,18 @@ class HexpansionInsertionApp:
             return
 
         print("Found app")
-
-        from scheduler import scheduler
-        scheduler.start_app(App())
+        app = App()
+        eventbus.emit(RequestStartAppEvent(app))
+        self.hexpansion_apps[port] = app
 
         sys.path.clear()
         for p in old_sys_path:
             sys.path.append(p)
 
+    def _stop_hexpansion_app(self, app):
+        print(f"Trying to stop app: {app}")
+        eventbus.emit(RequestStopAppEvent(app))
+        # TODO: Clean up imports from sys.modules
 
     def _format_eeprom(self, eep):
         print("Formatting...")
@@ -213,6 +220,7 @@ class HexpansionInsertionApp:
 
         self.mountpoints[port] = mountpoint
         print(f"Mounted eeprom to {mountpoint}")
+
         if self.autolaunch:
             self._launch_hexpansion_app(port)
 
@@ -265,6 +273,10 @@ class HexpansionInsertionApp:
 
     async def handle_hexpansion_removal(self, event):
         print(event)
+
+        if event.port in self.hexpansion_apps:
+            self._stop_hexpansion_app(self.hexpansion_apps[event.port])
+
         if event.port in self.mountpoints:
             print(f"Unmounting {self.mountpoints[event.port]}")
             vfs.umount(self.mountpoints[event.port])
