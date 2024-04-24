@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from app_components.dialog import YesNoDialog
 from eeprom_partition import EEPROMPartition
@@ -157,35 +158,42 @@ class HexpansionInsertionApp:
         if self.format_dialog is not None:
             self.format_dialog.draw(ctx)
 
+
+    def _cleanup_import_path(self, old_cwd, old_sys_path):
+        sys.path.clear()
+        for p in old_sys_path:
+            sys.path.append(p)
+        os.chdir(old_cwd)
+
     def _launch_hexpansion_app(self, port):
         if port not in self.mountpoints:
             return
 
-        mount = self.mountpoints[port]
+        mount = self.mountpoints[port].lstrip("/")
 
+        old_cwd = os.getcwd()
         old_sys_path = sys.path[:]
 
-        sys.path.clear()
-        sys.path.append(mount)
+        os.chdir("/")
+
+        if "remote" in os.listdir():
+            sys.path.append("/remote")
 
         try:
-            package = __import__("app")
-            print("Found app package")
+            _package = __import__(f"{mount}.app")
+            package = _package.app
+            print(f"Found app package: {package}")
         except ImportError as e:
             print(e)
             print(f"App module not found")
-            sys.path.clear()
-            for p in old_sys_path:
-                sys.path.append(p)
+            self._cleanup_import_path(old_cwd, old_sys_path)
             return
 
         App = package.__app_export__ if hasattr(package, "__app_export__") else None
 
         if App is None:
             print("No exported app found")
-            sys.path.clear()
-            for p in old_sys_path:
-                sys.path.append(p)
+            self._cleanup_import_path(old_cwd, old_sys_path)
             return
 
         print("Found app")
@@ -193,14 +201,20 @@ class HexpansionInsertionApp:
         eventbus.emit(RequestStartAppEvent(app))
         self.hexpansion_apps[port] = app
 
-        sys.path.clear()
-        for p in old_sys_path:
-            sys.path.append(p)
+        self._cleanup_import_path(old_cwd, old_sys_path)
 
-    def _stop_hexpansion_app(self, app):
+    def _stop_hexpansion_app(self, app, port):
         print(f"Trying to stop app: {app}")
         eventbus.emit(RequestStopAppEvent(app))
-        # TODO: Clean up imports from sys.modules
+        del self.hexpansion_apps[port]
+
+        # Clean up imported hexpansion modules
+        mount = self.mountpoints[port].lstrip("/")
+        for module in sys.modules.keys():
+            if module.startswith(mount):
+                print(f"Deleting module: {module}")
+                del sys.modules[module]
+
 
     def _format_eeprom(self, eep):
         print("Formatting...")
@@ -220,6 +234,7 @@ class HexpansionInsertionApp:
 
         self.mountpoints[port] = mountpoint
         print(f"Mounted eeprom to {mountpoint}")
+        print("Hexpansion files:", os.listdir(mountpoint))
 
         if self.autolaunch:
             self._launch_hexpansion_app(port)
@@ -275,7 +290,7 @@ class HexpansionInsertionApp:
         print(event)
 
         if event.port in self.hexpansion_apps:
-            self._stop_hexpansion_app(self.hexpansion_apps[event.port])
+            self._stop_hexpansion_app(self.hexpansion_apps[event.port], event.port)
 
         if event.port in self.mountpoints:
             print(f"Unmounting {self.mountpoints[event.port]}")

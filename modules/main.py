@@ -11,8 +11,6 @@ display.gfx_init()
 
 print("Oh hi from main!")
 
-a = 1
-
 
 n = tildagonos()
 

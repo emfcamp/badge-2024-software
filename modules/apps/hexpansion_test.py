@@ -1,5 +1,5 @@
 import asyncio
-
+from test_import import a
 
 class HexpansionTestApp:
     def update(self, delta):
@@ -10,7 +10,8 @@ class HexpansionTestApp:
 
     async def background_update(self):
         while True:
-            print("Hi from hexpansion!!")
+            print("Hi from hexpansion B!!")
+            print(f"Imported value: {a}")
             await asyncio.sleep(1)
 
 
