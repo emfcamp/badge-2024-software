@@ -1,4 +1,4 @@
-from apps.indicate_hexpansion import HexpansionHeader
+from system.hexpansion.header import HexpansionHeader
 from machine import I2C
 
 

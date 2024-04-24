@@ -1,5 +1,7 @@
 import struct
 from machine import I2C
+
+
 class HexpansionHeader:
     _header_format = '<4s4sHHIHHH10s'
     _magic = 'THEX'
@@ -71,18 +73,6 @@ class HexpansionHeader:
         )
 
 
-_h = HexpansionHeader(
-    manifest_version="2024",
-    fs_offset=64,
-    eeprom_page_size=64,
-    eeprom_total_size=1024 * 64,
-    vid=0xCA75,
-    pid=0x1337,
-    unique_id=0x0,
-    friendly_name="booper"
-)
-
-
 def write_header(port, header):
     i2c = I2C(port)
 
@@ -100,3 +90,15 @@ def read_header(port):
     header = HexpansionHeader.from_bytes(header_bytes)
 
     return header
+
+
+_h = HexpansionHeader(
+    manifest_version="2024",
+    fs_offset=64,
+    eeprom_page_size=64,
+    eeprom_total_size=1024 * 64,
+    vid=0xCA75,
+    pid=0x1337,
+    unique_id=0x0,
+    friendly_name="booper"
+)

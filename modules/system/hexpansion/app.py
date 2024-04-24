@@ -3,7 +3,7 @@ import os
 
 from system.hexpansion.events import HexpansionRemovalEvent, HexpansionInsertionEvent, HexpansionMountedEvent, HexpansionFormattedEvent
 from system.hexpansion.header import HexpansionHeader
-from system.hexpansion.util import read_hexpansion_header, mount_eeprom, get_hexpansion_block_devices
+from system.hexpansion.util import read_hexpansion_header, get_hexpansion_block_devices
 
 from app_components.dialog import YesNoDialog
 from eeprom_partition import EEPROMPartition
