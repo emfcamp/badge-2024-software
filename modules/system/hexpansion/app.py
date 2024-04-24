@@ -3,6 +3,7 @@ import os
 
 from system.hexpansion.events import HexpansionRemovalEvent, HexpansionInsertionEvent, HexpansionMountedEvent, HexpansionFormattedEvent
 from system.hexpansion.header import HexpansionHeader
+from system.hexpansion.util import read_hexpansion_header, mount_eeprom, get_hexpansion_block_devices
 
 from app_components.dialog import YesNoDialog
 from eeprom_partition import EEPROMPartition
@@ -166,30 +167,27 @@ class HexpansionManagerApp:
 
     async def handle_hexpansion_insertion(self, event):
         print(event)
+
         # First, check the header
         i2c = I2C(event.port)
-        header = self._read_hexpansion_header(i2c)
+        header = read_hexpansion_header(i2c)
         if header is None:
             return
 
         print("Found hexpansion header:")
         print(header)
 
+        # Try creating block devices, one for the whole eeprom,
+        # one for the partition with the filesystem on it
         try:
-            eep = EEPROM(i2c=i2c,
-                         chip_size=header.eeprom_total_size,
-                         page_size=header.eeprom_page_size)
-            partition = EEPROMPartition(eep=eep,
-                                        offset=header.fs_offset,
-                                        length=header.eeprom_total_size - header.fs_offset)
-            print("eeprom block count:", eep.ioctl(4, None))
-            print("partition block count:", partition.ioctl(4, None))
-            print("partition block size:", partition.ioctl(5, None))
-        except RuntimeError:
-            print("Could not initialize eeprom")
+            eep, partition = get_hexpansion_block_devices(i2c, header)
+        except RuntimeError as e:
+            print(f"Could not initialize eeprom: {e}")
             eep = None
+            partition = None
 
-        if eep is not None:
+        # If we have block devices, try mounting the partition!
+        if eep is not None and partition is not None:
             self._mount_eeprom(partition, event.port)
 
     async def handle_hexpansion_removal(self, event):
