@@ -1,21 +1,21 @@
 import asyncio
 import os
 
-from system.hexpansion.events import HexpansionRemovalEvent, HexpansionInsertionEvent, HexpansionMountedEvent, HexpansionFormattedEvent
+from system.hexpansion.events import HexpansionRemovalEvent, HexpansionInsertionEvent
 from system.hexpansion.header import HexpansionHeader
 from system.hexpansion.util import read_hexpansion_header, get_hexpansion_block_devices
 
 from app_components.dialog import YesNoDialog
-from eeprom_partition import EEPROMPartition
 from perf_timer import PerfTimer
-from scheduler import RequestForegroundPushEvent, RequestForegroundPopEvent, RequestStartAppEvent, RequestStopAppEvent
+from system.notification.events import ShowNotificationEvent
+from system.scheduler.events import RequestForegroundPushEvent, RequestForegroundPopEvent, RequestStartAppEvent, \
+    RequestStopAppEvent
 from tildagonos import EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F
 from tildagonos import EPIN_BTN_1, EPIN_BTN_2, EPIN_BTN_3, EPIN_BTN_4, EPIN_BTN_5, EPIN_BTN_6
 from tildagonos import led_colours
 
-from eventbus import eventbus
+from system.eventbus import eventbus
 from machine import I2C
-from eeprom_i2c import EEPROM, T24C256
 from events.input import ButtonDownEvent, ButtonUpEvent, Buttons
 import vfs
 import sys
@@ -35,7 +35,6 @@ class HexpansionManagerApp:
         self.autolaunch = autolaunch
 
     def update(self, delta):
-
         if len(self.format_requests) > 0 and self.format_dialog is None:
             (eep, port) = self.format_requests.pop()
 
@@ -64,7 +63,6 @@ class HexpansionManagerApp:
     def draw(self, ctx):
         if self.format_dialog is not None:
             self.format_dialog.draw(ctx)
-
 
     def _cleanup_import_path(self, old_cwd, old_sys_path):
         sys.path.clear()
@@ -122,7 +120,6 @@ class HexpansionManagerApp:
                 print(f"Deleting module: {module}")
                 del sys.modules[module]
 
-
     def _format_eeprom(self, eep):
         print("Formatting...")
         vfs.VfsLfs2.mkfs(eep)
@@ -173,6 +170,9 @@ class HexpansionManagerApp:
         header = read_hexpansion_header(i2c)
         if header is None:
             return
+
+        if header.friendly_name != "":
+            eventbus.emit(ShowNotificationEvent(message=header.friendly_name, port=event.port))
 
         print("Found hexpansion header:")
         print(header)

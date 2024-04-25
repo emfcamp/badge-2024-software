@@ -22,6 +22,10 @@ class _Scheduler:
         # The app on top is focused
         self.foreground_stack = []
 
+        # Separate stack of apps to always draw on top (for notifications etc.)
+        # These apps can't have focus though
+        self.on_top_stack = []
+
         self.last_render_time = time.ticks_us()
         self.last_update_times = []
 
@@ -39,14 +43,18 @@ class _Scheduler:
         self.start_app(event.app, event.foreground)
         await self._start_background_tasks(event.app)
 
-    def start_app(self, app, foreground=False):
+    def start_app(self, app, foreground=False, always_on_top=False):
         self.apps.append(app)
         self.last_update_times.append(time.ticks_us())
 
         if foreground:
             self.foreground_stack.append(app)
 
+        if always_on_top:
+            self.on_top_stack.append(app)
+
         self._mark_focused()
+
 
     async def _handle_stop_app(self, event: RequestStopAppEvent):
         print(f"Stopping app: {event}")
@@ -65,6 +73,11 @@ class _Scheduler:
             pass
 
         try:
+            self.on_top_stack.remove(app)
+        except ValueError:
+            pass
+
+        try:
             self.background_tasks[app].cancel()
         except KeyError:
             pass
@@ -77,6 +90,7 @@ class _Scheduler:
     def _mark_focused(self):
         for app in self.apps:
             app.__focused = False
+            app.__foreground = True if app in self.foreground_stack else False
         if len(self.foreground_stack) > 0:
             self.foreground_stack[-1].__focused = True
             print(f"Focused app: {self.foreground_stack[-1]}")
@@ -141,6 +155,10 @@ class _Scheduler:
             with PerfTimer("render"):
                 ctx = display.get_ctx()
                 for app in self.foreground_stack:
+                    ctx.save()
+                    app.draw(ctx)
+                    ctx.restore()
+                for app in self.on_top_stack:
                     ctx.save()
                     app.draw(ctx)
                     ctx.restore()
