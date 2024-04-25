@@ -24,8 +24,8 @@ import sys
 class HexpansionManagerApp:
     def __init__(self, tildagonos, autolaunch=True):
         self.tildagonos = tildagonos
-        eventbus.on_async(HexpansionInsertionEvent, self.handle_hexpansion_insertion, self)
-        eventbus.on_async(HexpansionRemovalEvent, self.handle_hexpansion_removal, self)
+        eventbus().on_async(HexpansionInsertionEvent, self.handle_hexpansion_insertion, self)
+        eventbus().on_async(HexpansionRemovalEvent, self.handle_hexpansion_removal, self)
         self.mountpoints = {}
         self.format_requests = []
         self.format_dialog = None
@@ -47,7 +47,7 @@ class HexpansionManagerApp:
             def close():
                 self.format_dialog = None
                 self.format_dialog_port = None
-                eventbus.emit(RequestForegroundPopEvent(self))
+                eventbus().emit(RequestForegroundPopEvent(self))
 
             self.format_dialog = YesNoDialog(
                 message=["Format", f"hexpansion {port}?"],
@@ -58,7 +58,7 @@ class HexpansionManagerApp:
 
             self.format_dialog_port = port
 
-            eventbus.emit(RequestForegroundPushEvent(self))
+            eventbus().emit(RequestForegroundPushEvent(self))
 
     def draw(self, ctx):
         if self.format_dialog is not None:
@@ -103,14 +103,14 @@ class HexpansionManagerApp:
 
         print("Found app")
         app = App()
-        eventbus.emit(RequestStartAppEvent(app))
+        eventbus().emit(RequestStartAppEvent(app))
         self.hexpansion_apps[port] = app
 
         self._cleanup_import_path(old_cwd, old_sys_path)
 
     def _stop_hexpansion_app(self, app, port):
         print(f"Trying to stop app: {app}")
-        eventbus.emit(RequestStopAppEvent(app))
+        eventbus().emit(RequestStopAppEvent(app))
         del self.hexpansion_apps[port]
 
         # Clean up imported hexpansion modules
@@ -172,7 +172,7 @@ class HexpansionManagerApp:
             return
 
         if header.friendly_name != "":
-            eventbus.emit(ShowNotificationEvent(message=header.friendly_name, port=event.port))
+            eventbus().emit(ShowNotificationEvent(message=header.friendly_name, port=event.port))
 
         print("Found hexpansion header:")
         print(header)
@@ -204,7 +204,7 @@ class HexpansionManagerApp:
         if self.format_dialog_port == event.port and self.format_dialog is not None:
             self.format_dialog._cleanup()
             self.format_dialog = None
-            eventbus.emit(RequestForegroundPopEvent(self))
+            eventbus().emit(RequestForegroundPopEvent(self))
 
     async def background_update(self):
         self.tildagonos.set_led_power(True)
@@ -223,10 +223,10 @@ class HexpansionManagerApp:
                         self.tildagonos.leds[13 + i] = led_colours[i]
                     if hexpansion_present and not hexpansion_plugin_states[i]:
                         hexpansion_plugin_states[i] = True
-                        eventbus.emit(HexpansionInsertionEvent(port=i + 1))
+                        eventbus().emit(HexpansionInsertionEvent(port=i + 1))
                     if not hexpansion_present and hexpansion_plugin_states[i]:
                         hexpansion_plugin_states[i] = False
-                        eventbus.emit(HexpansionRemovalEvent(port=i + 1))
+                        eventbus().emit(HexpansionRemovalEvent(port=i + 1))
 
                 for i, n in enumerate([EPIN_BTN_1, EPIN_BTN_2, EPIN_BTN_3, EPIN_BTN_4, EPIN_BTN_5, EPIN_BTN_6]):
                     button_down = not self.tildagonos.check_egpio_state(n, readgpios=False)
@@ -238,10 +238,10 @@ class HexpansionManagerApp:
                         self.tildagonos.leds[1 + i * 2] = led_colours[i]
                     if button_down and not button_states[i]:
                         button_states[i] = True
-                        eventbus.emit(ButtonDownEvent(button=i))
+                        eventbus().emit(ButtonDownEvent(button=i))
                     if not button_down and button_states[i]:
                         button_states[i] = False
-                        eventbus.emit(ButtonUpEvent(button=i))
+                        eventbus().emit(ButtonUpEvent(button=i))
 
                 self.tildagonos.leds.write()
             await asyncio.sleep(0)

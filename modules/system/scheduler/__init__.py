@@ -3,6 +3,7 @@ import time
 import display
 
 from perf_timer import PerfTimer
+import system.eventbus
 from system.eventbus import eventbus
 from system.scheduler.events import (RequestForegroundPushEvent,
                                      RequestForegroundPopEvent,
@@ -32,12 +33,20 @@ class _Scheduler:
         # To synchronize update and render tasks
         self.sync_event = asyncio.Event()
 
+        # Callback to populate the scheduler once started
+        self.startup = None
+
+    def loop_setup(self):
         # Bg/fg management events
+        eventbus = system.eventbus._eventbus = system.eventbus._EventBus()
         eventbus.on_async(RequestForegroundPushEvent, self._handle_request_foreground_push, self)
         eventbus.on_async(RequestForegroundPopEvent, self._handle_request_foreground_pop, self)
 
         eventbus.on_async(RequestStartAppEvent, self._handle_start_app, self)
         eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)
+
+        if callable(self.startup):
+            self.startup()
 
     async def _handle_start_app(self, event: RequestStartAppEvent):
         self.start_app(event.app, event.foreground)
@@ -85,7 +94,7 @@ class _Scheduler:
         del self.apps[app_idx]
         del self.last_update_times[app_idx]
 
-        eventbus.deregister(app)
+        eventbus().deregister(app)
 
     def _mark_focused(self):
         for app in self.apps:
@@ -166,14 +175,16 @@ class _Scheduler:
             await asyncio.sleep(0)
 
     async def _main(self):
+        self.loop_setup()
         for app in self.apps:
             await self._start_background_tasks(app)
         update_task = asyncio.create_task(self._update_task())
         render_task = asyncio.create_task(self._render_task())
-        event_task = asyncio.create_task(eventbus.run())
+        event_task = asyncio.create_task(eventbus().run())
         await asyncio.gather(update_task, render_task, event_task)
 
-    def run_forever(self):
+    def run_forever(self, startup=None):
+        self.startup = startup
         asyncio.run(self._main())
 
     def run_for(self, time_s):
