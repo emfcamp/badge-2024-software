@@ -1,4 +1,4 @@
-from eventbus import eventbus
+from system.eventbus import eventbus
 class InputEvent:
     requires_focus = True
 

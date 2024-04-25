@@ -1,6 +1,5 @@
-from eventbus import eventbus
+from system.eventbus import eventbus
 from events.input import ButtonDownEvent
-import display
 
 
 class YesNoDialog:

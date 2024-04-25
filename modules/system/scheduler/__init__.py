@@ -3,7 +3,7 @@ import time
 import display
 
 from perf_timer import PerfTimer
-from eventbus import eventbus
+from system.eventbus import eventbus
 from system.scheduler.events import (RequestForegroundPushEvent,
                                      RequestForegroundPopEvent,
                                      RequestStartAppEvent,

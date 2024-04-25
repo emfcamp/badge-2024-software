@@ -1,7 +1,7 @@
 import asyncio
 import time
 
-from eventbus import eventbus
+from system.eventbus import eventbus
 
 class PingEvent:
     def __init__(self):
