@@ -1,6 +1,6 @@
 
 class Notification:
-    _half_hex_rotation = (2 * 3.14) / 12
+    _half_hex_rotation = (2 * 3.141593) / 12
 
     def __init__(self, message, port=0, open=True):
         self.message = message
