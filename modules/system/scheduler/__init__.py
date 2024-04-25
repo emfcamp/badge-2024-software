@@ -98,10 +98,10 @@ class _Scheduler:
 
     def _mark_focused(self):
         for app in self.apps:
-            app.__focused = False
-            app.__foreground = True if app in self.foreground_stack else False
+            app._focused = False
+            app._foreground = True if app in self.foreground_stack else False
         if len(self.foreground_stack) > 0:
-            self.foreground_stack[-1].__focused = True
+            self.foreground_stack[-1]._focused = True
             print(f"Focused app: {self.foreground_stack[-1]}")
 
     async def _handle_request_foreground_push(self, event):
