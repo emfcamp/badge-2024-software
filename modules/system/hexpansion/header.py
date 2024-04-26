@@ -3,7 +3,7 @@ from machine import I2C
 
 
 class HexpansionHeader:
-    _header_format = '<4s4sHHIHHH10s'
+    _header_format = '<4s4sHHIHHH9s'
     _magic = 'THEX'
 
     def __init__(self,
@@ -38,8 +38,15 @@ class HexpansionHeader:
     friendly name: {self.friendly_name},
 ]'''
 
-    def to_bytes(self):
-        return struct.pack(
+    @classmethod
+    def calc_checksum(cls, b):
+        checksum = 0x55
+        for byte in b:
+            checksum ^= byte
+        return checksum
+
+    def to_bytes(self, include_checksum=True):
+        b = struct.pack(
             self._header_format,
             self._magic,
             self.manifest_version,
@@ -51,9 +58,11 @@ class HexpansionHeader:
             self.unique_id,
             self.friendly_name,
         )
+        checksum = self.calc_checksum(b[1:])
+        return b + bytes([checksum])
 
     @classmethod
-    def from_bytes(cls, buf):
+    def from_bytes(cls, buf, validate_checksum=True):
         if len(buf) != 32:
             raise RuntimeError("Invalid header length, should be 32")
         if buf[0:4] != b'THEX':
@@ -61,6 +70,13 @@ class HexpansionHeader:
         if buf[4:8] != b'2024':
             raise RuntimeError("Unknown manifest version. Supported: [2024]")
         unpacked = struct.unpack(cls._header_format, buf)
+
+        if validate_checksum:
+            header_checksum = buf[31]
+            bytes_checksum = cls.calc_checksum(buf[1:31])
+            if header_checksum != bytes_checksum:
+                raise RuntimeError(f"Header checksum mismatch: {header_checksum} != {bytes_checksum}")
+
         return cls(
             manifest_version=unpacked[1].decode().split("\x00")[0],
             fs_offset=unpacked[2],
@@ -73,20 +89,20 @@ class HexpansionHeader:
         )
 
 
-def write_header(port, header):
+def write_header(port, header, addr=0x50):
     i2c = I2C(port)
 
     # Write header to 0x00 of the eeprom
-    i2c.writeto(0x50, bytes([0, 0]) + header.to_bytes())
+    i2c.writeto(addr, bytes([0, 0]) + header.to_bytes())
 
 
-def read_header(port):
+def read_header(port, addr=0x50):
     i2c = I2C(port)
 
     # Set internal address to 0x00
-    i2c.writeto(0x50, bytes([0, 0]))
+    i2c.writeto(addr, bytes([0, 0]))
 
-    header_bytes = i2c.readfrom(0x50, 32)
+    header_bytes = i2c.readfrom(addr, 32)
     header = HexpansionHeader.from_bytes(header_bytes)
 
     return header
@@ -100,5 +116,5 @@ _h = HexpansionHeader(
     vid=0xCA75,
     pid=0x1337,
     unique_id=0x0,
-    friendly_name="booper"
+    friendly_name="EXAMPLE"
 )
