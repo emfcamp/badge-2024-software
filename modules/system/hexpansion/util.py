@@ -13,8 +13,8 @@ def read_hexpansion_header(i2c, eeprom_addr=0x50) -> HexpansionHeader | None:
         print(f"No device found at {hex(eeprom_addr)}")
         return None
 
-    i2c.writeto(0x50, bytes([0, 0]))
-    header_bytes = i2c.readfrom(0x50, 32)
+    i2c.writeto(eeprom_addr, bytes([0, 0]))
+    header_bytes = i2c.readfrom(eeprom_addr, 32)
 
     try:
         header = HexpansionHeader.from_bytes(header_bytes)
