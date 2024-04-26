@@ -78,12 +78,5 @@ class _EventBus:
             else:
                 await asyncio.sleep(0)
 
-# This is the singleton for the eventbus, but it can't
-# be instantiated until asyncio.run has been called, as that
-# creates the event loop, which is needed by the bus for
-# creating its interface.
-# Switch it to a function, it's less efficient but it allows
-# for direct imports that don't get stale
-_eventbus = None
-def eventbus():
-    return _eventbus
+
+eventbus = _EventBus()

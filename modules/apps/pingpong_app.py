@@ -21,8 +21,8 @@ class PingApp:
     def __init__(self):
         self.time_since_received = None
 
-        eventbus().on_async(PongEvent, self.respond, self)
-        eventbus().on(PongEvent, self.mark_time_received, self)
+        eventbus.on_async(PongEvent, self.respond, self)
+        eventbus.on(PongEvent, self.mark_time_received, self)
 
         self.has_served = False
 
@@ -31,7 +31,7 @@ class PingApp:
 
     def update(self, delta):
         if not self.has_served:
-            eventbus().emit(PingEvent())
+            eventbus.emit(PingEvent())
             self.has_served = True
 
         if self.time_since_received is not None:
@@ -47,14 +47,14 @@ class PingApp:
     async def respond(self, event):
         await asyncio.sleep(1)
         print("async", str(event))
-        await eventbus().emit_async(PingEvent())
+        await eventbus.emit_async(PingEvent())
 
 class PongApp:
     def __init__(self):
         self.time_since_received = None
 
-        eventbus().on_async(PingEvent, self.respond, self)
-        eventbus().on(PingEvent, self.mark_time_received, self)
+        eventbus.on_async(PingEvent, self.respond, self)
+        eventbus.on(PingEvent, self.mark_time_received, self)
 
     def mark_time_received(self, event):
         self.time_since_received = time.ticks_ms()
@@ -73,4 +73,4 @@ class PongApp:
     async def respond(self, event):
         await asyncio.sleep(1)
         print("async", str(event))
-        await eventbus().emit_async(PongEvent())
+        await eventbus.emit_async(PongEvent())

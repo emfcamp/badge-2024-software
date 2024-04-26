@@ -10,7 +10,7 @@ class YesNoDialog:
         self.no_handler = on_no
         self.yes_handler = on_yes
 
-        eventbus().on(ButtonDownEvent, self._handle_buttondown, app)
+        eventbus.on(ButtonDownEvent, self._handle_buttondown, app)
 
     def update(self, delta):
         pass
@@ -53,5 +53,5 @@ class YesNoDialog:
             self._cleanup()
 
     def _cleanup(self):
-        eventbus().remove(ButtonDownEvent, self._handle_buttondown, self.app)
+        eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
         self.open = False

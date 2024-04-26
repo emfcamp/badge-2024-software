@@ -19,8 +19,8 @@ class ButtonUpEvent(InputEvent):
 class Buttons:
     def __init__(self, app):
         self.buttons = [False] * 6
-        eventbus().on(ButtonDownEvent, self.handle_button_down, app)
-        eventbus().on(ButtonUpEvent, self.handle_button_up, app)
+        eventbus.on(ButtonDownEvent, self.handle_button_down, app)
+        eventbus.on(ButtonUpEvent, self.handle_button_up, app)
 
     def handle_button_down(self, event: ButtonDownEvent):
         self.buttons[event.button] = True
