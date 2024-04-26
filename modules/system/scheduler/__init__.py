@@ -174,13 +174,15 @@ class _Scheduler:
         await asyncio.gather(update_task, render_task, event_task)
 
     def run_forever(self):
-        asyncio.run(self._main())
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._main())
 
     def run_for(self, time_s):
+        loop = asyncio.get_event_loop()
         async def run():
             await asyncio.wait_for(self._main(), time_s)
 
-        asyncio.run(run())
+        loop.run_until_complete(run())
 
 
 scheduler = _Scheduler()
