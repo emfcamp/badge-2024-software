@@ -65,7 +65,7 @@ class HexpansionHeader:
     def from_bytes(cls, buf, validate_checksum=True):
         if len(buf) != 32:
             raise RuntimeError("Invalid header length, should be 32")
-        if buf[0:4] != b'THEX':
+        if buf[1:4] != b'HEX':
             raise RuntimeError(f"Invalid magic in hexpansion header: {buf[0:4]}")
         if buf[4:8] != b'2024':
             raise RuntimeError("Unknown manifest version. Supported: [2024]")
