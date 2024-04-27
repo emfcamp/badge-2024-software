@@ -139,12 +139,12 @@ class ButtonsInput(Input):
 
     # Default keyboard mapping
     button_map = {
-        "left_jog_left": pygame.K_1,
-        "left_press": pygame.K_2,
-        "left_jog_right": pygame.K_3,
-        "right_jog_left": pygame.K_8,
-        "right_press": pygame.K_9,
-        "right_jog_right": pygame.K_0,
+        "left_jog_left": pygame.K_a,
+        "left_press": pygame.K_b,
+        "left_jog_right": pygame.K_c,
+        "right_jog_left": pygame.K_d,
+        "right_press": pygame.K_e,
+        "right_jog_right": pygame.K_f,
     }
 
     # Load custom keymapping if available
@@ -228,6 +228,24 @@ class Simulation:
     # Pixel coordinates of each LED. The order is the same as the hardware
     # WS2812 chain, not the order as expected by the micropython API!
     LED_POSITIONS = [
+        # Internal
+        (370, 370),
+        
+        # Top
+        (443, 90),
+        (573, 163),
+        (646, 293),
+        (646, 440),
+        (573, 566),
+        (443, 640),
+        
+        (296, 640),
+        (173, 566),
+        (93, 440),
+        (93, 293),
+        (173, 163),
+        (296, 90),
+
         # Under
         (533, 93),
         (680, 366),
@@ -235,22 +253,6 @@ class Simulation:
         (200, 626),
         (60, 366),
         (200, 93),
-        
-        # Top
-        (443, 90),
-        (573, 163),
-        (646, 293),
-        (646, 440),
-        (443, 640),
-        (573, 566),
-        (446, 640),
-        (173, 566),
-        (296, 640),
-        (173, 566),
-        (93, 440),
-        (93, 293),
-        (173, 163),
-        (296, 90)
     ]
 
 
@@ -320,23 +322,21 @@ class Simulation:
         #self.grav.render(surface, self.acc)
 
     def _render_leds(self, surface, top=True, bottom=True):
-        for pos, state, i in zip(self.LED_POSITIONS, self.led_state, range(len(self.LED_POSITIONS))):
+        for pos, state, n in zip(self.LED_POSITIONS, self.led_state, range(len(self.LED_POSITIONS))):
             # TODO(q3k): pre-apply to LED_POSITIONS
             x = pos[0] + 3.0
             y = pos[1] + 3.0
             r, g, b = state
-            if i < 6 and bottom:
+            if 13 <= n and bottom:
                 # This is the top board, big diffuse circle
                 for i in range(20):
-                    print (state)
                     radius = 100 - i
                     r2 = r / (100 - i*5)
                     g2 = g / (100 - i*5)
                     b2 = b / (100 - i*5)
                     pygame.draw.circle(surface, (r2, g2, b2), (x, y), radius)
-            if i >=6 and top:
+            if 1 <= n < 13 and top:
                 for i in range(20):
-                    print (state)
                     radius = 26 - i
                     r2 = r / (20 - i)
                     g2 = g / (20 - i)
