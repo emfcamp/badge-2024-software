@@ -8,14 +8,23 @@ import vfs
 import typing
 
 
+def detect_eeprom_addr(i2c):
+    devices = i2c.scan()
+    if 0x57 in devices and 0x50 not in devices:
+        return 0x57
+    if 0x50 in devices:
+        return 0x50
+    return None
+
+
 def read_hexpansion_header(i2c, eeprom_addr=0x50) -> typing.Optional[HexpansionHeader]:
     devices = i2c.scan()
     if eeprom_addr not in devices:
         print(f"No device found at {hex(eeprom_addr)}")
         return None
 
-    i2c.writeto(0x50, bytes([0, 0]))
-    header_bytes = i2c.readfrom(0x50, 32)
+    i2c.writeto(eeprom_addr, bytes([0, 0]))
+    header_bytes = i2c.readfrom(eeprom_addr, 32)
 
     try:
         header = HexpansionHeader.from_bytes(header_bytes)
@@ -26,10 +35,11 @@ def read_hexpansion_header(i2c, eeprom_addr=0x50) -> typing.Optional[HexpansionH
     return header
 
 
-def get_hexpansion_block_devices(i2c, header):
+def get_hexpansion_block_devices(i2c, header, addr=0x50):
     eep = EEPROM(i2c=i2c,
                  chip_size=header.eeprom_total_size,
-                 page_size=header.eeprom_page_size)
+                 page_size=header.eeprom_page_size,
+                 addr=addr)
     partition = EEPROMPartition(eep=eep,
                                 offset=header.fs_offset,
                                 length=header.eeprom_total_size - header.fs_offset)
