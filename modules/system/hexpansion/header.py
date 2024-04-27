@@ -107,7 +107,7 @@ def read_header(port, addr=0x50):
 
     return header
 
-
+"""
 _h = HexpansionHeader(
     manifest_version="2024",
     fs_offset=64,
@@ -118,3 +118,4 @@ _h = HexpansionHeader(
     unique_id=0x0,
     friendly_name="EXAMPLE"
 )
+"""

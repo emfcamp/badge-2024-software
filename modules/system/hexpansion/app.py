@@ -19,6 +19,7 @@ from machine import I2C
 from events.input import ButtonDownEvent, ButtonUpEvent, Buttons
 import vfs
 import sys
+import typing
 
 
 class HexpansionManagerApp:
@@ -143,7 +144,7 @@ class HexpansionManagerApp:
         if self.autolaunch:
             self._launch_hexpansion_app(port)
 
-    def _read_hexpansion_header(self, i2c) -> HexpansionHeader | None:
+    def _read_hexpansion_header(self, i2c) -> typing.Optional[HexpansionHeader]:
         default_eeprom_addr = 0x50
 
         devices = i2c.scan()

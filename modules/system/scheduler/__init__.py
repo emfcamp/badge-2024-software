@@ -89,10 +89,10 @@ class _Scheduler:
 
     def _mark_focused(self):
         for app in self.apps:
-            app.__focused = False
-            app.__foreground = True if app in self.foreground_stack else False
+            app._focused = False
+            app._foreground = True if app in self.foreground_stack else False
         if len(self.foreground_stack) > 0:
-            self.foreground_stack[-1].__focused = True
+            self.foreground_stack[-1]._focused = True
             print(f"Focused app: {self.foreground_stack[-1]}")
 
     async def _handle_request_foreground_push(self, event):
@@ -174,13 +174,15 @@ class _Scheduler:
         await asyncio.gather(update_task, render_task, event_task)
 
     def run_forever(self):
-        asyncio.run(self._main())
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._main())
 
     def run_for(self, time_s):
+        loop = asyncio.get_event_loop()
         async def run():
             await asyncio.wait_for(self._main(), time_s)
 
-        asyncio.run(run())
+        loop.run_until_complete(run())
 
 
 scheduler = _Scheduler()

@@ -62,7 +62,7 @@ class _EventBus:
                     for event_type in self.handlers[app]:
                         if isinstance(event, event_type):
                             for handler in self.handlers[app][event_type]:
-                                if not requires_focus or (requires_focus and app.__focused):
+                                if not requires_focus or (requires_focus and app._focused):
                                     handler(event)
 
                 async_tasks = []
@@ -70,7 +70,7 @@ class _EventBus:
                     for event_type in self.async_handlers[app]:
                         if isinstance(event, event_type):
                             for handler in self.async_handlers[app][event_type]:
-                                if not requires_focus or (requires_focus and app.__focused):
+                                if not requires_focus or (requires_focus and app._focused):
                                     async_tasks.append(asyncio.create_task(handler(event)))
 
             if len(async_tasks) > 0:

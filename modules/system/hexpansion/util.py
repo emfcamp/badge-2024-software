@@ -5,6 +5,7 @@ from eeprom_partition import EEPROMPartition
 from system.hexpansion.header import HexpansionHeader
 
 import vfs
+import typing
 
 
 def detect_eeprom_addr(i2c):
@@ -16,7 +17,7 @@ def detect_eeprom_addr(i2c):
     return None
 
 
-def read_hexpansion_header(i2c, eeprom_addr=0x50) -> HexpansionHeader | None:
+def read_hexpansion_header(i2c, eeprom_addr=0x50) -> typing.Optional[HexpansionHeader]:
     devices = i2c.scan()
     if eeprom_addr not in devices:
         print(f"No device found at {hex(eeprom_addr)}")
