@@ -1,9 +1,9 @@
 import asyncio
 import os
 
+from system.hexpansion.config import HexpansionConfig
 from system.hexpansion.events import HexpansionRemovalEvent, HexpansionInsertionEvent
-from system.hexpansion.header import HexpansionHeader
-from system.hexpansion.util import read_hexpansion_header, get_hexpansion_block_devices
+from system.hexpansion.util import read_hexpansion_header, get_hexpansion_block_devices, detect_eeprom_addr
 
 from app_components.dialog import YesNoDialog
 from perf_timer import PerfTimer
@@ -101,9 +101,17 @@ class HexpansionManagerApp:
             print("No exported app found")
             self._cleanup_import_path(old_cwd, old_sys_path)
             return
-
         print("Found app")
-        app = App()
+
+        config = HexpansionConfig(port)
+
+        try:
+            app = App(config=config)
+            print("Initialized app with config")
+        except TypeError as e:
+            print(f"Could not pass config to app: {e}")
+            app = App()
+
         eventbus.emit(RequestStartAppEvent(app))
         self.hexpansion_apps[port] = app
 
@@ -144,31 +152,15 @@ class HexpansionManagerApp:
         if self.autolaunch:
             self._launch_hexpansion_app(port)
 
-    def _read_hexpansion_header(self, i2c) -> typing.Optional[HexpansionHeader]:
-        default_eeprom_addr = 0x50
-
-        devices = i2c.scan()
-        if default_eeprom_addr not in devices:
-            print(f"No device found at {hex(default_eeprom_addr)}")
-            return None
-
-        i2c.writeto(0x50, bytes([0, 0]))
-        header_bytes = i2c.readfrom(0x50, 32)
-
-        try:
-            header = HexpansionHeader.from_bytes(header_bytes)
-        except RuntimeError as e:
-            print(f"Failed to decode header: {e}")
-            return None
-
-        return header
-
     async def handle_hexpansion_insertion(self, event):
         print(event)
-
-        # First, check the header
         i2c = I2C(event.port)
-        header = read_hexpansion_header(i2c)
+
+        # Autodetect eeprom addr
+        addr = detect_eeprom_addr(i2c)
+
+        # Do we have a header?
+        header = read_hexpansion_header(i2c, addr)
         if header is None:
             return
 
@@ -181,7 +173,7 @@ class HexpansionManagerApp:
         # Try creating block devices, one for the whole eeprom,
         # one for the partition with the filesystem on it
         try:
-            eep, partition = get_hexpansion_block_devices(i2c, header)
+            eep, partition = get_hexpansion_block_devices(i2c, header, addr)
         except RuntimeError as e:
             print(f"Could not initialize eeprom: {e}")
             eep = None
