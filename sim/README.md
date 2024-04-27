@@ -12,7 +12,7 @@ Of particular interest is how we provide a `ctx`-compatible API: we compile it u
 Setting up
 ---
 
-You need Python3.8 and Pipenv installed.
+You need Python3.10 and Pipenv installed.
 
 Run:
 ```
