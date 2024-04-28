@@ -274,10 +274,10 @@ class Simulation:
         # corresponding surface when there was no change to its render data.
         self._led_surface = pygame.Surface((screen_w, screen_h), flags=pygame.SRCALPHA)
         self._led_surface_dirty = True
-        self._petal_surface = pygame.Surface(
+        self._button_surface = pygame.Surface(
             (screen_w, screen_h), flags=pygame.SRCALPHA
         )
-        self._petal_surface_dirty = True
+        self._button_surface_dirty = True
         self._full_surface = pygame.Surface((screen_w, screen_h), flags=pygame.SRCALPHA)
         self._oled_surface = pygame.Surface((240, 240), flags=pygame.SRCALPHA)
 
@@ -311,13 +311,13 @@ class Simulation:
         evs = pygame.event.get()
         for ev in evs:
             if self.buttons.process_event(ev):
-                self._petal_surface_dirty = True
+                self._button_surface_dirty = True
             if self.grav.process_event(ev):
-                self._petal_surface_dirty = True
+                self._button_surface_dirty = True
                 self.acc[0] += self.grav.acc[0]
                 self.acc[1] += self.grav.acc[1]
 
-    def _render_petal_markers(self, surface):
+    def _render_button_markers(self, surface):
         self.buttons.render(surface)
         #self.grav.render(surface, self.acc)
 
@@ -368,24 +368,18 @@ class Simulation:
         self.last_gui_render = time.time()
 
         full = self._full_surface
-        need_overlays = False
-        if self._led_surface_dirty:
+        if self._led_surface_dirty or self._button_surface_dirty:
             full.fill((0, 0, 0, 255))
             self._render_leds(full, bottom=True, top=False)
             full.blit(background, (0, 0))
-            need_overlays = True
 
-        if self._led_surface_dirty:
             self._render_leds(self._led_surface, bottom=False, top=True)
             self._led_surface_dirty = False
-        if need_overlays:
             full.blit(self._led_surface, (0, 0), special_flags=pygame.BLEND_ADD)
 
-        if self._petal_surface_dirty:
-            self._render_petal_markers(self._petal_surface)
-            self._petal_surface_dirty = False
-        if need_overlays:
-            full.blit(self._petal_surface, (0, 0))
+            self._render_button_markers(self._button_surface)
+            self._button_surface_dirty = False
+            full.blit(self._button_surface, (0, 0))
 
         # Always blit oled. Its' alpha blending is designed in a way that it
         # can be repeatedly applied to a dirty _full_surface without artifacts.

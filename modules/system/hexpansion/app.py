@@ -1,6 +1,7 @@
 import asyncio
 import os
 
+import app
 from system.hexpansion.config import HexpansionConfig
 from system.hexpansion.events import HexpansionRemovalEvent, HexpansionInsertionEvent
 from system.hexpansion.util import read_hexpansion_header, get_hexpansion_block_devices, detect_eeprom_addr
@@ -11,8 +12,8 @@ from system.notification.events import ShowNotificationEvent
 from system.scheduler.events import RequestForegroundPushEvent, RequestForegroundPopEvent, RequestStartAppEvent, \
     RequestStopAppEvent
 from tildagonos import EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F
-from tildagonos import EPIN_BTN_1, EPIN_BTN_2, EPIN_BTN_3, EPIN_BTN_4, EPIN_BTN_5, EPIN_BTN_6
 from tildagonos import led_colours
+from tildagonos import tildagonos
 
 from system.eventbus import eventbus
 from machine import I2C
@@ -22,9 +23,8 @@ import sys
 import typing
 
 
-class HexpansionManagerApp:
-    def __init__(self, tildagonos, autolaunch=True):
-        self.tildagonos = tildagonos
+class HexpansionManagerApp(app.App):
+    def __init__(self, autolaunch=True):
         eventbus.on_async(HexpansionInsertionEvent, self.handle_hexpansion_insertion, self)
         eventbus.on_async(HexpansionRemovalEvent, self.handle_hexpansion_removal, self)
         self.mountpoints = {}
@@ -199,21 +199,21 @@ class HexpansionManagerApp:
             self.format_dialog = None
             eventbus.emit(RequestForegroundPopEvent(self))
 
-    async def background_update(self):
-        self.tildagonos.set_led_power(True)
+    async def background_task(self):
+        tildagonos.set_led_power(True)
 
         hexpansion_plugin_states = [False] * 6
         button_states = [False] * 6
 
         while True:
             with PerfTimer("indicate hexpansion insertion"):
-                self.tildagonos.read_egpios()
-                self.tildagonos.leds.fill((0, 0, 0))
-
+                tildagonos.read_egpios()
                 for i, n in enumerate([EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F]):
-                    hexpansion_present = not self.tildagonos.check_egpio_state(n, readgpios=False)
+                    hexpansion_present = not tildagonos.check_egpio_state(n, readgpios=False)
                     if hexpansion_present:
-                        self.tildagonos.leds[13 + i] = led_colours[i]
+                        tildagonos.leds[13 + i] = led_colours[i]
+                    else:
+                        tildagonos.leds[13 + i] = (0,0,0)
                     if hexpansion_present and not hexpansion_plugin_states[i]:
                         hexpansion_plugin_states[i] = True
                         eventbus.emit(HexpansionInsertionEvent(port=i + 1))
@@ -221,20 +221,5 @@ class HexpansionManagerApp:
                         hexpansion_plugin_states[i] = False
                         eventbus.emit(HexpansionRemovalEvent(port=i + 1))
 
-                for i, n in enumerate([EPIN_BTN_1, EPIN_BTN_2, EPIN_BTN_3, EPIN_BTN_4, EPIN_BTN_5, EPIN_BTN_6]):
-                    button_down = not self.tildagonos.check_egpio_state(n, readgpios=False)
-                    if button_down:
-                        if i:
-                            self.tildagonos.leds[i * 2] = led_colours[i]
-                        else:
-                            self.tildagonos.leds[12] = led_colours[i]
-                        self.tildagonos.leds[1 + i * 2] = led_colours[i]
-                    if button_down and not button_states[i]:
-                        button_states[i] = True
-                        eventbus.emit(ButtonDownEvent(button=i))
-                    if not button_down and button_states[i]:
-                        button_states[i] = False
-                        eventbus.emit(ButtonUpEvent(button=i))
-
-                self.tildagonos.leds.write()
-            await asyncio.sleep(0)
+                tildagonos.leds.write()
+            await asyncio.sleep(0.001)

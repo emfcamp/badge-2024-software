@@ -28,7 +28,7 @@ led_colours=[
     (255, 0, 255),    
 ]
 
-class tildagonos:
+class _tildagonos:
     
     leds = neopixel.NeoPixel()
     
@@ -78,3 +78,5 @@ class tildagonos:
             
     def sel_i2c_bus(self, bus=None):
         pass
+
+tildagonos = _tildagonos()
