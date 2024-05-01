@@ -18,15 +18,14 @@ class YesNoDialog:
     def _cleanup(self):
         eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
 
-    async def run(self, update_complete):
+    async def run(self, render_update):
+        # Render once, when the dialogue opens
+        await render_update()
+        
+        # Tightly loop, waiting for a result, then return it
         while self._result is None:
-            await update_complete()
-            self.update(0)
             await asyncio.sleep(0.05)
         return self._result
-
-    def update(self, delta):
-        return
 
     def draw_message(self, ctx):
         ctx.font_size = 20
@@ -50,15 +49,14 @@ class YesNoDialog:
         ctx.restore()
 
     def _handle_buttondown(self, event: ButtonDownEvent):
-        if BUTTON_TYPES['CANCEL'] in event.button:
+        if BUTTON_TYPES["CANCEL"] in event.button:
             self._cleanup()
             self._result = False
             if self.no_handler is not None:
                 self.no_handler()
 
-        if BUTTON_TYPES['CONFIRM'] in event.button:
+        if BUTTON_TYPES["CONFIRM"] in event.button:
             self._cleanup()
             self._result = True
             if self.yes_handler is not None:
                 self.yes_handler()
-            
