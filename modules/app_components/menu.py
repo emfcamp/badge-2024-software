@@ -53,7 +53,6 @@ class Menu:
         ctx.font_size = 40
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
-        text_height = ctx.font_size
         focused_item_margin = 20
         line_height = 30
 
