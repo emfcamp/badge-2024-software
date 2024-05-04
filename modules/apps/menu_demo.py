@@ -33,35 +33,34 @@ class MenuDemo(App):
     def set_menu(self, menu_name: Literal["main", "numbers", "letters", "words"]):
         self.menu._cleanup()
         self.current_menu = menu_name
-        match menu_name:
-            case "main":
-                self.menu = Menu(
-                    self,
-                    main_menu_items,
-                    select_handler=self.select_handler,
-                    back_handler=self.back_handler,
-                )
-            case "numbers":
-                self.menu = Menu(
-                    self,
-                    numbers_menu_items,
-                    select_handler=self.select_handler,
-                    back_handler=self.back_handler,
-                )
-            case "letters":
-                self.menu = Menu(
-                    self,
-                    letters_menu_items,
-                    select_handler=self.select_handler,
-                    back_handler=self.back_handler,
-                )
-            case "words":
-                self.menu = Menu(
-                    self,
-                    words_menu_items,
-                    select_handler=self.select_handler,
-                    back_handler=self.back_handler,
-                )
+        if menu_name == "main":
+            self.menu = Menu(
+                self,
+                main_menu_items,
+                select_handler=self.select_handler,
+                back_handler=self.back_handler,
+            )
+        elif menu_name == "numbers":
+            self.menu = Menu(
+                self,
+                numbers_menu_items,
+                select_handler=self.select_handler,
+                back_handler=self.back_handler,
+            )
+        elif menu_name == "letters":
+            self.menu = Menu(
+                self,
+                letters_menu_items,
+                select_handler=self.select_handler,
+                back_handler=self.back_handler,
+            )
+        elif menu_name == "words":
+            self.menu = Menu(
+                self,
+                words_menu_items,
+                select_handler=self.select_handler,
+                back_handler=self.back_handler,
+            )
 
     def back_handler(self):
         if self.current_menu == "main":

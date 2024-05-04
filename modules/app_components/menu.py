@@ -29,19 +29,18 @@ class Menu:
         eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
 
     def _handle_buttondown(self, event: ButtonDownEvent):
-        match event.button:
-            case 0:
-                self.up_handler()
-            case 3:
-                self.down_handler()
-            case 5:
-                if self.back_handler is not None:
-                    self.back_handler()
-            case 1:
-                if self.select_handler is not None:
-                    self.select_handler(
-                        self.menu_items[self.position % len(self.menu_items)]
-                    )
+        if event.button == 0:
+            self.up_handler()
+        if event.button == 3:
+            self.down_handler()
+        if event.button == 5:
+            if self.back_handler is not None:
+                self.back_handler()
+        if event.button == 1:
+            if self.select_handler is not None:
+                self.select_handler(
+                    self.menu_items[self.position % len(self.menu_items)]
+                )
 
     def up_handler(self):
         self.position = (self.position - 1) % len(self.menu_items)
