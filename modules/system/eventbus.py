@@ -54,18 +54,19 @@ class _EventBus:
     async def run(self):
         while True:
             event = await self.event_queue.get()
+            requires_focus = hasattr(event, 'requires_focus') and event.requires_focus
 
             async_tasks = []
             with PerfTimer("handle events"):
                 for app in self.handlers.keys():
-                    if app._focused or not event.requires_focus:
+                    if app._focused or not requires_focus:
                         for event_type in self.handlers[app]:
                             if isinstance(event, event_type):
                                 for handler in self.handlers[app][event_type]:
                                     handler(event)
 
             for app in self.async_handlers.keys():
-                if app._focused or not event.requires_focus:
+                if app._focused or not requires_focus:
                     for event_type in self.async_handlers[app]:
                         if isinstance(event, event_type):
                             for handler in self.async_handlers[app][event_type]:

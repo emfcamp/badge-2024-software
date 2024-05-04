@@ -31,5 +31,6 @@ _pin_mapping = {
 # TODO: come up with a better name for this?
 class HexpansionConfig:
     def __init__(self, port):
+        self.port = port
         self.pin = [Pin(x) for x in _pin_mapping[port]["hs"]]
         self.i2c = I2C(port)

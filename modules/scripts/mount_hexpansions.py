@@ -1,6 +1,7 @@
 from machine import I2C
 from system.hexpansion.util import read_hexpansion_header, get_hexpansion_block_devices
 import vfs
+import tildagonos
 
 for port in range(1, 7):
     print(f"Attempting to mount hexpansion in port: {port}")
