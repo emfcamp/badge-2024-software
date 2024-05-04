@@ -1,3 +1,4 @@
+import os
 def freeze_images(path, generated_dir):
     path = convert_path(path)
     generated_dir = convert_path(generated_dir)
@@ -25,10 +26,17 @@ def freeze_images(path, generated_dir):
     if generated_modules:
         freeze(generated_dir, generated_modules)
 
+
 freeze("$(PORT_DIR)/modules")
 #freeze("$(MPY_DIR)/tools", ("upip.py", "upip_utarfile.py"))
 freeze("$(MPY_DIR)/lib/micropython-lib/micropython/net/ntptime", "ntptime.py")
-freeze("$(MPY_DIR)/../modules")
+freeze("$(MPY_DIR)/../modules") # modules - don't freeze while developing as it overrides filesystem stuff apparently?
+# freeze("$(MPY_DIR)/../modules", "boot.py")
+module("bdevice.py", base_path="$(MPY_DIR)/../modules/lib")
+module("eep_i2c.py", base_path="$(MPY_DIR)/../modules/lib")
+module("eeprom_i2c.py", base_path="$(MPY_DIR)/../modules/lib")
+freeze("$(MPY_DIR)/../modules/lib", "typing.py")
+freeze("$(MPY_DIR)/../modules/lib", "typing_extensions.py")
 #freeze("$(MPY_DIR)/../micropython-lib/python-ecosys/urequests", "urequests.py")
 #freeze("$(MPY_DIR)/../micropython-lib/micropython/upysh", "upysh.py")
 #freeze("$(MPY_DIR)/../micropython-lib/python-stdlib/functools", "functools.py")
@@ -37,4 +45,4 @@ freeze("$(MPY_DIR)/../modules")
 #include("$(MPY_DIR)/extmod/uasyncio/manifest.py")
 #include("$(MPY_DIR)/extmod/webrepl/manifest.py")
 include("$(MPY_DIR)/lib/micropython-lib/micropython/drivers/led/neopixel/manifest.py")
-
+include("$(MPY_DIR)/extmod/asyncio/manifest.py")

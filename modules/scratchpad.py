@@ -1,0 +1,17 @@
+from app_components.notification import Notification
+from system.notification.app import NotificationService
+from tildagonos import tildagonos
+
+from system.scheduler import scheduler as sc
+from system.hexpansion.app import HexpansionManagerApp
+
+from apps.intro_app import IntroApp
+
+
+n = tildagonos()
+
+sc.start_app(HexpansionManagerApp(tildagonos=n))
+sc.start_app(IntroApp(text="EMF Camp", n_hexagons=0), foreground=True)
+sc.start_app(NotificationService(), always_on_top=True)
+
+sc.run_forever()

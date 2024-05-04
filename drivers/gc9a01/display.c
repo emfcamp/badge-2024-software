@@ -69,7 +69,7 @@ static mp_obj_t hexagon(size_t n_args, const mp_obj_t *args) {
     ctx_rotate(ctx->ctx, M_PI / 2.0f);
     
     // Move to the start of the top left line
-    ctx_rel_move_to(ctx->ctx, -0.5f, -1.0f);
+    ctx_move_to(ctx->ctx, -minor_component, -major_component);
     
     // Draw the six segments
     ctx_rel_line_to(ctx->ctx, 1.0f, 0.0f);

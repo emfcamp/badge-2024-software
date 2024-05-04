@@ -1,0 +1,14 @@
+import pygame
+
+# define custom keyboard mapping for the 3-way switches.
+# You can use the table at https://www.pygame.org/docs/ref/key.html as
+# reference for the correct pygame key constant names.
+
+button_map = {
+    "left_jog_left": pygame.K_1,
+    "left_press": pygame.K_2,
+    "left_jog_right": pygame.K_3,
+    "right_jog_left": pygame.K_8,
+    "right_press": pygame.K_9,
+    "right_jog_right": pygame.K_0,
+}
