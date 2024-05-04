@@ -1,10 +1,11 @@
+import app
 from app_components.notification import Notification
 from system.notification.events import ShowNotificationEvent
 from system.eventbus import eventbus
 
 
 
-class NotificationService:
+class NotificationService(app.App):
     def __init__(self):
         eventbus.on_async(ShowNotificationEvent, self._handle_incoming_notification, self)
         self.notifications = [Notification(message="", port=x, open=False) for x in range(0, 7)]
@@ -15,7 +16,11 @@ class NotificationService:
 
     def update(self, delta):
         for notification in self.notifications:
-            notification.update(delta)
+            try:
+                notification.update(delta)
+            except Exception as e:
+                print(e)
+                continue
 
     def draw(self, ctx):
         for notification in self.notifications:

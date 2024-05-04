@@ -8,7 +8,7 @@ class HexpansionTestApp:
     def draw(self, ctx):
         pass
 
-    async def background_update(self):
+    async def background_task(self):
         while True:
             print("Hi from hexpansion B!!")
             await asyncio.sleep(1)

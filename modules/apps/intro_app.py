@@ -1,8 +1,14 @@
 import asyncio
+import app
 import math
 import display
 import random
 import gc
+
+from events.input import Buttons
+from tildagonos import tildagonos, led_colours
+from frontboards import twentyfour
+
 
 class Hexagon:
     def __init__(self):
@@ -21,21 +27,27 @@ class Hexagon:
         self.elapsed = 0
 
     def update(self, time_elapsed):
-        self.offset_x = math.sin(time_elapsed + self.wiggle_offset_x) * self.wiggle_amplitude_x
-        self.offset_y = math.sin(time_elapsed + self.wiggle_offset_y) * self.wiggle_amplitude_y
+        self.offset_x = (
+            math.sin(time_elapsed + self.wiggle_offset_x) * self.wiggle_amplitude_x
+        )
+        self.offset_y = (
+            math.sin(time_elapsed + self.wiggle_offset_y) * self.wiggle_amplitude_y
+        )
 
     def draw(self, ctx):
         ctx.rgba(self.red, self.green, self.blue, 0.2)
         display.hexagon(ctx, self.x + self.offset_x, self.y + self.offset_y, self.size)
 
-class IntroApp:
+
+class IntroApp(app.App):
     def __init__(self, text="EMF Camp", n_hexagons=10):
         self.text = text
         self.hexagons = [Hexagon() for _ in range(n_hexagons)]
         self.time_elapsed = 0
+        self.dialog = None
 
     def update(self, delta):
-        self.time_elapsed += delta / 1000_000
+        self.time_elapsed += delta / 1_000
         for hexagon in self.hexagons:
             hexagon.update(self.time_elapsed)
 
@@ -54,12 +66,39 @@ class IntroApp:
             .text(self.text)
 
     def draw(self, ctx):
+        ctx.save()
         self.draw_background(ctx)
         for hexagon in self.hexagons:
             hexagon.draw(ctx)
         self.draw_text(ctx)
+        ctx.restore()
 
-    async def background_update(self):
+        ctx.save()
+        if self.dialog:
+            self.dialog.draw(ctx)
+        ctx.restore()
+
+    async def background_task(self):
+        print(self)
+        button_states = Buttons(self)
         while True:
-            await asyncio.sleep(1)
-            print("fps:", display.get_fps(), f"mem used: {gc.mem_alloc()}, mem free:{gc.mem_free()}")
+            await asyncio.sleep(0.05)
+
+            for i, button in enumerate(twentyfour.BUTTONS.values()):
+                if button_states.get(button):
+                    color = led_colours[i]
+                else:
+                    color = (0, 0, 0)
+                if i:
+                    tildagonos.leds[i * 2] = color
+                else:
+                    tildagonos.leds[12] = color
+                tildagonos.leds[1 + i * 2] = color
+
+            tildagonos.leds.write()
+
+            print(
+                "fps:",
+                display.get_fps(),
+                f"mem used: {gc.mem_alloc()}, mem free:{gc.mem_free()}",
+            )

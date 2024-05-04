@@ -17,7 +17,7 @@ class TickApp:
             self.tick = not self.tick
             self.acc_time = 0
 
-    async def background_update(self):
+    async def background_task(self):
         while True:
             await asyncio.sleep(0.1)
             self.draw(None)

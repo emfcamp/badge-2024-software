@@ -13,12 +13,6 @@ EPIN_ND_C = (0x59, 1, (1 << 0))
 EPIN_ND_D = (0x59, 1, (1 << 1))
 EPIN_ND_E = (0x59, 1, (1 << 2))
 EPIN_ND_F = (0x59, 1, (1 << 3))
-EPIN_BTN_1 = (0x5a, 0, (1 << 6))
-EPIN_BTN_2 = (0x5a, 0, (1 << 7))
-EPIN_BTN_3 = (0x59, 0, (1 << 0))
-EPIN_BTN_4 = (0x59, 0, (1 << 1))
-EPIN_BTN_5 = (0x59, 0, (1 << 2))
-EPIN_BTN_6 = (0x59, 0, (1 << 3))
 led_colours = [
     (255, 0, 0),
     (255, 255, 0),
@@ -29,7 +23,7 @@ led_colours = [
 ]
 
 
-class tildagonos:
+class _tildagonos:
 
     def __init__(self):
         self.pin_reset_i2c = Pin(9, Pin.OUT)
@@ -92,3 +86,5 @@ class tildagonos:
 
     def set_led_power(self, state):
         self.set_egpio_pin(EPIN_LED_POWER, state)
+
+tildagonos = _tildagonos()

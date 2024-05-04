@@ -1,3 +1,6 @@
+def mem_alloc():
+    return 1337
+
 def mem_free():
     return 1337
 

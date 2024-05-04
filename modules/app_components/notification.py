@@ -10,7 +10,10 @@ class Notification:
         self._animation_state = 0
         self._animation_target = 1 if open else 0
         self._open_time = 0
-        self._close_after = 1000_000 * 3
+        self._close_after = 1000 * 3
+
+    def __repr__(self):
+        return f"<Notification '{self.message}' on port {self._port} ({self._open} - {self._open_time})>"
 
     def _is_closed(self):
         return self._animation_state < 0.01
@@ -25,14 +28,13 @@ class Notification:
         self._open = False
 
     def update(self, delta):
-        delta_s = min((delta / 1000_000) * 5, 1)
+        delta_s = min((delta / 1000) * 5, 1)
         animation_delta = self._animation_target - self._animation_state
         animation_step = animation_delta * delta_s
         self._animation_state += animation_step
 
         if self._open:
             self._open_time += delta
-            print("anim state:", self._animation_state)
 
         if self._open and self._open_time > self._close_after:
             self.close()
