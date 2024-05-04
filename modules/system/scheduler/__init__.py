@@ -156,8 +156,8 @@ class _Scheduler:
             did_lose_focus = False
             while not self.app_is_foregrounded(app):
                 did_lose_focus = True
-                await asyncio.sleep(100)
-            
+                await asyncio.sleep(0.100)
+
             # Return control to the update task
             return did_lose_focus
         
