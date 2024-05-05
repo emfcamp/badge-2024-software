@@ -23,7 +23,6 @@ class MenuDemo(App):
         )
 
     def select_handler(self, item):
-        print(item)
         if item in ["numbers", "letters", "words", "main"]:
             self.set_menu(item)
         else:
@@ -75,4 +74,4 @@ class MenuDemo(App):
         self.menu.draw(ctx)
 
     def update(self, delta):
-        pass
+        self.menu.update(delta)

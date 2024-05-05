@@ -1,8 +1,12 @@
-from typing import Callable, Literal, Union
+from typing import Any, Callable, Literal, Union
 
 from app import App
-from events.input import ButtonDownEvent
+from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
+
+
+def ease_out_quart(x):
+    return 1 - pow(1 - x, 4)
 
 
 class Menu:
@@ -11,17 +15,28 @@ class Menu:
         app: App,
         menu_items: list[str] = [],
         position=0,
-        select_handler: Union[Callable, None] = None,
+        select_handler: Union[Callable[[str], Any], None] = None,
         back_handler: Union[Callable, None] = None,
-        animation_time_ms=300,
+        speed_ms=300,
+        item_font_size=20,
+        item_line_height=30,
+        focused_item_font_size=40,
+        focused_item_margin=20,
     ):
+        self.app = app
         self.menu_items = menu_items
         self.position = position
         self.select_handler = select_handler
         self.back_handler = back_handler
-        self.animation_time_ms = animation_time_ms
-        self.is_animating: Literal["up", "down", "none"] = "none"
-        self.app = app
+        self.speed_ms = speed_ms
+        self.item_font_size = item_font_size
+        self.item_line_height = item_line_height
+        self.focused_item_font_size = focused_item_font_size
+        self.focused_item_margin = focused_item_margin
+
+        self.animation_time_ms = 0
+        # self.is_animating: Literal["up", "down", "none"] = "none"
+        self.is_animating: Literal["up", "down", "none"] = "up"
 
         eventbus.on(ButtonDownEvent, self._handle_buttondown, app)
 
@@ -29,47 +44,72 @@ class Menu:
         eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
 
     def _handle_buttondown(self, event: ButtonDownEvent):
-        if event.button == 0:
+        if BUTTON_TYPES["UP"] in event.button:
             self.up_handler()
-        if event.button == 3:
+        if BUTTON_TYPES["DOWN"] in event.button:
             self.down_handler()
-        if event.button == 5:
+        if BUTTON_TYPES["CANCEL"] in event.button:
             if self.back_handler is not None:
                 self.back_handler()
-        if event.button == 1:
+        if BUTTON_TYPES["CONFIRM"] in event.button:
             if self.select_handler is not None:
                 self.select_handler(
                     self.menu_items[self.position % len(self.menu_items)]
                 )
 
     def up_handler(self):
+        self.is_animating = "up"
+        self.animation_time_ms = 0
         self.position = (self.position - 1) % len(self.menu_items)
 
     def down_handler(self):
+        self.is_animating = "down"
+        self.animation_time_ms = 0
         self.position = (self.position + 1) % len(self.menu_items)
 
     def draw(self, ctx):
+        animation_progress = ease_out_quart(self.animation_time_ms / self.speed_ms)
+        animation_direction = 1 if self.is_animating == "up" else -1
+
         # Current menu item
-        ctx.font_size = 40
+        ctx.font_size = self.item_font_size + animation_progress * (
+            self.focused_item_font_size - self.item_font_size
+        )
+
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
-        focused_item_margin = 20
-        line_height = 30
 
         ctx.rgb(1, 1, 1)
-        ctx.move_to(0, 0).text(self.menu_items[self.position % len(self.menu_items)])
+        ctx.move_to(
+            0, animation_direction * -30 + animation_progress * animation_direction * 30
+        ).text(self.menu_items[self.position % len(self.menu_items)])
 
         # Previous menu items
         ctx.font_size = 20
         for i in range(1, 4):
             if (self.position - i) >= 0:
-                ctx.move_to(0, -focused_item_margin + -i * line_height).text(
-                    self.menu_items[self.position - i]
-                )
+                ctx.move_to(
+                    0,
+                    -self.focused_item_margin
+                    + -i * self.item_line_height
+                    - animation_direction * 30
+                    + animation_progress * animation_direction * 30,
+                ).text(self.menu_items[self.position - i])
 
         # Next menu items
         for i in range(1, 4):
             if (self.position + i) < len(self.menu_items):
-                ctx.move_to(0, focused_item_margin + i * line_height).text(
-                    self.menu_items[self.position + i]
-                )
+                ctx.move_to(
+                    0,
+                    self.focused_item_margin
+                    + i * self.item_line_height
+                    - animation_direction * 30
+                    + animation_progress * animation_direction * 30,
+                ).text(self.menu_items[self.position + i])
+
+    def update(self, delta):
+        if self.is_animating != "none":
+            self.animation_time_ms += delta
+            if self.animation_time_ms > self.speed_ms:
+                self.is_animating = "none"
+                self.animation_time_ms = self.speed_ms
