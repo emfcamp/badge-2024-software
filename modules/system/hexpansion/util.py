@@ -40,9 +40,12 @@ def get_hexpansion_block_devices(i2c, header, addr=0x50):
                  chip_size=header.eeprom_total_size,
                  page_size=header.eeprom_page_size,
                  addr=addr)
+
+    n_chips = eep._a_bytes // eep._c_bytes
+
     partition = EEPROMPartition(eep=eep,
                                 offset=header.fs_offset,
-                                length=header.eeprom_total_size - header.fs_offset)
+                                length=(header.eeprom_total_size * n_chips) - header.fs_offset)
     print("eeprom block count:", eep.ioctl(4, None))
     print("partition block count:", partition.ioctl(4, None))
     print("partition block size:", partition.ioctl(5, None))
