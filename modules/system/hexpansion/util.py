@@ -17,13 +17,32 @@ def detect_eeprom_addr(i2c):
     return None
 
 
-def read_hexpansion_header(i2c, eeprom_addr=0x50) -> typing.Optional[HexpansionHeader]:
+def read_hexpansion_header(i2c, eeprom_addr=0x50, set_read_addr=True, addr_len=2) -> typing.Optional[HexpansionHeader]:
+    """
+    Read the hexpansion header from the EEPROM on the provided I2C bus, at the specified address.
+
+    @param i2c: An object representing the I2C bus to read from.
+    @param eeprom_addr: The address of the EEPROM on the I2C bus. Defaults to 0x50.
+    @param set_read_addr: If True, attempts to set the read address before reading.
+            Use with caution, as it might overwrite the first byte accidentally on some EEPROMs.
+            Defaults to False.
+    @param addr_len: The amount of bytes to use for setting the read address.
+
+    @return: A HexpansionHeader object if successful, otherwise None.
+    """
     devices = i2c.scan()
     if eeprom_addr not in devices:
         print(f"No device found at {hex(eeprom_addr)}")
         return None
 
-    i2c.writeto(eeprom_addr, bytes([0, 0]))
+    if set_read_addr:
+        addr_bytes = [0] * addr_len
+        try:
+            i2c.writeto(eeprom_addr, bytes(addr_bytes))
+        except OSError:
+            # Potentially write protected, and only one address byte
+            i2c.writeto(eeprom_addr, bytes([0]))
+
     header_bytes = i2c.readfrom(eeprom_addr, 32)
 
     try:
