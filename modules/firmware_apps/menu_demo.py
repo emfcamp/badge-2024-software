@@ -63,7 +63,7 @@ class MenuDemo(App):
 
     def back_handler(self):
         if self.current_menu == "main":
-            return
+            self.minimise()
         self.set_menu("main")
 
     def draw_background(self, ctx):

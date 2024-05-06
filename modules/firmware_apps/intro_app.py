@@ -5,7 +5,7 @@ import display
 import random
 import gc
 
-from events.input import Buttons
+from events.input import Buttons, BUTTON_TYPES
 from tildagonos import tildagonos, led_colours
 from frontboards import twentyfour
 
@@ -40,16 +40,43 @@ class Hexagon:
 
 
 class IntroApp(app.App):
-    def __init__(self, text="EMF Camp", n_hexagons=10):
+    def __init__(self, text="EMF Camp", n_hexagons=5):
         self.text = text
         self.hexagons = [Hexagon() for _ in range(n_hexagons)]
         self.time_elapsed = 0
-        self.dialog = None
+        self.button_states = Buttons(self)
+        self.back_time = 0
 
     def update(self, delta):
         self.time_elapsed += delta / 1_000
         for hexagon in self.hexagons:
             hexagon.update(self.time_elapsed)
+
+        buttons = [twentyfour.BUTTONS[name] for name in "ABCDEF"]
+        for i, button in enumerate(buttons):
+            if self.button_states.get(button):
+                color = led_colours[i]
+            else:
+                color = (0, 0, 0)
+            if i:
+                tildagonos.leds[i * 2] = color
+            else:
+                tildagonos.leds[12] = color
+            tildagonos.leds[1 + i * 2] = color
+
+        # Hold back to quit
+        if self.button_states.get(BUTTON_TYPES["CANCEL"]):
+            self.back_time += delta / 1_000
+        else:
+            self.back_time = 0
+        if self.back_time > 1:
+            self.back_time = 0
+            self.minimise()
+            self.button_states.clear()
+            for i in range(12):
+                tildagonos.leds[i] = (0, 0, 0)
+
+        tildagonos.leds.write()
 
     def draw_background(self, ctx):
         ctx.gray(1 - min(1, self.time_elapsed)).rectangle(-120, -120, 240, 240).fill()
@@ -73,29 +100,9 @@ class IntroApp(app.App):
         self.draw_text(ctx)
         ctx.restore()
 
-        ctx.save()
-        if self.dialog:
-            self.dialog.draw(ctx)
-        ctx.restore()
-
     async def background_task(self):
-        print(self)
-        button_states = Buttons(self)
         while True:
-            await asyncio.sleep(0.05)
-
-            for i, button in enumerate(twentyfour.BUTTONS.values()):
-                if button_states.get(button):
-                    color = led_colours[i]
-                else:
-                    color = (0, 0, 0)
-                if i:
-                    tildagonos.leds[i * 2] = color
-                else:
-                    tildagonos.leds[12] = color
-                tildagonos.leds[1 + i * 2] = color
-
-            tildagonos.leds.write()
+            await asyncio.sleep(1)
 
             print(
                 "fps:",
