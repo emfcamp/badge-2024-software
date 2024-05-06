@@ -1,6 +1,7 @@
+import asyncio
+
 from async_queue import Queue as AsyncQueue
 from perf_timer import PerfTimer
-import asyncio
 
 
 class _EventBus:
@@ -82,4 +83,5 @@ class _EventBus:
                 await asyncio.sleep(0)
 
 
+eventbus = _EventBus()
 eventbus = _EventBus()

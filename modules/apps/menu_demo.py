@@ -1,7 +1,7 @@
 from typing import Literal
 
 from app import App
-from app_components.menu import Menu
+from app_components import Menu, Notification, clear_background
 
 main_menu_items = ["numbers", "letters", "words"]
 
@@ -21,13 +21,13 @@ class MenuDemo(App):
             select_handler=self.select_handler,
             back_handler=self.back_handler,
         )
+        self.notification = None
 
     def select_handler(self, item):
         if item in ["numbers", "letters", "words", "main"]:
             self.set_menu(item)
         else:
-            # flash or spin the word or something
-            pass
+            self.notification = Notification('You selected "' + item + '"!')
 
     def set_menu(self, menu_name: Literal["main", "numbers", "letters", "words"]):
         self.menu._cleanup()
@@ -66,12 +66,13 @@ class MenuDemo(App):
             return
         self.set_menu("main")
 
-    def draw_background(self, ctx):
-        ctx.gray(0).rectangle(-120, -120, 240, 240).fill()
-
     def draw(self, ctx):
-        self.draw_background(ctx)
+        clear_background(ctx)
         self.menu.draw(ctx)
+        if self.notification:
+            self.notification.draw(ctx)
 
     def update(self, delta):
         self.menu.update(delta)
+        if self.notification:
+            self.notification.update(delta)

@@ -4,6 +4,8 @@ from app import App
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
 
+from .tokens import heading_font_size, label_font_size, line_height, set_color
+
 
 def ease_out_quart(x):
     return 1 - pow(1 - x, 4)
@@ -18,9 +20,9 @@ class Menu:
         select_handler: Union[Callable[[str], Any], None] = None,
         back_handler: Union[Callable, None] = None,
         speed_ms=300,
-        item_font_size=20,
-        item_line_height=30,
-        focused_item_font_size=40,
+        item_font_size=label_font_size,
+        item_line_height=label_font_size * line_height,
+        focused_item_font_size=heading_font_size,
         focused_item_margin=20,
     ):
         self.app = app
@@ -79,13 +81,13 @@ class Menu:
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
 
-        ctx.rgb(1, 1, 1)
+        set_color(ctx, "label")
         ctx.move_to(
             0, animation_direction * -30 + animation_progress * animation_direction * 30
         ).text(self.menu_items[self.position % len(self.menu_items)])
 
         # Previous menu items
-        ctx.font_size = 20
+        ctx.font_size = self.item_font_size
         for i in range(1, 4):
             if (self.position - i) >= 0:
                 ctx.move_to(
