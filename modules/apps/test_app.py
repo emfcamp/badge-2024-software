@@ -7,7 +7,7 @@ class TestApp:
             message="Party?",
             on_yes=self._handle_party,
             on_no=self._handle_no_party,
-            app=self
+            app=self,
         )
 
     def update(self, delta):
@@ -24,9 +24,9 @@ class TestApp:
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
         text_height = ctx.font_size
-        ctx.rgb(1, 0, 1)\
-            .move_to(0, 0).text("ASDFASDFASDFASDF")\
-            .move_to(0, text_height).text("ASDFASSSDFSDF")
+        ctx.rgb(1, 0, 1).move_to(0, 0).text("ASDFASDFASDFASDF").move_to(
+            0, text_height
+        ).text("ASDFASSSDFSDF")
 
     def _handle_party(self):
         print("Yay!!")

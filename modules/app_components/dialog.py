@@ -21,7 +21,7 @@ class YesNoDialog:
     async def run(self, render_update):
         # Render once, when the dialogue opens
         await render_update()
-        
+
         # Tightly loop, waiting for a result, then return it
         while self._result is None:
             await asyncio.sleep(0.05)

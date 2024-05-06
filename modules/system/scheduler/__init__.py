@@ -4,16 +4,18 @@ import display
 
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
-from system.scheduler.events import (RequestForegroundPushEvent,
-                                     RequestForegroundPopEvent,
-                                     RequestStartAppEvent,
-                                     RequestStopAppEvent)
+from system.scheduler.events import (
+    RequestForegroundPushEvent,
+    RequestForegroundPopEvent,
+    RequestStartAppEvent,
+    RequestStopAppEvent,
+)
 
 
 class _Scheduler:
     # Always receive all events
     _focused = True
-    
+
     def __init__(self):
         # All currently running apps
         self.apps = []
@@ -39,8 +41,12 @@ class _Scheduler:
         self.render_needed = asyncio.Event()
 
         # Bg/fg management events
-        eventbus.on_async(RequestForegroundPushEvent, self._handle_request_foreground_push, self)
-        eventbus.on_async(RequestForegroundPopEvent, self._handle_request_foreground_pop, self)
+        eventbus.on_async(
+            RequestForegroundPushEvent, self._handle_request_foreground_push, self
+        )
+        eventbus.on_async(
+            RequestForegroundPopEvent, self._handle_request_foreground_pop, self
+        )
 
         eventbus.on_async(RequestStartAppEvent, self._handle_start_app, self)
         eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)
@@ -60,7 +66,6 @@ class _Scheduler:
             self.on_top_stack.append(app)
 
         self.mark_focused()
-
 
     async def _handle_stop_app(self, event: RequestStopAppEvent):
         print(f"Stopping app: {event}")
@@ -146,7 +151,7 @@ class _Scheduler:
             self.background_tasks[app] = asyncio.create_task(app.background_task())
         except AttributeError:
             pass
-        
+
         async def mark_update_finished():
             # Unblock renderer
             self.render_needed.set()
@@ -160,7 +165,7 @@ class _Scheduler:
 
             # Return control to the update task
             return did_lose_focus
-        
+
         self.update_tasks[app] = asyncio.create_task(app.run(mark_update_finished))
 
     """async def report_errors(self):
@@ -177,13 +182,13 @@ class _Scheduler:
                     self.stop_app(app)
                     eventbus.emit(ShowNotificationEvent(message=f"{app.__class__.__name__} has crashed", port=3))
             await asyncio.sleep(1)"""
-            
+
     async def _render_task(self):
         while True:
             # Do not bother re-rendering unless an update has happened
             await self.render_needed.wait()
             self.render_needed.clear()
-            
+
             with PerfTimer("render"):
                 ctx = display.get_ctx()
                 for app in self.foreground_stack:
@@ -211,6 +216,7 @@ class _Scheduler:
 
     def run_for(self, time_s):
         loop = asyncio.get_event_loop()
+
         async def run():
             await asyncio.wait_for(self._main(), time_s)
 

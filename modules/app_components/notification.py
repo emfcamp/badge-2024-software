@@ -1,4 +1,3 @@
-
 class Notification:
     _half_hex_rotation = (2 * 3.141593) / 12
 
@@ -50,18 +49,18 @@ class Notification:
             if self._port != 0:
                 ctx.rotate(self._half_hex_rotation * (self._port * 2 - 1))
 
-            ctx.gray(0.3)\
-                .rectangle(-120, -150 - self._animation_state * -30, 240, 30)\
-                .fill()
+            ctx.gray(0.3).rectangle(
+                -120, -150 - self._animation_state * -30, 240, 30
+            ).fill()
 
             if self._port != 0:
                 ctx.rotate(3.14)
-                ctx.gray(1) \
-                    .move_to(0, 135 + self._animation_state * -30) \
-                    .text(self.message)
+                ctx.gray(1).move_to(0, 135 + self._animation_state * -30).text(
+                    self.message
+                )
             else:
-                ctx.gray(1)\
-                    .move_to(0, -130 - self._animation_state * -30)\
-                    .text(self.message)
+                ctx.gray(1).move_to(0, -130 - self._animation_state * -30).text(
+                    self.message
+                )
 
             ctx.restore()

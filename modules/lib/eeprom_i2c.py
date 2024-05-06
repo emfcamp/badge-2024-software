@@ -18,6 +18,7 @@ T24C128 = const(16384)  # 16KiB 128Kbits
 T24C64 = const(8192)  # 8KiB 64Kbits
 T24C32 = const(4096)  # 4KiB 32Kbits
 
+
 # Logical EEPROM device consists of 1-8 physical chips. Chips must all be the
 # same size, and must have contiguous addresses.
 class EEPROM(EepromDevice):
@@ -47,7 +48,9 @@ class EEPROM(EepromDevice):
     # Check for a valid hardware configuration
     def scan(self, verbose, chip_size, addr, max_chips_count):
         devices = self._i2c.scan()  # All devices on I2C bus
-        eeproms = [d for d in devices if addr <= d < addr + max_chips_count]  # EEPROM chips
+        eeproms = [
+            d for d in devices if addr <= d < addr + max_chips_count
+        ]  # EEPROM chips
         nchips = len(eeproms)
         if nchips == 0:
             raise RuntimeError("EEPROM not found.")

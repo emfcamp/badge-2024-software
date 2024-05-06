@@ -1,6 +1,5 @@
 import asyncio
 
-import app
 import display
 from events.input import Button, BUTTON_TYPES, ButtonDownEvent, ButtonUpEvent
 from system.eventbus import eventbus

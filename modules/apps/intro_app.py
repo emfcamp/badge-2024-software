@@ -57,13 +57,13 @@ class IntroApp(app.App):
     def draw_text(self, ctx):
         text_width = ctx.text_width(self.text)
         text_height = ctx.font_size
-        ctx.rotate(self.time_elapsed * math.pi / 3)\
-            .linear_gradient(-50, -50, 50, 50)\
-            .add_stop(0.0, (1.0, 0.0, 0.0), 1.0)\
-            .add_stop(0.5, (0.0, 1.0, 0.0), 1.0) \
-            .add_stop(1.0, (0.0, 0.0, 1.0), 1.0) \
-            .move_to(0 - text_width / 2, text_height / 4)\
-            .text(self.text)
+        ctx.rotate(self.time_elapsed * math.pi / 3).linear_gradient(
+            -50, -50, 50, 50
+        ).add_stop(0.0, (1.0, 0.0, 0.0), 1.0).add_stop(
+            0.5, (0.0, 1.0, 0.0), 1.0
+        ).add_stop(1.0, (0.0, 0.0, 1.0), 1.0).move_to(
+            0 - text_width / 2, text_height / 4
+        ).text(self.text)
 
     def draw(self, ctx):
         ctx.save()

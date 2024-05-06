@@ -3,6 +3,7 @@ import time
 
 from system.eventbus import eventbus
 
+
 class PingEvent:
     def __init__(self):
         pass
@@ -10,12 +11,14 @@ class PingEvent:
     def __str__(self):
         return "ping"
 
+
 class PongEvent:
     def __init__(self):
         pass
 
     def __str__(self):
         return "pong"
+
 
 class PingApp:
     def __init__(self):
@@ -48,6 +51,7 @@ class PingApp:
         await asyncio.sleep(1)
         print("async", str(event))
         await eventbus.emit_async(PingEvent())
+
 
 class PongApp:
     def __init__(self):

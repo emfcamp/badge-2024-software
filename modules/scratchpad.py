@@ -1,4 +1,3 @@
-from app_components.notification import Notification
 from system.notification.app import NotificationService
 from tildagonos import tildagonos
 

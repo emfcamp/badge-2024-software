@@ -1,6 +1,10 @@
 from machine import I2C
 from system.hexpansion.header import HexpansionHeader, write_header
-from system.hexpansion.util import detect_eeprom_addr, get_hexpansion_block_devices, read_hexpansion_header
+from system.hexpansion.util import (
+    detect_eeprom_addr,
+    get_hexpansion_block_devices,
+    read_hexpansion_header,
+)
 import vfs
 from tildagonos import tildagonos
 
@@ -8,7 +12,7 @@ from tildagonos import tildagonos
 t = tildagonos()
 
 # Set up i2c
-port = 0 # <<-- Customize!!
+port = 0  # <<-- Customize!!
 i2c = I2C(port)
 
 # autodetect eeprom address
@@ -24,7 +28,7 @@ header = HexpansionHeader(
     vid=0xCA75,
     pid=0x1337,
     unique_id=0x0,
-    friendly_name="Internal"
+    friendly_name="Internal",
 )
 
 # Write and read back header

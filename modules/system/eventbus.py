@@ -10,7 +10,9 @@ class _EventBus:
         self.async_handlers = {}
 
     def on(self, event_type, event_handler, app):
-        print(f"Registered event handler for {event_type.__name__}: {app.__class__.__name__} - {event_handler.__name__}")
+        print(
+            f"Registered event handler for {event_type.__name__}: {app.__class__.__name__} - {event_handler.__name__}"
+        )
         if app not in self.handlers:
             self.handlers[app] = {}
         if event_type not in self.handlers[app]:
@@ -18,7 +20,9 @@ class _EventBus:
         self.handlers[app][event_type].append(event_handler)
 
     def on_async(self, event_type, event_handler, app):
-        print(f"Registered async event handler for {event_type.__name__}: {app.__class__.__name__} - {event_handler.__name__}")
+        print(
+            f"Registered async event handler for {event_type.__name__}: {app.__class__.__name__} - {event_handler.__name__}"
+        )
         if app not in self.async_handlers:
             self.async_handlers[app] = {}
         if event_type not in self.async_handlers[app]:
@@ -54,7 +58,7 @@ class _EventBus:
     async def run(self):
         while True:
             event = await self.event_queue.get()
-            requires_focus = hasattr(event, 'requires_focus') and event.requires_focus
+            requires_focus = hasattr(event, "requires_focus") and event.requires_focus
 
             async_tasks = []
             with PerfTimer("handle events"):

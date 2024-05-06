@@ -1,10 +1,8 @@
-from machine import I2C
-from eeprom_i2c import EEPROM, T24C256
+from eeprom_i2c import EEPROM
 
 from eeprom_partition import EEPROMPartition
 from system.hexpansion.header import HexpansionHeader
 
-import vfs
 import typing
 
 
@@ -36,13 +34,17 @@ def read_hexpansion_header(i2c, eeprom_addr=0x50) -> typing.Optional[HexpansionH
 
 
 def get_hexpansion_block_devices(i2c, header, addr=0x50):
-    eep = EEPROM(i2c=i2c,
-                 chip_size=header.eeprom_total_size,
-                 page_size=header.eeprom_page_size,
-                 addr=addr)
-    partition = EEPROMPartition(eep=eep,
-                                offset=header.fs_offset,
-                                length=header.eeprom_total_size - header.fs_offset)
+    eep = EEPROM(
+        i2c=i2c,
+        chip_size=header.eeprom_total_size,
+        page_size=header.eeprom_page_size,
+        addr=addr,
+    )
+    partition = EEPROMPartition(
+        eep=eep,
+        offset=header.fs_offset,
+        length=header.eeprom_total_size - header.fs_offset,
+    )
     print("eeprom block count:", eep.ioctl(4, None))
     print("partition block count:", partition.ioctl(4, None))
     print("partition block size:", partition.ioctl(5, None))

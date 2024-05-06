@@ -13,11 +13,12 @@ def write_header(port, addr=0x50):
         vid=0xCA75,
         pid=0x1337,
         unique_id=0x0,
-        friendly_name="internal"
+        friendly_name="internal",
     )
 
     # Write header to 0x00 of the eeprom
     i2c.writeto(addr, bytes([0, 0]) + h.to_bytes())
+
 
 def read_header(port, addr=0x50):
     i2c = I2C(port)

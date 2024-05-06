@@ -1,11 +1,9 @@
 # main.py -- put your code here!
 
-from tildagonos import tildagonos
 from system.scheduler import scheduler
 from system.hexpansion.app import HexpansionManagerApp
 from system.notification.app import NotificationService
 
-from apps.intro_app import IntroApp
 from apps.basic_app import BasicApp
 from frontboards.twentyfour import TwentyTwentyFour
 
