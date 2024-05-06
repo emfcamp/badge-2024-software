@@ -1,3 +1,5 @@
+# From https://www.emfcamp.org/about/branding
+
 # Display
 display_x = 240
 display_y = 240
