@@ -14,7 +14,8 @@ import os
 
 
 def get_git_based_version():
-    os.chdir("/firmware")
+    root = os.environ.get('GITHUB_WORKSPACE', '/firmware')
+    os.chdir(root)
     return subprocess.check_output(
         ["git", "describe", "--tags", "--always"]
     ).decode().strip()
@@ -27,10 +28,9 @@ if len(sys.argv) > 1:
 
 v = None
 if os.environ.get('CI') is not None:
-    tag = os.environ.get('CI_COMMIT_TAG')
-    if tag is not None:
+    if os.environ.get('GITHUB_REF_TYPE') == 'tag':
         # If we're building a tag, just use that as a version.
-        v = tag
+        v = os.environ.get('GITHUB_REF_NAME')
 if v is None:
     v = get_git_based_version()
 
