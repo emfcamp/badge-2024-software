@@ -39,4 +39,4 @@ class TwentyTwentyFour(FrontBoard):
                 if not button_down and button_states[button]:
                     await eventbus.emit_async(ButtonUpEvent(button=button))
                 button_states[button] = button_down
-            await asyncio.sleep(0.001)
+            await asyncio.sleep(0.01)

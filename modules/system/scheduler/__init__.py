@@ -101,7 +101,7 @@ class _Scheduler:
         eventbus.deregister(app)
 
     def app_is_foregrounded(self, app):
-        return app in self.foreground_stack or app in self.on_top_stack
+        return self.app_is_focused(app) or app in self.on_top_stack
 
     def app_is_focused(self, app):
         return self.foreground_stack and app == self.foreground_stack[-1]
@@ -192,13 +192,15 @@ class _Scheduler:
             with PerfTimer("render"):
                 ctx = display.get_ctx()
                 for app in self.foreground_stack:
-                    ctx.save()
-                    app.draw(ctx)
-                    ctx.restore()
+                    with PerfTimer(f"rendering {app}"):
+                        ctx.save()
+                        app.draw(ctx)
+                        ctx.restore()
                 for app in self.on_top_stack:
-                    ctx.save()
-                    app.draw(ctx)
-                    ctx.restore()
+                    with PerfTimer(f"rendering {app}"):
+                        ctx.save()
+                        app.draw(ctx)
+                        ctx.restore()
                 display.end_frame(ctx)
             await asyncio.sleep(0.001)
 

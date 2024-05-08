@@ -96,5 +96,8 @@ class Buttons:
         ]
         return any(matching_values)
 
+    def clear(self):
+        self.buttons.clear()
+
     def __repr__(self):
         return f"<Buttons {self.buttons}>"
