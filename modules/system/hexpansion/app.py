@@ -166,6 +166,9 @@ class HexpansionManagerApp(app.App):
 
         # Autodetect eeprom addr
         addr = detect_eeprom_addr(i2c)
+        if addr is None:
+            print("Scan found no eeproms")
+            return
 
         # Do we have a header?
         header = read_hexpansion_header(i2c, addr)
