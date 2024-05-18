@@ -32,6 +32,7 @@ import sys
 
 class HexpansionManagerApp(app.App):
     def __init__(self, autolaunch=True):
+        super().__init__()
         eventbus.on_async(
             HexpansionInsertionEvent, self.handle_hexpansion_insertion, self
         )
@@ -151,6 +152,7 @@ class HexpansionManagerApp(app.App):
         except Exception as e:
             print(f"Failed to mount: {e}")
             self.format_requests.append((eep, port))
+            eventbus.emit(RequestForegroundPushEvent(self))
             return
 
         self.mountpoints[port] = mountpoint
