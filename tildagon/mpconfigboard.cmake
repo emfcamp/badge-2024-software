@@ -15,14 +15,22 @@ set(EXTRA_COMPONENT_DIRS
 if(NOT GIT_FOUND)
     find_package(Git QUIET)
 endif()
+
+file(
+        REAL_PATH
+        "../../../../.."
+        FIRMWARE_ROOT
+        BASE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
+)
 execute_process(
-        COMMAND "${GIT_EXECUTABLE}" describe --tags
-        WORKING_DIRECTORY "/firmware"
+        COMMAND "${GIT_EXECUTABLE}" describe --tags --always
+        WORKING_DIRECTORY "${FIRMWARE_ROOT}"
         RESULT_VARIABLE res
         OUTPUT_VARIABLE TILDAGON_GIT_VERSION
         OUTPUT_STRIP_TRAILING_WHITESPACE)
 message("TILDAGON_GIT_VERSION=${TILDAGON_GIT_VERSION}")
-configure_file("${CMAKE_CURRENT_LIST_DIR}/sdkconfig.project_ver.in" "${MICROPY_PORT_DIR}/build-tildagon/sdkconfig.project_ver")
+message("Location=${FIRMWARE_ROOT}")
+configure_file("${CMAKE_CURRENT_LIST_DIR}/sdkconfig.project_ver.in" "${CMAKE_CURRENT_LIST_DIR}/../../build-tildagon/sdkconfig.project_ver")
 
 # Config settings
 set(SDKCONFIG_DEFAULTS
