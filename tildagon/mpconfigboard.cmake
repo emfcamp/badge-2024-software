@@ -6,10 +6,23 @@ set(IDF_COMPONENTS
     ctx
     st3m
     flow3r_bsp
+    tildagon
 )
 set(EXTRA_COMPONENT_DIRS
     "${CMAKE_CURRENT_LIST_DIR}/../../../../../components/"
 )
+
+if(NOT GIT_FOUND)
+    find_package(Git QUIET)
+endif()
+execute_process(
+        COMMAND "${GIT_EXECUTABLE}" describe --tags
+        WORKING_DIRECTORY "/firmware"
+        RESULT_VARIABLE res
+        OUTPUT_VARIABLE TILDAGON_GIT_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+message("TILDAGON_GIT_VERSION=${TILDAGON_GIT_VERSION}")
+configure_file("${CMAKE_CURRENT_LIST_DIR}/sdkconfig.project_ver.in" "${MICROPY_PORT_DIR}/build-tildagon/sdkconfig.project_ver")
 
 # Config settings
 set(SDKCONFIG_DEFAULTS
@@ -19,6 +32,7 @@ set(SDKCONFIG_DEFAULTS
     boards/sdkconfig.240mhz
     boards/sdkconfig.spiram_sx
     boards/tildagon/sdkconfig.board
+    build-tildagon/sdkconfig.project_ver
 )
 
 # Start-up tasks
@@ -30,3 +44,4 @@ set(MICROPY_SOURCE_BOARD
 if(NOT MICROPY_FROZEN_MANIFEST)
     set(MICROPY_FROZEN_MANIFEST ${CMAKE_CURRENT_LIST_DIR}/manifest.py)
 endif()
+

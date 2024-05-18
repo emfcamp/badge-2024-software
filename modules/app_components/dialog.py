@@ -22,11 +22,14 @@ class YesNoDialog:
 
     async def run(self, render_update):
         # Render once, when the dialogue opens
+        self.app.overlays.append(self)
         await render_update()
 
         # Tightly loop, waiting for a result, then return it
         while self._result is None:
             await asyncio.sleep(0.05)
+        self.app.overlays.pop()
+        await render_update()
         return self._result
 
     def draw_message(self, ctx):
