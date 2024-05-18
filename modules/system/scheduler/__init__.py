@@ -155,7 +155,7 @@ class _Scheduler:
         async def mark_update_finished():
             # Unblock renderer
             self.render_needed.set()
-            await asyncio.sleep(0.001)
+            await asyncio.sleep(0)
 
             # If we're no longer foregounded, wait until it is before returning
             did_lose_focus = False
@@ -166,7 +166,14 @@ class _Scheduler:
             # Return control to the update task
             return did_lose_focus
 
-        self.update_tasks[app] = asyncio.create_task(app.run(mark_update_finished))
+        async def app_wrapper():
+            try:
+                await app.run(mark_update_finished)
+            except Exception as e:
+                print(e)
+                app.minimise()
+
+        self.update_tasks[app] = asyncio.create_task(app_wrapper())
 
     """async def report_errors(self):
         from system.notification.events import ShowNotificationEvent
@@ -202,7 +209,7 @@ class _Scheduler:
                         app.draw(ctx)
                         ctx.restore()
                 display.end_frame(ctx)
-            await asyncio.sleep(0.001)
+            await asyncio.sleep(0)
 
     async def _main(self):
         update_tasks = []
