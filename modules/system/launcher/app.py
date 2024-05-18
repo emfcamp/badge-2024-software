@@ -1,11 +1,11 @@
-import os
 import json
+import os
 
 from app import App
 from app_components.menu import Menu
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
-from system.scheduler.events import RequestStartAppEvent, RequestForegroundPushEvent
+from system.scheduler.events import RequestForegroundPushEvent, RequestStartAppEvent
 
 
 def path_isfile(path):
@@ -73,7 +73,7 @@ class Launcher(App):
 
     def list_core_apps(self):
         core_app_info = [
-            # ("App store", "app_store", "Store"),
+            ("App store", "firmware_apps.app_store", "AppStoreApp"),
             # ("Name Badge", "hello", "Hello"),
             ("Logo", "firmware_apps.intro_app", "IntroApp"),
             ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
