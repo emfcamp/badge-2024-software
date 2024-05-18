@@ -7,6 +7,8 @@ set(IDF_COMPONENTS
     st3m
     flow3r_bsp
     tildagon
+    usb
+    usb_host_msc
 )
 set(EXTRA_COMPONENT_DIRS
     "${CMAKE_CURRENT_LIST_DIR}/../../../../../components/"
@@ -35,7 +37,6 @@ configure_file("${CMAKE_CURRENT_LIST_DIR}/sdkconfig.project_ver.in" "${CMAKE_CUR
 # Config settings
 set(SDKCONFIG_DEFAULTS
     boards/sdkconfig.base
-    boards/sdkconfig.usb
     boards/sdkconfig.ble
     boards/sdkconfig.240mhz
     boards/sdkconfig.spiram_sx
