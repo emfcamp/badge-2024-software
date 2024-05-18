@@ -83,6 +83,7 @@ class Launcher(App):
             # ("Battery", "battery", "Battery"),
             # ("Accelerometer", "accel_app", "Accel"),
             # ("Magnetometer", "magnet_app", "Magnetometer"),
+            ("Update", "system.ota.ota", "OtaUpdate"),
             # ("Settings", "settings_app", "SettingsApp"),
         ]
         core_apps = []

@@ -17,16 +17,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3-pip python3-pillow libusb-1.0-0-dev cmake
       - name: Check out driver code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: 'recursive'
       - name: Check out ESP IDF
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: espressif/esp-idf
           ref: v5.2.1
           path: esp-idf
-          submodules: true
+          submodules: 'recursive'
       - name: Install SDK
         run: |
           cd esp-idf
