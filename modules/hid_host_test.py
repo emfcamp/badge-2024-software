@@ -10,9 +10,7 @@ def kb_cb(unused):
 
 tildagon_hid.set_kb_cb(kb_cb)
 
-t = tildagonos.tildagonos()
-
-t.set_egpio_pin((0x59, 0, (3 << 4)), 1)
+tildagonos.tildagonos.set_egpio_pin((0x59, 0, (3 << 4)), 1)
 
 # just keep running so the callback gets called
 while True:

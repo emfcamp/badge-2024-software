@@ -1,5 +1,5 @@
 diff --git a/ports/esp32/esp32_common.cmake b/ports/esp32/esp32_common.cmake
-index 89e46f9cf..ed2cc007c 100644
+index 89e46f9cf..a86915020 100644
 --- a/ports/esp32/esp32_common.cmake
 +++ b/ports/esp32/esp32_common.cmake
 @@ -11,6 +11,9 @@ endif()
@@ -12,7 +12,16 @@ index 89e46f9cf..ed2cc007c 100644
  # CMAKE_BUILD_EARLY_EXPANSION is set during the component-discovery phase of
  # `idf.py build`, so none of the extmod/usermod (and in reality, most of the
  # micropython) rules need to happen. Specifically, you cannot invoke add_library.
-@@ -69,7 +72,7 @@ list(APPEND MICROPY_SOURCE_PORT
+@@ -57,7 +60,7 @@ list(APPEND MICROPY_SOURCE_PORT
+     main.c
+     ppp_set_auth.c
+     uart.c
+-    usb.c
++    # usb.c
+     usb_serial_jtag.c
+     gccollect.c
+     mphalport.c
+@@ -68,7 +71,7 @@ list(APPEND MICROPY_SOURCE_PORT
      machine_pin.c
      machine_touchpad.c
      machine_dac.c

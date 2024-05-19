@@ -1,0 +1,12 @@
+diff --git a/ports/esp32/main_esp32s3/idf_component.yml b/ports/esp32/main_esp32s3/idf_component.yml
+index 05ab2f29a..8ec9b4c88 100644
+--- a/ports/esp32/main_esp32s3/idf_component.yml
++++ b/ports/esp32/main_esp32s3/idf_component.yml
+@@ -2,5 +2,7 @@
+ dependencies:
+   espressif/mdns: "~1.1.0"
+   espressif/esp_tinyusb: "~1.0.0"
++  espressif/usb_host_msc: ">=1.0.3"
++  espressif/usb_host_hid: "^1.0.1"
+   idf:
+     version: ">=5.0.4"
