@@ -304,20 +304,55 @@ class Context:
         self._emit(f"gray {v:.3f}")
         return self
 
+    def _value_range_rgb(self, value, value_str, low_limit, high_limit):
+        if value > high_limit:
+            print(
+                "{name} value should be below {limit}, this is an error in the real uctx library. Setting to {limit}.".format(name=value_str, limit=high_limit),
+                file=sys.stderr,
+            )
+            return high_limit
+        if value < low_limit:
+            print(
+                "{name} value should be above {limit}, this is an error in the real uctx library. Setting to {limit}.".format(name=value_str, limit=low_limit),
+                file=sys.stderr,
+            )
+            return low_limit
+        return value
+
     def rgba(self, r, g, b, a):
-        # TODO(q3k): dispatch by type instead of value, warn on
-        # ambiguous/unexpected values for type.
-        if r > 1.0 or g > 1.0 or b > 1.0 or a > 1.0:
+        r = self._value_range_rgb(r, "r", 0.0, 255.0)
+        g = self._value_range_rgb(g, "g", 0.0, 255.0)
+        b = self._value_range_rgb(b, "b", 0.0, 255.0)
+        a = self._value_range_rgb(a, "a", 0.0, 1.0)
+
+        # if one value is a float between 0 and 1, check that no value is above 1
+        if (r > 0.0 and r < 1.0) or (g > 0.0 and g < 1.0) or (b > 0.0 and b < 1.0):
+            if r > 1.0 or g > 1.0 or b > 1.0:
+                print(
+                    "r, g, and b values are using mixed ranges (0.0 to 1.0) and (0 - 255), this may result in undesired colours.",
+                    file=sys.stderr,
+                )
+        if r > 1.0 or g > 1.0 or b > 1.0:
             r /= 255.0
             g /= 255.0
             b /= 255.0
-            a /= 255.0
+
         self._emit(f"rgba {r:.3f} {g:.3f} {b:.3f} {a:.3f}")
         return self
 
+
     def rgb(self, r, g, b):
-        # TODO(q3k): dispatch by type instead of value, warn on
-        # ambiguous/unexpected values for type.
+        r = self._value_range_rgb(r, "r", 0.0, 255.0)
+        g = self._value_range_rgb(g, "g", 0.0, 255.0)
+        b = self._value_range_rgb(b, "b", 0.0, 255.0)
+
+        # if one value is a float between 0 and 1, check that no value is above 1
+        if (r > 0.0 and r < 1.0) or (g > 0.0 and g < 1.0) or (b > 0.0 and b < 1.0):
+            if r > 1.0 or g > 1.0 or b > 1.0:
+                print(
+                    "r, g, and b values are using mixed ranges (0.0 to 1.0) and (0 - 255), this may result in undesired colours.",
+                    file=sys.stderr,
+                )
         if r > 1.0 or g > 1.0 or b > 1.0:
             r /= 255.0
             g /= 255.0
