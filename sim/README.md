@@ -32,9 +32,26 @@ pipenv run python run.py
 Known Issues
 ---
 
+## ModuleNotFoundError: No module named '_contextvars'
+
+Try using non-precompiled Python.
+
+## No module named 'wasmer'
+
+Try using Python 3.9 as suggested [in this issue](https://github.com/wasmerio/wasmer-python/issues/539):
+
+```sh
+pipenv shell
+pip3.9 install wasmer wasmer_compiler_cranelift
+python3.9 run.py
+```
+
+Support
+---
+
 No support for most things.
 
 Acknowledgements
 ---
 
-Thank you to the flow3r team, whose simulator this is forked from. 
+Thank you to the flow3r team, whose simulator this is forked from.
