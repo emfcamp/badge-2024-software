@@ -37,9 +37,6 @@ extern void tildagon_power_interrupt_event ( void* param );
 extern void tildagon_power_off( void );
 /**
  * @brief turn the 5V supply on or off
- * @details check if we need Hi-Z. only required when 500mA input current limit 
- * from usb A-C cable or when usb in is not attached ( default current limit is 500mA)
- * or when there is a 1500mA input current limit until we have established that we're not in lanyard mode
  */
 extern void tildagon_power_enable_5v( bool enable );
 

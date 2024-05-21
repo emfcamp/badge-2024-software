@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "tildagon_i2c.h"
 
+#define FUSB_TXSENT_I_MASK (uint16_t)0x0004U
 #define FUSB_TOGGLE_I_MASK (uint16_t)0x0040U
 #define FUSB_GD_CRC_I_MASK (uint16_t)0x0100U
 #define FUSB_BC_LVL_I_MASK (uint8_t)0x01U
@@ -12,7 +13,7 @@
 #define FUSB_VBUSOK_I_MASK (uint8_t)0x80U
 
 #define FUSB_STATUSA_TOGGLE_MASK (uint16_t)0x3800U
-#define FUSB_STATUSA_TOGGLE_SHIFT (int8_t)10
+#define FUSB_STATUSA_TOGGLE_SHIFT (int8_t)11
 #define FUSB_STATUS_COMP_MASK   (uint16_t)0x0020U
 #define FUSB_STATUS_BCLVL_MASK  (uint16_t)0x0003U
 #define FUSB_STATUS_VBUSOK_MASK (uint16_t)0x0080U

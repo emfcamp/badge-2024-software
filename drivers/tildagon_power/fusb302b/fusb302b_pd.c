@@ -182,7 +182,7 @@ void fusbpd_vendor_specific( pd_state_t* state )
     state->tx_buffer[4] = TX_SOP2; 
     state->tx_buffer[5] = TX_PACKSYM | 0x0E;
     pd_header_union_t header = { 0U };
-    header.sop.number_objects = 0x02U;
+    header.sop.number_objects = 0x03U;
     header.sop.message_id = state->msg_id;
     header.sop.message_type = 0x0FU;
     header.sop.revision = 0x01U;

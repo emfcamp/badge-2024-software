@@ -8,16 +8,14 @@
 #include "driver/i2c_master.h"
 #include "modmachine.h"
 
-//#include "py/runtime.h"// debug
-
 #include "tildagon_power.h"
-
 
 typedef enum
 {
     DISABLED,
     UNATTACHED,
-    ATTACHED
+    ATTACHED,
+    MAX_STATES
 } attach_machine_state_t;
 
 typedef enum
@@ -41,11 +39,13 @@ typedef enum
     HOST_ATTACH,
     HOST_DETACH,
     HOST_GOODCRCSENT,
+    HOST_TX_SENT,
     HOST_MAX_EVENT,
     DEVICE_TOGGLE,
     DEVICE_ATTACH,
     DEVICE_DETACH,
     DEVICE_GOODCRCSENT,
+    DEVICE_TX_SENT,
     DEVICE_BC_LEVEL, 
 } event_t;
 
@@ -63,18 +63,18 @@ void determine_input_current_limit ( usb_state_t* state );
 void clean_in( void );
 void clean_out( void );
 
-funptr_t host_attach_machine[3] =  
+funptr_t host_attach_machine[MAX_STATES] =  
 {
     host_disabled_handler,
     host_unattached_handler,
-    host_attached_handler
+    host_attached_handler,
 };
 
-funptr_t device_attach_machine[3] =  
+funptr_t device_attach_machine[MAX_STATES] =  
 {
     device_disabled_handler,
     device_unattached_handler,
-    device_attached_handler
+    device_attached_handler,
 };
 
 bq_state_t pmic = { 0 };
@@ -87,49 +87,62 @@ static pd_machine_state_t host_pd_state = NOT_STARTED;
 static pd_machine_state_t device_pd_state = NOT_STARTED;
 static TaskHandle_t tildagon_power_task_handle = NULL;
 static QueueHandle_t event_queue;
+bool lanyard_mode = false;
+//todo integrate with port expanders
+#include "tildagon_i2c.h"
+#define READ ( MP_MACHINE_I2C_FLAG_WRITE1 | MP_MACHINE_I2C_FLAG_READ | MP_MACHINE_I2C_FLAG_STOP )
+#define WRITE MP_MACHINE_I2C_FLAG_STOP
+void dev_5v_sw( bool enable )
+{
+    uint8_t state = 0x00;
+    uint8_t regVal = 0;
+    uint8_t regAddr = 0x02;
+    if ( enable )
+    {
+        state = 0x10;
+    }
+    mp_machine_i2c_buf_t buffer[2] = { { .len = 1, .buf = &regAddr },
+                                       { .len = 1, .buf = &regVal } };
+    tildagon_mux_i2c_transaction( usb_in.fusb.mux_port, 0x5A, 2, buffer, READ );
+    regVal = regVal & 0xEF;
+    regVal = regVal | state;
+    uint8_t write_buffer[2] = { 0x02, regVal };
+    buffer[0].len = 2;
+    buffer[0].buf = write_buffer;  
+    tildagon_mux_i2c_transaction( usb_in.fusb.mux_port, 0x5A, 1, buffer, WRITE );
+}
+
 
 /**
  * @brief fast rate task to handle the interrupt generated events
  */
 void tildagon_power_fast_task(void *param __attribute__((__unused__)))
 {
-       
-    event_queue = xQueueCreate( 10, sizeof(event_t) );
-      
+    event_queue = xQueueCreate( 10, sizeof(event_t) );     
     usb_in.fusb.mux_port = tildagon_get_mux_obj( 7 );
     usb_out.fusb.mux_port = tildagon_get_mux_obj( 0 );
     pmic.mux_port = tildagon_get_mux_obj( 7 );
     // turn off 5V switch before setting up PMIC as the reset will enable the boost.
-    //todo add when port expander interface available
+    dev_5v_sw(false);
+    //todo replace when port expander interface available
     bq_init( &pmic );
     
-    /* setup lanyard and badge to badge numbers */
-    esp_fill_random( usb_in.pd.badge_id, 8 );
-    for ( uint8_t i = 0; i < 8; i++)
-    {
-        usb_out.pd.badge_id[i] = usb_in.pd.badge_id[i];
-    }
-    
     /* initialise isr */ 
-    // ToDo: move to allow sharing of sys_int isr
+    //todo move to allow sharing of sys_int isr
     machine_pins_init();
     gpio_set_intr_type(GPIO_NUM_10, GPIO_INTR_NEGEDGE );
     gpio_isr_handler_add( GPIO_NUM_10, tildagon_power_interrupt_event, NULL );
     
-    fusb_setup_device( &usb_in.fusb );
-    fusb_setup_host( &usb_out.fusb );
+    clean_in();
+    clean_out();
     
     /* determine the current state */
     fusb_get_status( &usb_in.fusb );
     fusb_get_statusa( &usb_in.fusb );
     if ( usb_in.fusb.statusa & FUSB_STATUSA_TOGGLE_MASK )
     {
-        //const event_t event = DEVICE_TOGGLE;
-        //xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
-        device_attach_state = UNATTACHED;
-        usb_in.fusb.cc_select = ( usb_in.fusb.statusa >> FUSB_STATUSA_TOGGLE_SHIFT ) & 0x03;
-        fusb_mask_interrupt_bclevel( &usb_in.fusb, 0 );
-        fusb_set_cc( &usb_in.fusb, usb_in.fusb.cc_select );
+        const event_t event = DEVICE_TOGGLE;
+        xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
     }
     
     fusb_get_status( &usb_out.fusb );
@@ -164,9 +177,13 @@ void tildagon_power_fast_task(void *param __attribute__((__unused__)))
                 {
                     (*host_attach_machine[host_attach_state])( event );
                 }
-                else
+                else if ( !lanyard_mode )
                 {
                     (*device_attach_machine[device_attach_state])( event );
+                }
+                else
+                {
+                    /*  throw away */
                 }
             }
         }
@@ -197,38 +214,27 @@ void tildagon_power_interrupt_event( void* param )
  */
 void tildagon_power_off( void )
 {
+    //todo replace 5v off.
+    dev_5v_sw(false);
     bq_disconnect_battery( &pmic );
 }
 
 /**
  * @brief turn the 5V supply on or off
- * @details check if we need Hi-Z. only required when 500mA input current limit 
- * from usb A-C cable or when usb in is not attached ( default current limit is 500mA)
- * or when there is a 1500mA input current limit until we have established that we're not in lanyard mode
  */
 void tildagon_power_enable_5v( bool enable )
 {
+    //todo replace when port expander interface available
     if ( enable )
     {
-        if ( 
-           ( usb_in.fusb.input_current_limit == 500U ) 
-        || ( ( usb_in.fusb.input_current_limit == 1500U ) && ( host_pd_state != VENDOR_RETRY_FAIL ) )
-         )
-        {
-            bq_enable_HiZ_input( &pmic, 1 );
-        }
-        /* switch on 5V */
         bq_enable_boost( &pmic, 1 );
-        /* close 5V switch */
-        //todo add this after hi-Z control has been tested
+        dev_5v_sw(true);
     }
     else
     {
-        /* open switch */
-        //todo add when port expander interface available
-        /* switch off 5V */
+        /* open switch then disable 5V */
+        dev_5v_sw(false);
         bq_enable_boost( &pmic, 0 );
-        /* enable Hi-Z on PMIC */
         bq_enable_HiZ_input( &pmic, 0 );
     }    
 }
@@ -242,13 +248,11 @@ void host_disabled_handler( event_t event )
     {
         host_attach_state = UNATTACHED;
         usb_out.fusb.cc_select = ( usb_out.fusb.statusa >> FUSB_STATUSA_TOGGLE_SHIFT ) & 0x03;
-        fusb_mask_interrupt_toggle( &usb_in.fusb, 1 );
+        fusb_mask_interrupt_toggle( &usb_out.fusb, 1 );
         fusb_stop_toggle(&usb_out.fusb );
         fusb_mask_interrupt_bclevel( &usb_out.fusb, 0 );
         fusb_mask_interrupt_comp( &usb_out.fusb, 0 );
         fusb_set_cc( &usb_out.fusb, usb_out.fusb.cc_select );
-        //const mp_print_t *print = &mp_plat_print; // debug
-        //mp_printf(print, "HOST_TOGGLE" ); // debug
     }
 }
 
@@ -261,17 +265,13 @@ void host_unattached_handler( event_t event )
     {
         host_attach_state = ATTACHED;
         fusb_mask_interrupt_bclevel( &usb_out.fusb, 1 );
-        tildagon_power_enable_5v(true);
-        //todo enable host pd
-        //fusb_setup_pd(&usb_out.fusb );        
-        //fusb_mask_interrupt_retryfail( &usb_out.fusb, 0 );
-        //fusb_mask_interrupt_txsent( &usb_out.fusb, 0 );
-        //fusbpd_vendor_specific( &usb_out.pd );
-        //fusb_send ( &usb_out.fusb, usb_out.pd.tx_buffer, usb_out.pd.message_length );
-        //host_pd_state = VENDOR_SENT;
-        
-        //const mp_print_t *print = &mp_plat_print; // debug
-        //mp_printf(print, "HOST_ATTACH" ); // debug
+        tildagon_power_enable_5v(true);    
+        fusb_setup_pd(&usb_out.fusb );        
+        fusb_mask_interrupt_retryfail( &usb_out.fusb, 0 );
+        fusb_mask_interrupt_txsent( &usb_out.fusb, 0 );
+        fusbpd_vendor_specific( &usb_out.pd );
+        fusb_send ( &usb_out.fusb, usb_out.pd.tx_buffer, usb_out.pd.message_length );
+        host_pd_state = VENDOR_SENT;
     }
 }
 
@@ -284,13 +284,14 @@ void host_attached_handler( event_t event )
     {
         host_attach_state = DISABLED;
         clean_out();
-        //const mp_print_t *print = &mp_plat_print; // debug
-        //mp_printf(print, "HOST_DETACH" ); // debug
     }
     else
     {
-        /* pass to host pd state machine or handle here? */
-        
+        //todo host pd state machine for badge to badge
+        if ( host_pd_state > NOT_STARTED )
+        {
+            //host_pd_machine( event );
+        }
     }
 }
 
@@ -304,7 +305,6 @@ void device_disabled_handler( event_t event )
     {
         device_attach_state = UNATTACHED;
         fusb_mask_interrupt_toggle( &usb_in.fusb, 1 );
-        fusb_get_statusa( &usb_in.fusb );
         /* use toggle status to get which CC line to use for PD */
         fusb_mask_interrupt_bclevel( &usb_in.fusb, 0 );
         usb_in.fusb.cc_select = ( usb_in.fusb.statusa >> FUSB_STATUSA_TOGGLE_SHIFT ) & 0x03;
@@ -314,8 +314,6 @@ void device_disabled_handler( event_t event )
             const event_t event = DEVICE_ATTACH;
             xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
         }
-        //const mp_print_t *print = &mp_plat_print; // debug
-        //mp_printf(print, "DEVICE_TOGGLE" ); // debug
     }
 }
 
@@ -327,20 +325,22 @@ void device_unattached_handler( event_t event )
     if ( event == DEVICE_ATTACH )
     {
         device_attach_state = ATTACHED;
-        const mp_print_t *print = &mp_plat_print; // debug
-        mp_printf(print, "DEVICE_ATTACH" ); // debug
     } 
     else if ( event == DEVICE_BC_LEVEL )
     {
         determine_input_current_limit( &usb_in );
         if ( ( usb_in.fusb.input_current_limit >= 1500 ) && ( device_pd_state == NOT_STARTED ) )
         {
-            fusb_setup_pd( &usb_in.fusb );
+            //todo enable device pd
+            //fusb_setup_pd( &usb_in.fusb );
             device_pd_state = WAITING;
         }
         fusb_mask_interrupt_bclevel( &usb_in.fusb, 1 );
-        //const mp_print_t *print = &mp_plat_print; // debug
-        //mp_printf(print, "DEVICE_BC_LEVEL" ); // debug
+    }
+    else if ( event == DEVICE_DETACH)
+    {
+        device_attach_state = DISABLED;
+        clean_in();
     }
 }
 
@@ -353,21 +353,17 @@ void device_attached_handler( event_t event )
     {
         device_attach_state = DISABLED;
         clean_in();
-        //const mp_print_t *print = &mp_plat_print; // debug
-        //mp_printf(print, "DEVICE_DETACH" ); // debug
     }
     else if ( event == DEVICE_BC_LEVEL )
     {
         determine_input_current_limit( &usb_in );
         if ( ( usb_in.fusb.input_current_limit >= 1500 ) && ( device_pd_state == NOT_STARTED ) )
         {
-            //todo enable once fusb is replaced and tvs diodes fitted
+            //todo enable device pd
             //fusb_setup_pd( &usb_in.fusb );
-            //device_pd_state = WAITING;
+            device_pd_state = WAITING;
         }
         fusb_mask_interrupt_bclevel( &usb_in.fusb, 1 );
-        //const mp_print_t *print = &mp_plat_print; // debug
-        //mp_printf(print, "DEVICE_BC_LEVEL" ); // debug
     }
     else
     {
@@ -377,6 +373,7 @@ void device_attached_handler( event_t event )
         }
     }
 }
+
 
 /**
  * @brief state machine for the device pd comms
@@ -400,7 +397,7 @@ void device_pd_machine ( event_t event )
                 }          
                 else if( usb_in.pd.last_rx_data_msg_type == PD_DATA_VENDOR_DEFINED )
                 {
-                    /* if vendor pdo received decide on badge to badge or lanyard mode and callback? */                       
+                    /* if vendor pdo received decide on badge to badge and callback? */    
                 }
             }
             break;
@@ -421,7 +418,6 @@ void device_pd_machine ( event_t event )
         }
         case PSU_READY_RECEIVED:
         case BADGE_TO_BADGE:
-        case LANYARD:
         default:
         {
             /* stay in this state until detach */   
@@ -434,7 +430,13 @@ void device_pd_machine ( event_t event )
  * @brief Determines if the interrupt was a USB event and which one.
  */
 void generate_events( void )
-{   
+{
+    bq_update_state( &pmic );
+    if ( ( pmic.vbus > 2.6 ) && ( pmic.vbus < 4.3 ) )
+    {
+        bq_enable_HiZ_input( &pmic, 1 );
+        lanyard_mode = true;
+    }
     if ( gpio_get_level( GPIO_NUM_10 ) == 0 )
     {
         uint16_t interruptab = fusb_get_interruptab( &usb_in.fusb );
@@ -463,6 +465,10 @@ void generate_events( void )
                 const event_t event = DEVICE_GOODCRCSENT;
                 xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
             }
+            if ( interruptab & FUSB_TXSENT_I_MASK )
+            {
+                usb_in.pd.msg_id++;
+            }
         } 
         else if ( interrupt & FUSB_BC_LVL_I_MASK )
         {
@@ -479,7 +485,7 @@ void generate_events( void )
         fusb_get_statusa( &usb_out.fusb );
 
         if ( interruptab & FUSB_TOGGLE_I_MASK )
-        {
+        { 
             const event_t event = HOST_TOGGLE;
             xQueueSendToBack(event_queue, (void*)&event, (TickType_t)0 );
         }
@@ -501,6 +507,10 @@ void generate_events( void )
                 const event_t event = HOST_GOODCRCSENT;
                 xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
             } 
+            if ( interruptab & FUSB_TXSENT_I_MASK )
+            {
+                usb_out.pd.msg_id++;
+            }
         }
     }
 }
@@ -557,9 +567,24 @@ void clean_out( void )
     usb_out.pd.last_rx_control_msg_type = 0U;
     usb_out.pd.last_rx_data_msg_type = 0U;   
     usb_out.pd.number_of_pdos = 0U;
+    usb_out.pd.msg_id = 0U;
      
     *((uint16_t*)&usb_out.pd.last_rx_header.raw[0]) = 0U;
     *((uint32_t*)&usb_out.pd.rx_badge_id[0]) = 0U;
     *((uint32_t*)&usb_out.pd.rx_badge_id[4]) = 0U;
+    
+    /* setup lanyard and badge to badge numbers */
+    esp_fill_random( usb_in.pd.badge_id, 8 );
+    for ( uint8_t i = 0; i < 8; i++)
+    {
+        usb_out.pd.badge_id[i] = usb_in.pd.badge_id[i];
+    }
+    
+    if ( lanyard_mode )
+    {
+        lanyard_mode = false;
+        const event_t event = DEVICE_DETACH;
+        xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );  
+    }
 }
 

@@ -212,7 +212,7 @@ static MP_DEFINE_CONST_FUN_OBJ_0( Fault_obj, power_Fault);
 
 static const mp_rom_map_elem_t power_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_power) },
-    { MP_ROM_QSTR(MP_QSTR_enable5V), MP_ROM_PTR(&enable5V_obj) },
+    { MP_ROM_QSTR(MP_QSTR_Enable5V), MP_ROM_PTR(&enable5V_obj) },
     { MP_ROM_QSTR(MP_QSTR_Off), MP_ROM_PTR(&Off_obj) },
     { MP_ROM_QSTR(MP_QSTR_Vin), MP_ROM_PTR(&Vbus_obj) },
     { MP_ROM_QSTR(MP_QSTR_Vsys), MP_ROM_PTR(&Vsys_obj) },
