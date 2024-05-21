@@ -7,9 +7,13 @@ from system.notification.app import NotificationService
 from system.launcher.app import Launcher
 
 from frontboards.twentyfour import TwentyTwentyFour
+from system.usbhost.app import USBHostSystem
 
 # Start front-board interface
 scheduler.start_app(TwentyTwentyFour())
+
+# Start USB host subsystem
+scheduler.start_app(USBHostSystem())
 
 # Start expansion interface
 scheduler.start_app(HexpansionManagerApp())
