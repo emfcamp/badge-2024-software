@@ -18,6 +18,7 @@ class Menu:
         menu_items: list[str] = [],
         position=0,
         select_handler: Union[Callable[[str], Any], None] = None,
+        change_handler: Union[Callable[[str], Any], None] = None,
         back_handler: Union[Callable, None] = None,
         speed_ms=300,
         item_font_size=label_font_size,
@@ -29,6 +30,7 @@ class Menu:
         self.menu_items = menu_items
         self.position = position
         self.select_handler = select_handler
+        self.change_handler = change_handler
         self.back_handler = back_handler
         self.speed_ms = speed_ms
         self.item_font_size = item_font_size
@@ -48,8 +50,16 @@ class Menu:
     def _handle_buttondown(self, event: ButtonDownEvent):
         if BUTTON_TYPES["UP"] in event.button:
             self.up_handler()
+            if self.change_handler is not None:
+                self.change_handler(
+                    self.menu_items[self.position % len(self.menu_items)]
+                )
         if BUTTON_TYPES["DOWN"] in event.button:
             self.down_handler()
+            if self.change_handler is not None:
+                self.change_handler(
+                    self.menu_items[self.position % len(self.menu_items)]
+                )
         if BUTTON_TYPES["CANCEL"] in event.button:
             if self.back_handler is not None:
                 self.back_handler()
