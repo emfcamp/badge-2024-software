@@ -62,12 +62,18 @@ class Menu:
     def up_handler(self):
         self.is_animating = "up"
         self.animation_time_ms = 0
-        self.position = (self.position - 1) % len(self.menu_items)
+        num_menu_items = len(self.menu_items)
+        self.position = (
+            (self.position - 1) % num_menu_items if num_menu_items > 0 else 1
+        )
 
     def down_handler(self):
         self.is_animating = "down"
         self.animation_time_ms = 0
-        self.position = (self.position + 1) % len(self.menu_items)
+        num_menu_items = len(self.menu_items)
+        self.position = (
+            (self.position + 1) % num_menu_items if num_menu_items > 0 else 1
+        )
 
     def draw(self, ctx):
         animation_progress = ease_out_quart(self.animation_time_ms / self.speed_ms)
@@ -82,14 +88,22 @@ class Menu:
         ctx.text_baseline = ctx.MIDDLE
 
         set_color(ctx, "label")
+        num_menu_items = len(self.menu_items)
+        label = ""
+        try:
+            label = self.menu_items[
+                self.position % num_menu_items if num_menu_items > 0 else 1
+            ]
+        except IndexError:
+            label = "Empty Menu"
         ctx.move_to(
             0, animation_direction * -30 + animation_progress * animation_direction * 30
-        ).text(self.menu_items[self.position % len(self.menu_items)])
+        ).text(label)
 
         # Previous menu items
         ctx.font_size = self.item_font_size
         for i in range(1, 4):
-            if (self.position - i) >= 0:
+            if (self.position - i) >= 0 and len(self.menu_items):
                 ctx.move_to(
                     0,
                     -self.focused_item_margin

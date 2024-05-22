@@ -2,8 +2,11 @@ from typing import Any, Callable
 
 import app
 import display
-import network
+import wifi
 from app_components import Menu, clear_background
+from urequests import get
+
+APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
 
 BOOP_INSTALL = "BoopInstall"
 AVAILABLE = "Available"
@@ -27,28 +30,36 @@ class AppStoreApp(app.App):
         self.installed_menu = None
         self.update_menu = None
         self.app_store_index = []
-        self.check_wifi()
         self.get_index()
 
     def check_wifi(self):
-        wlan = network.WLAN(network.STA_IF)
-        connected = wlan.isconnected()
+        return True
+        if self.state != "checking_wifi":
+            self.update_state("checking_wifi")
+        connected = wifi.status()
+        print(wifi.get_ip())
         print("Connected" if connected else "Not connected")
         if not connected:
             self.update_state("no_wifi")
-        print(wlan.config("ssid"))
-        print(wlan.config("essid"))
+        print(wifi.get_sta_status())
         return connected
 
     def get_index(self):
+        self.check_wifi()
         self.update_state("refreshing_index")
-        self.app_store_index = [
-            {
-                "name": "Test App",
-                "path": "firmware_apps.test_app",
-                "callable": "TestApp",
-            }
-        ]
+        response = get(APP_STORE_LISTING_URL)
+        # self.app_store_index = [
+        #     {
+        #         "name": "Test App",
+        #         "path": "firmware_apps.test_app",
+        #         "callable": "TestApp",
+        #     }
+        # ]
+        print(response.json().items)
+        self.available_menu = Menu(
+            self,
+            menu_items=[app["manifest"]["app"]["name"] for app in self.app_store_index],
+        )
         self.update_state("main_menu")
 
     def update_state(self, state):
@@ -79,6 +90,12 @@ class AppStoreApp(app.App):
     def update(self, delta):
         if self.menu:
             self.menu.update(delta)
+        if self.available_menu:
+            self.available_menu.update(delta)
+        if self.installed_menu:
+            self.installed_menu.update(delta)
+        if self.update_menu:
+            self.update_menu.update(delta)
         return super().update(delta)
 
     def draw(self, ctx):
@@ -88,11 +105,11 @@ class AppStoreApp(app.App):
         clear_background(ctx)
         if self.state == "main_menu" and self.menu:
             self.menu.draw(ctx)
-        if self.state == "available_menu" and self.available_menu:
+        elif self.state == "available_menu" and self.available_menu:
             self.available_menu.draw(ctx)
-        if self.state == "installed_menu" and self.installed_menu:
+        elif self.state == "installed_menu" and self.installed_menu:
             self.installed_menu.draw(ctx)
-        if self.state == "update_menu" and self.update_menu:
+        elif self.state == "update_menu" and self.update_menu:
             self.update_menu.draw(ctx)
         elif self.state == "no_wifi":
             self.error_screen(ctx, "No Wi-Fi connection")

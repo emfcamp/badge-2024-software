@@ -34,43 +34,45 @@ def recursive_delete(path):
     os.rmdir(path)
 
 
-class Launcher(App):
-    def list_user_apps(self):
-        with PerfTimer("List user apps"):
-            apps = []
-            app_dir = "/apps"
-            try:
-                contents = os.listdir(app_dir)
-            except OSError:
-                # No apps dir full stop
-                return []
+def loadInfo(folder, name):
+    try:
+        info_file = "{}/{}/metadata.json".format(folder, name)
+        with open(info_file) as f:
+            information = f.read()
+        return json.loads(information)
+    except BaseException:
+        return {}
 
-            for name in contents:
-                if not path_isfile(f"{app_dir}/{name}/__init__.py"):
-                    continue
-                app = {
-                    "path": name,
-                    "callable": "main",
-                    "name": name,
-                    "icon": None,
-                    "category": "unknown",
-                    "hidden": False,
-                }
-                metadata = self.loadInfo(app_dir, name)
-                app.update(metadata)
-                if not app["hidden"]:
-                    apps.append(app)
-            return apps
 
-    def loadInfo(self, folder, name):
+def list_user_apps():
+    with PerfTimer("List user apps"):
+        apps = []
+        app_dir = "/apps"
         try:
-            info_file = "{}/{}/metadata.json".format(folder, name)
-            with open(info_file) as f:
-                information = f.read()
-            return json.loads(information)
-        except BaseException:
-            return {}
+            contents = os.listdir(app_dir)
+        except OSError:
+            # No apps dir full stop
+            return []
 
+        for name in contents:
+            if not path_isfile(f"{app_dir}/{name}/__init__.py"):
+                continue
+            app = {
+                "path": name,
+                "callable": "main",
+                "name": name,
+                "icon": None,
+                "category": "unknown",
+                "hidden": False,
+            }
+            metadata = loadInfo(app_dir, name)
+            app.update(metadata)
+            if not app["hidden"]:
+                apps.append(app)
+        return apps
+
+
+class Launcher(App):
     def list_core_apps(self):
         core_app_info = [
             ("App store", "firmware_apps.app_store", "AppStoreApp"),
@@ -100,7 +102,7 @@ class Launcher(App):
         return core_apps
 
     def update_menu(self):
-        self.menu_items = self.list_core_apps() + self.list_user_apps()
+        self.menu_items = self.list_core_apps() + list_user_apps()
         self.menu = Menu(
             self,
             [app["name"] for app in self.menu_items],
