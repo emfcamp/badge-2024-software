@@ -17,7 +17,7 @@ class Menu:
         app: App,
         menu_items: list[str] = [],
         position=0,
-        select_handler: Union[Callable[[str], Any], None] = None,
+        select_handler: Union[Callable[[str, int], Any], None] = None,
         back_handler: Union[Callable, None] = None,
         speed_ms=300,
         item_font_size=label_font_size,
@@ -56,7 +56,8 @@ class Menu:
         if BUTTON_TYPES["CONFIRM"] in event.button:
             if self.select_handler is not None:
                 self.select_handler(
-                    self.menu_items[self.position % len(self.menu_items)]
+                    self.menu_items[self.position % len(self.menu_items)],
+                    self.position % len(self.menu_items),
                 )
 
     def up_handler(self):

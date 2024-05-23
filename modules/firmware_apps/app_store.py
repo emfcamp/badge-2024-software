@@ -15,6 +15,10 @@ UPDATE = "Update"
 REFRESH = "Refresh Apps"
 
 
+def install_app(app):
+    print(f"Installing {app['name']}")
+
+
 class AppStoreApp(app.App):
     state = "checking_wifi"
 
@@ -55,10 +59,12 @@ class AppStoreApp(app.App):
         #         "callable": "TestApp",
         #     }
         # ]
-        print(response.json().items)
+        print(response.json()["items"])
+        self.app_store_index = response.json()["items"]
         self.available_menu = Menu(
             self,
             menu_items=[app["manifest"]["app"]["name"] for app in self.app_store_index],
+            select_handler=lambda _, i: install_app(self.app_store_index[i]),
         )
         self.update_state("main_menu")
 
