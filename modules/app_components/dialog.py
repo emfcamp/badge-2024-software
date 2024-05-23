@@ -72,12 +72,13 @@ class YesNoDialog:
 class TextDialog:
     alphabet = string.ascii_letters
 
-    def __init__(self, message, app, on_complete=None, on_cancel=None):
+    def __init__(self, message, app, masked=False, on_complete=None, on_cancel=None):
         self.open = True
         self.app = app
         self.message = message
         self.cancel_handler = on_cancel
         self.complete_handler = on_complete
+        self.masked = masked
         self.text = ""
         self.current = 0
         self._result = None
@@ -106,7 +107,12 @@ class TextDialog:
         set_color(ctx, "label")
 
         ctx.move_to(0, -15).text(self.message)
-        ctx.move_to(0, 15).text(self.text + "[" + self.alphabet[self.current] + "]")
+        ctx.move_to(0, 15).text(
+            (self.text if not self.masked else ("*" * len(self.text)))
+            + "["
+            + self.alphabet[self.current]
+            + "]"
+        )
 
     def draw(self, ctx):
         ctx.save()
