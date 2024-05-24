@@ -1,5 +1,6 @@
 import asyncio
 
+
 class TickApp:
     def __init__(self):
         self.acc_time = 0
@@ -21,4 +22,3 @@ class TickApp:
         while True:
             await asyncio.sleep(0.1)
             self.draw(None)
-

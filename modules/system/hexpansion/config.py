@@ -24,7 +24,7 @@ _pin_mapping = {
     6: {
         "hs": [3, 4, 5, 6],
         "ls": [],  # TODO: need gpio extenders first
-    }
+    },
 }
 
 

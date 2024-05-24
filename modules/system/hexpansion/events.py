@@ -1,8 +1,10 @@
 from events import Event
 
+
 class HexpansionEvent(Event):
     def __init__(self, port):
         self.port = port
+
 
 class HexpansionInsertionEvent(HexpansionEvent):
     def __str__(self):

@@ -1,13 +1,16 @@
 from machine import I2C
 from system.hexpansion.header import HexpansionHeader, write_header
-from system.hexpansion.util import detect_eeprom_addr, get_hexpansion_block_devices, read_hexpansion_header
+from system.hexpansion.util import (
+    detect_eeprom_addr,
+    get_hexpansion_block_devices,
+    read_hexpansion_header,
+)
 import vfs
 
 # Need to init this to make sure i2c works
-import tildagonos
 
 # Set up i2c
-port = 2 # <<-- Customize!!
+port = 2  # <<-- Customize!!
 i2c = I2C(port)
 
 # autodetect eeprom address
@@ -23,7 +26,7 @@ header = HexpansionHeader(
     vid=0xCA75,
     pid=0x1337,
     unique_id=0x0,
-    friendly_name="Flopagon"
+    friendly_name="Flopagon",
 )
 
 # Determine amount of bytes in internal address
@@ -31,10 +34,9 @@ addr_len = 2 if header.eeprom_total_size > 256 else 1
 print(f"Using {addr_len} bytes for eeprom internal address")
 
 # Write and read back header
-write_header(port, header,
-             addr=addr,
-             addr_len=addr_len,
-             page_size=header.eeprom_page_size)
+write_header(
+    port, header, addr=addr, addr_len=addr_len, page_size=header.eeprom_page_size
+)
 header = read_hexpansion_header(i2c, addr, set_read_addr=True, addr_len=addr_len)
 
 if header is None:

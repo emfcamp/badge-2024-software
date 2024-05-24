@@ -4,28 +4,37 @@ import os
 import app
 from system.hexpansion.config import HexpansionConfig
 from system.hexpansion.events import HexpansionRemovalEvent, HexpansionInsertionEvent
-from system.hexpansion.util import read_hexpansion_header, get_hexpansion_block_devices, detect_eeprom_addr
+from system.hexpansion.util import (
+    read_hexpansion_header,
+    get_hexpansion_block_devices,
+    detect_eeprom_addr,
+)
 
 from app_components.dialog import YesNoDialog
 from perf_timer import PerfTimer
 from system.notification.events import ShowNotificationEvent
-from system.scheduler.events import RequestForegroundPushEvent, RequestForegroundPopEvent, RequestStartAppEvent, \
-    RequestStopAppEvent
+from system.scheduler.events import (
+    RequestForegroundPushEvent,
+    RequestForegroundPopEvent,
+    RequestStartAppEvent,
+    RequestStopAppEvent,
+)
 from tildagonos import EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F
 from tildagonos import led_colours
 from tildagonos import tildagonos
 
 from system.eventbus import eventbus
 from machine import I2C
-from events.input import ButtonDownEvent, ButtonUpEvent, Buttons
+from events.input import Buttons
 import vfs
 import sys
-import typing
 
 
 class HexpansionManagerApp(app.App):
     def __init__(self, autolaunch=True):
-        eventbus.on_async(HexpansionInsertionEvent, self.handle_hexpansion_insertion, self)
+        eventbus.on_async(
+            HexpansionInsertionEvent, self.handle_hexpansion_insertion, self
+        )
         eventbus.on_async(HexpansionRemovalEvent, self.handle_hexpansion_removal, self)
         self.mountpoints = {}
         self.format_requests = []
@@ -54,7 +63,7 @@ class HexpansionManagerApp(app.App):
                 message=["Format", f"hexpansion {port}?"],
                 on_yes=format_eep,
                 on_no=close,
-                app=self
+                app=self,
             )
 
             self.format_dialog_port = port
@@ -91,7 +100,7 @@ class HexpansionManagerApp(app.App):
             print(f"Found app package: {package}")
         except ImportError as e:
             print(e)
-            print(f"App module not found")
+            print("App module not found")
             self._cleanup_import_path(old_cwd, old_sys_path)
             return
 
@@ -134,7 +143,6 @@ class HexpansionManagerApp(app.App):
         vfs.VfsLfs2.mkfs(eep)
 
     def _mount_eeprom(self, eep, port):
-
         mountpoint = f"/hexpansion_{port}"
 
         try:
@@ -158,6 +166,9 @@ class HexpansionManagerApp(app.App):
 
         # Autodetect eeprom addr
         addr = detect_eeprom_addr(i2c)
+        if addr is None:
+            print("Scan found no eeproms")
+            return
 
         # Do we have a header?
         header = read_hexpansion_header(i2c, addr)
@@ -165,7 +176,9 @@ class HexpansionManagerApp(app.App):
             return
 
         if header.friendly_name != "":
-            eventbus.emit(ShowNotificationEvent(message=header.friendly_name, port=event.port))
+            eventbus.emit(
+                ShowNotificationEvent(message=header.friendly_name, port=event.port)
+            )
 
         print("Found hexpansion header:")
         print(header)
@@ -203,17 +216,20 @@ class HexpansionManagerApp(app.App):
         tildagonos.set_led_power(True)
 
         hexpansion_plugin_states = [False] * 6
-        button_states = [False] * 6
 
         while True:
             with PerfTimer("indicate hexpansion insertion"):
                 tildagonos.read_egpios()
-                for i, n in enumerate([EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F]):
-                    hexpansion_present = not tildagonos.check_egpio_state(n, readgpios=False)
+                for i, n in enumerate(
+                    [EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F]
+                ):
+                    hexpansion_present = not tildagonos.check_egpio_state(
+                        n, readgpios=False
+                    )
                     if hexpansion_present:
                         tildagonos.leds[13 + i] = led_colours[i]
                     else:
-                        tildagonos.leds[13 + i] = (0,0,0)
+                        tildagonos.leds[13 + i] = (0, 0, 0)
                     if hexpansion_present and not hexpansion_plugin_states[i]:
                         hexpansion_plugin_states[i] = True
                         eventbus.emit(HexpansionInsertionEvent(port=i + 1))
@@ -222,4 +238,4 @@ class HexpansionManagerApp(app.App):
                         eventbus.emit(HexpansionRemovalEvent(port=i + 1))
 
                 tildagonos.leds.write()
-            await asyncio.sleep(0.001)
+            await asyncio.sleep(0.05)

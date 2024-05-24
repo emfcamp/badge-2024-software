@@ -3,18 +3,20 @@ from events import Event
 
 
 class Button:
-    __slots__ = ('name', 'group', 'parent')
+    __slots__ = ("name", "group", "parent")
 
     def __init__(self, name, group, parent=None):
         self.name = name
         self.group = group
         self.parent = parent
 
-    def  __hash__(self):
+    def __hash__(self):
         return hash((self.name, self.group))
 
     def _inner_repr(self):
-        parents_clause = f" - {self.parent._inner_repr()}" if self.parent is not None else ''
+        parents_clause = (
+            f" - {self.parent._inner_repr()}" if self.parent is not None else ""
+        )
         return f"{self.group}.{self.name}{parents_clause}"
 
     def __repr__(self):
@@ -22,7 +24,7 @@ class Button:
 
     def __eq__(self, other):
         return self.name == other.name and self.group == other.group
-    
+
     def __contains__(self, other):
         parent = self.parent
         while parent is not None:
@@ -43,12 +45,13 @@ BUTTON_TYPES = {
     "RIGHT": Button("RIGHT", "System"),
 }
 
+
 class InputEvent(Event):
     requires_focus = True
 
 
 class ButtonDownEvent(InputEvent):
-    __slots__ = ('button', )
+    __slots__ = ("button",)
 
     def __init__(self, button):
         self.button = button
@@ -57,9 +60,8 @@ class ButtonDownEvent(InputEvent):
         return f"<{__class__.__name__}: {repr(self.button)}>"
 
 
-
 class ButtonUpEvent(InputEvent):
-    __slots__ = ('button', )
+    __slots__ = ("button",)
 
     def __init__(self, button):
         self.button = button
@@ -69,8 +71,8 @@ class ButtonUpEvent(InputEvent):
 
 
 class Buttons:
-    __slots__ = ('buttons', )
-    
+    __slots__ = ("buttons",)
+
     def __init__(self, app):
         self.buttons = {}
         eventbus.on(ButtonDownEvent, self.handle_button_down, app)
@@ -89,8 +91,13 @@ class Buttons:
         return self.buttons.__iter__()
 
     def get(self, button, default=None):
-        matching_values = [value for (b, value) in self.buttons.items() if b == button or button in b]
+        matching_values = [
+            value for (b, value) in self.buttons.items() if b == button or button in b
+        ]
         return any(matching_values)
+
+    def clear(self):
+        self.buttons.clear()
 
     def __repr__(self):
         return f"<Buttons {self.buttons}>"

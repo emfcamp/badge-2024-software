@@ -1,0 +1,85 @@
+name: Build Micropython
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+env:
+  TARGET: esp32s3
+  IDF_TARGET: esp32s3
+jobs:
+  Build-Firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3-pip python3-pillow libusb-1.0-0-dev cmake
+      - name: Check out driver code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - name: Check out ESP IDF
+        uses: actions/checkout@v4
+        with:
+          repository: espressif/esp-idf
+          ref: v5.2.1
+          path: esp-idf
+          submodules: 'recursive'
+      - name: Install SDK
+        run: |
+          cd esp-idf
+          ./install.sh
+          source export.sh
+          python3 -m pip install pillow
+      - name: Patch submodule dependencies
+        run: |
+          ./scripts/firstTime.sh
+      - name: Build cross compiler
+        run: |
+          source esp-idf/export.sh
+          cd micropython
+          make -C mpy-cross
+      - name: Link board definition
+        run: |
+          source esp-idf/export.sh
+          cd micropython/ports/esp32/boards
+          ln -sfn ../../../../tildagon ./tildagon
+      - name: Build firmware
+        run: |
+          source esp-idf/export.sh
+          ln -sfn $GITHUB_WORKSPACE/tildagon micropython/ports/esp32/boards/tildagon
+          cd micropython/ports/esp32
+          make submodules BOARD=tildagon USER_C_MODULES=$GITHUB_WORKSPACE/drivers/micropython.cmake TARGET=esp32s3
+          make BOARD=tildagon USER_C_MODULES=$GITHUB_WORKSPACE/drivers/micropython.cmake $@ TARGET=esp32s3
+          cd ../../..
+          echo "{\"build\":\"$(git describe --tags --always)\", \"name\":\"$(git describe --tags --always)\"}" > micropython/ports/esp32/build-tildagon/tildagon.txt
+      - name: Archive firmware
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware
+          path: |
+            micropython/ports/esp32/build-tildagon/micropython.bin
+            micropython/ports/esp32/build-tildagon/bootloader/bootloader.bin
+            micropython/ports/esp32/build-tildagon/partition_table/partition-table.bin
+            micropython/ports/esp32/build-tildagon/ota_data_initial.bin
+            micropython/ports/esp32/build-tildagon/tildagon.txt
+      - name: Create latest release for tags
+        uses: "marvinpinto/action-automatic-releases@latest"
+        if: github.event_name == 'push'
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest"
+          title: "Latest release build"
+          files: |
+            micropython/ports/esp32/build-tildagon/micropython.bin
+            micropython/ports/esp32/build-tildagon/tildagon.txt
+      - name: Create specific release for tags
+        uses: "marvinpinto/action-automatic-releases@latest"
+        if: github.event_name == 'push'
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          files: |
+            micropython/ports/esp32/build-tildagon/micropython.bin
+            micropython/ports/esp32/build-tildagon/tildagon.txt

@@ -27,3 +27,10 @@ Alternatively, to flash a badge, ensure it's plugged in and in bootloader mode, 
     docker run -it --device /dev/ttyACM0:/dev/ttyUSB0 --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware matthewwilkes/esp_idf:5.2.1 deploy
 
 where /dev/ttyACM0 is the device's endpoint. This value is correct on Linux.
+
+## Contributing
+
+Please install pre-commit to ensure ruff is run:
+
+    python3 -m pip install pre-commit
+    pre-commit install

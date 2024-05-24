@@ -2,19 +2,22 @@ import struct
 from machine import I2C
 import time
 
-class HexpansionHeader:
-    _header_format = '<4s4sHHIHHH9s'
-    _magic = 'THEX'
 
-    def __init__(self,
-                 manifest_version: str,
-                 fs_offset: int,
-                 eeprom_page_size: int,
-                 eeprom_total_size: int,
-                 vid: int,
-                 pid: int,
-                 unique_id: int,
-                 friendly_name: str):
+class HexpansionHeader:
+    _header_format = "<4s4sHHIHHH9s"
+    _magic = "THEX"
+
+    def __init__(
+        self,
+        manifest_version: str,
+        fs_offset: int,
+        eeprom_page_size: int,
+        eeprom_total_size: int,
+        vid: int,
+        pid: int,
+        unique_id: int,
+        friendly_name: str,
+    ):
         self.manifest_version = manifest_version
         self.fs_offset = fs_offset
         self.eeprom_page_size = eeprom_page_size
@@ -27,7 +30,7 @@ class HexpansionHeader:
         self.to_bytes()
 
     def __str__(self):
-        return f'''HexpansionHeader[
+        return f"""HexpansionHeader[
     manifest version: {self.manifest_version},
     fs offset: {self.fs_offset},
     eeprom page size: {self.eeprom_page_size},
@@ -36,7 +39,7 @@ class HexpansionHeader:
     product id: {'0x' + hex(self.pid)[2:].upper()},
     unique id: {self.unique_id},
     friendly name: {self.friendly_name},
-]'''
+]"""
 
     @classmethod
     def calc_checksum(cls, b):
@@ -65,9 +68,9 @@ class HexpansionHeader:
     def from_bytes(cls, buf, validate_checksum=True):
         if len(buf) != 32:
             raise RuntimeError("Invalid header length, should be 32")
-        if buf[1:4] != b'HEX':
+        if buf[1:4] != b"HEX":
             raise RuntimeError(f"Invalid magic in hexpansion header: {buf[0:4]}")
-        if buf[4:8] != b'2024':
+        if buf[4:8] != b"2024":
             raise RuntimeError("Unknown manifest version. Supported: [2024]")
         unpacked = struct.unpack(cls._header_format, buf)
 
@@ -75,7 +78,9 @@ class HexpansionHeader:
             header_checksum = buf[31]
             bytes_checksum = cls.calc_checksum(buf[1:31])
             if header_checksum != bytes_checksum:
-                raise RuntimeError(f"Header checksum mismatch: {header_checksum} != {bytes_checksum}")
+                raise RuntimeError(
+                    f"Header checksum mismatch: {header_checksum} != {bytes_checksum}"
+                )
 
         return cls(
             manifest_version=unpacked[1].decode().split("\x00")[0],
@@ -85,7 +90,7 @@ class HexpansionHeader:
             vid=unpacked[5],
             pid=unpacked[6],
             unique_id=unpacked[7],
-            friendly_name=unpacked[8].decode().split("\x00")[0]
+            friendly_name=unpacked[8].decode().split("\x00")[0],
         )
 
 
@@ -97,7 +102,9 @@ def write_header(port, header, addr=0x50, addr_len=2, page_size=32):
 
     # We can't write more bytes than the page size in one transaction, so chunk the bytes if necessary:
     header_bytes = header.to_bytes()
-    header_chunks = [header_bytes[i:i+page_size] for i in range(0, len(header_bytes), page_size)]
+    header_chunks = [
+        header_bytes[i : i + page_size] for i in range(0, len(header_bytes), page_size)
+    ]
 
     for idx, chunk in enumerate(header_chunks):
         write_addr = bytes([idx * page_size])
@@ -127,6 +134,7 @@ def read_header(port, addr=0x50, addr_len=2):
     header = HexpansionHeader.from_bytes(header_bytes)
 
     return header
+
 
 """
 _h = HexpansionHeader(

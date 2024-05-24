@@ -92,14 +92,15 @@ _BIT1 = const(0x02)
 _BIT0 = const(0x01)
 
 ROTATIONS = [
-    0x48,   # 0 - PORTRAIT
-    0x28,   # 1 - LANDSCAPE
-    0x88,   # 2 - INVERTED_PORTRAIT
-    0xe8,   # 3 - INVERTED_LANDSCAPE
-    0x08,   # 4 - PORTRAIT_MIRRORED
-    0x68,   # 5 - LANDSCAPE_MIRRORED
-    0xc8,   # 6 - INVERTED_PORTRAIT_MIRRORED
-    0xa8]   # 7 - INVERTED_LANDSCAPE_MIRRORED]
+    0x48,  # 0 - PORTRAIT
+    0x28,  # 1 - LANDSCAPE
+    0x88,  # 2 - INVERTED_PORTRAIT
+    0xE8,  # 3 - INVERTED_LANDSCAPE
+    0x08,  # 4 - PORTRAIT_MIRRORED
+    0x68,  # 5 - LANDSCAPE_MIRRORED
+    0xC8,  # 6 - INVERTED_PORTRAIT_MIRRORED
+    0xA8,
+]  # 7 - INVERTED_LANDSCAPE_MIRRORED]
 
 
 def color565(red, green=0, blue=0):
@@ -110,7 +111,7 @@ def color565(red, green=0, blue=0):
         red, green, blue = red  # see if the first var is a tuple/list
     except TypeError:
         pass
-    return (red & 0xf8) << 8 | (green & 0xfc) << 3 | blue >> 3
+    return (red & 0xF8) << 8 | (green & 0xFC) << 3 | blue >> 3
 
 
 def _encode_pos(x, y):
@@ -123,7 +124,7 @@ def _encode_pixel(color):
     return struct.pack(_ENCODE_PIXEL, color)
 
 
-class GC9A01():
+class GC9A01:
     """
     GC9A01 driver class
 
@@ -137,13 +138,8 @@ class GC9A01():
     """
 
     def __init__(
-            self,
-            spi=None,
-            dc=None,
-            cs=None,
-            reset=None,
-            backlight=None,
-            rotation=0):
+        self, spi=None, dc=None, cs=None, reset=None, backlight=None, rotation=0
+    ):
         """
         Initialize display.
         """
@@ -166,63 +162,55 @@ class GC9A01():
         time.sleep_ms(100)
 
         self._write(0xEF)
-        self._write(0xEB, b'\x14')
+        self._write(0xEB, b"\x14")
         self._write(0xFE)
         self._write(0xEF)
-        self._write(0xEB, b'\x14')
-        self._write(0x84, b'\x40')
-        self._write(0x85, b'\xFF')
-        self._write(0x86, b'\xFF')
-        self._write(0x87, b'\xFF')
-        self._write(0x88, b'\x0A')
-        self._write(0x89, b'\x21')
-        self._write(0x8A, b'\x00')
-        self._write(0x8B, b'\x80')
-        self._write(0x8C, b'\x01')
-        self._write(0x8D, b'\x01')
-        self._write(0x8E, b'\xFF')
-        self._write(0x8F, b'\xFF')
-        self._write(0xB6, b'\x00\x00')
-        self._write(0x3A, b'\x55')
-        self._write(0x90, b'\x08\x08\x08\x08')
-        self._write(0xBD, b'\x06')
-        self._write(0xBC, b'\x00')
-        self._write(0xFF, b'\x60\x01\x04')
-        self._write(0xC3, b'\x13')
-        self._write(0xC4, b'\x13')
-        self._write(0xC9, b'\x22')
-        self._write(0xBE, b'\x11')
-        self._write(0xE1, b'\x10\x0E')
-        self._write(0xDF, b'\x21\x0c\x02')
-        self._write(0xF0, b'\x45\x09\x08\x08\x26\x2A')
-        self._write(0xF1, b'\x43\x70\x72\x36\x37\x6F')
-        self._write(0xF2, b'\x45\x09\x08\x08\x26\x2A')
-        self._write(0xF3, b'\x43\x70\x72\x36\x37\x6F')
-        self._write(0xED, b'\x1B\x0B')
-        self._write(0xAE, b'\x77')
-        self._write(0xCD, b'\x63')
-        self._write(0x70, b'\x07\x07\x04\x0E\x0F\x09\x07\x08\x03')
-        self._write(0xE8, b'\x34')
+        self._write(0xEB, b"\x14")
+        self._write(0x84, b"\x40")
+        self._write(0x85, b"\xff")
+        self._write(0x86, b"\xff")
+        self._write(0x87, b"\xff")
+        self._write(0x88, b"\x0a")
+        self._write(0x89, b"\x21")
+        self._write(0x8A, b"\x00")
+        self._write(0x8B, b"\x80")
+        self._write(0x8C, b"\x01")
+        self._write(0x8D, b"\x01")
+        self._write(0x8E, b"\xff")
+        self._write(0x8F, b"\xff")
+        self._write(0xB6, b"\x00\x00")
+        self._write(0x3A, b"\x55")
+        self._write(0x90, b"\x08\x08\x08\x08")
+        self._write(0xBD, b"\x06")
+        self._write(0xBC, b"\x00")
+        self._write(0xFF, b"\x60\x01\x04")
+        self._write(0xC3, b"\x13")
+        self._write(0xC4, b"\x13")
+        self._write(0xC9, b"\x22")
+        self._write(0xBE, b"\x11")
+        self._write(0xE1, b"\x10\x0e")
+        self._write(0xDF, b"\x21\x0c\x02")
+        self._write(0xF0, b"\x45\x09\x08\x08\x26\x2a")
+        self._write(0xF1, b"\x43\x70\x72\x36\x37\x6f")
+        self._write(0xF2, b"\x45\x09\x08\x08\x26\x2a")
+        self._write(0xF3, b"\x43\x70\x72\x36\x37\x6f")
+        self._write(0xED, b"\x1b\x0b")
+        self._write(0xAE, b"\x77")
+        self._write(0xCD, b"\x63")
+        self._write(0x70, b"\x07\x07\x04\x0e\x0f\x09\x07\x08\x03")
+        self._write(0xE8, b"\x34")
 
-        self._write(
-            0x62,
-            b'\x18\x0D\x71\xED\x70\x70\x18\x0F\x71\xEF\x70\x70')
+        self._write(0x62, b"\x18\x0d\x71\xed\x70\x70\x18\x0f\x71\xef\x70\x70")
 
-        self._write(
-            0x63,
-            b'\x18\x11\x71\xF1\x70\x70\x18\x13\x71\xF3\x70\x70')
+        self._write(0x63, b"\x18\x11\x71\xf1\x70\x70\x18\x13\x71\xf3\x70\x70")
 
-        self._write(0x64, b'\x28\x29\xF1\x01\xF1\x00\x07')
-        self._write(
-            0x66,
-            b'\x3C\x00\xCD\x67\x45\x45\x10\x00\x00\x00')
+        self._write(0x64, b"\x28\x29\xf1\x01\xf1\x00\x07")
+        self._write(0x66, b"\x3c\x00\xcd\x67\x45\x45\x10\x00\x00\x00")
 
-        self._write(
-            0x67,
-            b'\x00\x3C\x00\x00\x00\x01\x54\x10\x32\x98')
+        self._write(0x67, b"\x00\x3c\x00\x00\x00\x01\x54\x10\x32\x98")
 
-        self._write(0x74, b'\x10\x85\x80\x00\x00\x4E\x00')
-        self._write(0x98, b'\x3e\x07')
+        self._write(0x74, b"\x10\x85\x80\x00\x00\x4e\x00")
+        self._write(0x98, b"\x3e\x07")
         self._write(0x35)
         self._write(0x21)
         self._write(0x11)
@@ -328,8 +316,7 @@ class GC9A01():
             end (int): column end address
         """
         if start <= end <= self.width:
-            self._write(GC9A01_CASET, _encode_pos(
-                start, end))
+            self._write(GC9A01_CASET, _encode_pos(start, end))
 
     def _set_rows(self, start, end):
         """
@@ -338,10 +325,9 @@ class GC9A01():
         Args:
             start (int): row start address
             end (int): row end address
-       """
+        """
         if start <= end <= self.height:
-            self._write(GC9A01_RASET, _encode_pos(
-                start, end))
+            self._write(GC9A01_RASET, _encode_pos(start, end))
 
     def _set_window(self, x0, y0, x1, y1):
         """
@@ -542,10 +528,11 @@ class GC9A01():
         """
         for char in text:
             ch = ord(char)
-            if (font.FIRST <= ch < font.LAST
-                    and x0+font.WIDTH <= self.width
-                    and y0+font.HEIGHT <= self.height):
-
+            if (
+                font.FIRST <= ch < font.LAST
+                and x0 + font.WIDTH <= self.width
+                and y0 + font.HEIGHT <= self.height
+            ):
                 if font.HEIGHT == 8:
                     passes = 1
                     size = 8
@@ -556,12 +543,12 @@ class GC9A01():
                     each = 8
 
                 for line in range(passes):
-                    idx = (ch-font.FIRST)*size+(each*line)
+                    idx = (ch - font.FIRST) * size + (each * line)
                     #
                     # Yes, this looks bad, but it is fast
                     #
                     buffer = struct.pack(
-                        '>64H',
+                        ">64H",
                         color if font.FONT[idx] & _BIT7 else background,
                         color if font.FONT[idx] & _BIT6 else background,
                         color if font.FONT[idx] & _BIT5 else background,
@@ -570,64 +557,64 @@ class GC9A01():
                         color if font.FONT[idx] & _BIT2 else background,
                         color if font.FONT[idx] & _BIT1 else background,
                         color if font.FONT[idx] & _BIT0 else background,
-                        color if font.FONT[idx+1] & _BIT7 else background,
-                        color if font.FONT[idx+1] & _BIT6 else background,
-                        color if font.FONT[idx+1] & _BIT5 else background,
-                        color if font.FONT[idx+1] & _BIT4 else background,
-                        color if font.FONT[idx+1] & _BIT3 else background,
-                        color if font.FONT[idx+1] & _BIT2 else background,
-                        color if font.FONT[idx+1] & _BIT1 else background,
-                        color if font.FONT[idx+1] & _BIT0 else background,
-                        color if font.FONT[idx+2] & _BIT7 else background,
-                        color if font.FONT[idx+2] & _BIT6 else background,
-                        color if font.FONT[idx+2] & _BIT5 else background,
-                        color if font.FONT[idx+2] & _BIT4 else background,
-                        color if font.FONT[idx+2] & _BIT3 else background,
-                        color if font.FONT[idx+2] & _BIT2 else background,
-                        color if font.FONT[idx+2] & _BIT1 else background,
-                        color if font.FONT[idx+2] & _BIT0 else background,
-                        color if font.FONT[idx+3] & _BIT7 else background,
-                        color if font.FONT[idx+3] & _BIT6 else background,
-                        color if font.FONT[idx+3] & _BIT5 else background,
-                        color if font.FONT[idx+3] & _BIT4 else background,
-                        color if font.FONT[idx+3] & _BIT3 else background,
-                        color if font.FONT[idx+3] & _BIT2 else background,
-                        color if font.FONT[idx+3] & _BIT1 else background,
-                        color if font.FONT[idx+3] & _BIT0 else background,
-                        color if font.FONT[idx+4] & _BIT7 else background,
-                        color if font.FONT[idx+4] & _BIT6 else background,
-                        color if font.FONT[idx+4] & _BIT5 else background,
-                        color if font.FONT[idx+4] & _BIT4 else background,
-                        color if font.FONT[idx+4] & _BIT3 else background,
-                        color if font.FONT[idx+4] & _BIT2 else background,
-                        color if font.FONT[idx+4] & _BIT1 else background,
-                        color if font.FONT[idx+4] & _BIT0 else background,
-                        color if font.FONT[idx+5] & _BIT7 else background,
-                        color if font.FONT[idx+5] & _BIT6 else background,
-                        color if font.FONT[idx+5] & _BIT5 else background,
-                        color if font.FONT[idx+5] & _BIT4 else background,
-                        color if font.FONT[idx+5] & _BIT3 else background,
-                        color if font.FONT[idx+5] & _BIT2 else background,
-                        color if font.FONT[idx+5] & _BIT1 else background,
-                        color if font.FONT[idx+5] & _BIT0 else background,
-                        color if font.FONT[idx+6] & _BIT7 else background,
-                        color if font.FONT[idx+6] & _BIT6 else background,
-                        color if font.FONT[idx+6] & _BIT5 else background,
-                        color if font.FONT[idx+6] & _BIT4 else background,
-                        color if font.FONT[idx+6] & _BIT3 else background,
-                        color if font.FONT[idx+6] & _BIT2 else background,
-                        color if font.FONT[idx+6] & _BIT1 else background,
-                        color if font.FONT[idx+6] & _BIT0 else background,
-                        color if font.FONT[idx+7] & _BIT7 else background,
-                        color if font.FONT[idx+7] & _BIT6 else background,
-                        color if font.FONT[idx+7] & _BIT5 else background,
-                        color if font.FONT[idx+7] & _BIT4 else background,
-                        color if font.FONT[idx+7] & _BIT3 else background,
-                        color if font.FONT[idx+7] & _BIT2 else background,
-                        color if font.FONT[idx+7] & _BIT1 else background,
-                        color if font.FONT[idx+7] & _BIT0 else background
+                        color if font.FONT[idx + 1] & _BIT7 else background,
+                        color if font.FONT[idx + 1] & _BIT6 else background,
+                        color if font.FONT[idx + 1] & _BIT5 else background,
+                        color if font.FONT[idx + 1] & _BIT4 else background,
+                        color if font.FONT[idx + 1] & _BIT3 else background,
+                        color if font.FONT[idx + 1] & _BIT2 else background,
+                        color if font.FONT[idx + 1] & _BIT1 else background,
+                        color if font.FONT[idx + 1] & _BIT0 else background,
+                        color if font.FONT[idx + 2] & _BIT7 else background,
+                        color if font.FONT[idx + 2] & _BIT6 else background,
+                        color if font.FONT[idx + 2] & _BIT5 else background,
+                        color if font.FONT[idx + 2] & _BIT4 else background,
+                        color if font.FONT[idx + 2] & _BIT3 else background,
+                        color if font.FONT[idx + 2] & _BIT2 else background,
+                        color if font.FONT[idx + 2] & _BIT1 else background,
+                        color if font.FONT[idx + 2] & _BIT0 else background,
+                        color if font.FONT[idx + 3] & _BIT7 else background,
+                        color if font.FONT[idx + 3] & _BIT6 else background,
+                        color if font.FONT[idx + 3] & _BIT5 else background,
+                        color if font.FONT[idx + 3] & _BIT4 else background,
+                        color if font.FONT[idx + 3] & _BIT3 else background,
+                        color if font.FONT[idx + 3] & _BIT2 else background,
+                        color if font.FONT[idx + 3] & _BIT1 else background,
+                        color if font.FONT[idx + 3] & _BIT0 else background,
+                        color if font.FONT[idx + 4] & _BIT7 else background,
+                        color if font.FONT[idx + 4] & _BIT6 else background,
+                        color if font.FONT[idx + 4] & _BIT5 else background,
+                        color if font.FONT[idx + 4] & _BIT4 else background,
+                        color if font.FONT[idx + 4] & _BIT3 else background,
+                        color if font.FONT[idx + 4] & _BIT2 else background,
+                        color if font.FONT[idx + 4] & _BIT1 else background,
+                        color if font.FONT[idx + 4] & _BIT0 else background,
+                        color if font.FONT[idx + 5] & _BIT7 else background,
+                        color if font.FONT[idx + 5] & _BIT6 else background,
+                        color if font.FONT[idx + 5] & _BIT5 else background,
+                        color if font.FONT[idx + 5] & _BIT4 else background,
+                        color if font.FONT[idx + 5] & _BIT3 else background,
+                        color if font.FONT[idx + 5] & _BIT2 else background,
+                        color if font.FONT[idx + 5] & _BIT1 else background,
+                        color if font.FONT[idx + 5] & _BIT0 else background,
+                        color if font.FONT[idx + 6] & _BIT7 else background,
+                        color if font.FONT[idx + 6] & _BIT6 else background,
+                        color if font.FONT[idx + 6] & _BIT5 else background,
+                        color if font.FONT[idx + 6] & _BIT4 else background,
+                        color if font.FONT[idx + 6] & _BIT3 else background,
+                        color if font.FONT[idx + 6] & _BIT2 else background,
+                        color if font.FONT[idx + 6] & _BIT1 else background,
+                        color if font.FONT[idx + 6] & _BIT0 else background,
+                        color if font.FONT[idx + 7] & _BIT7 else background,
+                        color if font.FONT[idx + 7] & _BIT6 else background,
+                        color if font.FONT[idx + 7] & _BIT5 else background,
+                        color if font.FONT[idx + 7] & _BIT4 else background,
+                        color if font.FONT[idx + 7] & _BIT3 else background,
+                        color if font.FONT[idx + 7] & _BIT2 else background,
+                        color if font.FONT[idx + 7] & _BIT1 else background,
+                        color if font.FONT[idx + 7] & _BIT0 else background,
                     )
-                    self.blit_buffer(buffer, x0, y0+8*line, 8, 8)
+                    self.blit_buffer(buffer, x0, y0 + 8 * line, 8, 8)
 
                 x0 += 8
 
@@ -646,10 +633,11 @@ class GC9A01():
         """
         for char in text:
             ch = ord(char)
-            if (font.FIRST <= ch < font.LAST
-                    and x0+font.WIDTH <= self.width
-                    and y0+font.HEIGHT <= self.height):
-
+            if (
+                font.FIRST <= ch < font.LAST
+                and x0 + font.WIDTH <= self.width
+                and y0 + font.HEIGHT <= self.height
+            ):
                 if font.HEIGHT == 16:
                     passes = 2
                     size = 32
@@ -660,12 +648,12 @@ class GC9A01():
                     each = 16
 
                 for line in range(passes):
-                    idx = (ch-font.FIRST)*size+(each*line)
+                    idx = (ch - font.FIRST) * size + (each * line)
                     #
                     # And this looks even worse, but it is fast
                     #
                     buffer = struct.pack(
-                        '>128H',
+                        ">128H",
                         color if font.FONT[idx] & _BIT7 else background,
                         color if font.FONT[idx] & _BIT6 else background,
                         color if font.FONT[idx] & _BIT5 else background,
@@ -674,128 +662,128 @@ class GC9A01():
                         color if font.FONT[idx] & _BIT2 else background,
                         color if font.FONT[idx] & _BIT1 else background,
                         color if font.FONT[idx] & _BIT0 else background,
-                        color if font.FONT[idx+1] & _BIT7 else background,
-                        color if font.FONT[idx+1] & _BIT6 else background,
-                        color if font.FONT[idx+1] & _BIT5 else background,
-                        color if font.FONT[idx+1] & _BIT4 else background,
-                        color if font.FONT[idx+1] & _BIT3 else background,
-                        color if font.FONT[idx+1] & _BIT2 else background,
-                        color if font.FONT[idx+1] & _BIT1 else background,
-                        color if font.FONT[idx+1] & _BIT0 else background,
-                        color if font.FONT[idx+2] & _BIT7 else background,
-                        color if font.FONT[idx+2] & _BIT6 else background,
-                        color if font.FONT[idx+2] & _BIT5 else background,
-                        color if font.FONT[idx+2] & _BIT4 else background,
-                        color if font.FONT[idx+2] & _BIT3 else background,
-                        color if font.FONT[idx+2] & _BIT2 else background,
-                        color if font.FONT[idx+2] & _BIT1 else background,
-                        color if font.FONT[idx+2] & _BIT0 else background,
-                        color if font.FONT[idx+3] & _BIT7 else background,
-                        color if font.FONT[idx+3] & _BIT6 else background,
-                        color if font.FONT[idx+3] & _BIT5 else background,
-                        color if font.FONT[idx+3] & _BIT4 else background,
-                        color if font.FONT[idx+3] & _BIT3 else background,
-                        color if font.FONT[idx+3] & _BIT2 else background,
-                        color if font.FONT[idx+3] & _BIT1 else background,
-                        color if font.FONT[idx+3] & _BIT0 else background,
-                        color if font.FONT[idx+4] & _BIT7 else background,
-                        color if font.FONT[idx+4] & _BIT6 else background,
-                        color if font.FONT[idx+4] & _BIT5 else background,
-                        color if font.FONT[idx+4] & _BIT4 else background,
-                        color if font.FONT[idx+4] & _BIT3 else background,
-                        color if font.FONT[idx+4] & _BIT2 else background,
-                        color if font.FONT[idx+4] & _BIT1 else background,
-                        color if font.FONT[idx+4] & _BIT0 else background,
-                        color if font.FONT[idx+5] & _BIT7 else background,
-                        color if font.FONT[idx+5] & _BIT6 else background,
-                        color if font.FONT[idx+5] & _BIT5 else background,
-                        color if font.FONT[idx+5] & _BIT4 else background,
-                        color if font.FONT[idx+5] & _BIT3 else background,
-                        color if font.FONT[idx+5] & _BIT2 else background,
-                        color if font.FONT[idx+5] & _BIT1 else background,
-                        color if font.FONT[idx+5] & _BIT0 else background,
-                        color if font.FONT[idx+6] & _BIT7 else background,
-                        color if font.FONT[idx+6] & _BIT6 else background,
-                        color if font.FONT[idx+6] & _BIT5 else background,
-                        color if font.FONT[idx+6] & _BIT4 else background,
-                        color if font.FONT[idx+6] & _BIT3 else background,
-                        color if font.FONT[idx+6] & _BIT2 else background,
-                        color if font.FONT[idx+6] & _BIT1 else background,
-                        color if font.FONT[idx+6] & _BIT0 else background,
-                        color if font.FONT[idx+7] & _BIT7 else background,
-                        color if font.FONT[idx+7] & _BIT6 else background,
-                        color if font.FONT[idx+7] & _BIT5 else background,
-                        color if font.FONT[idx+7] & _BIT4 else background,
-                        color if font.FONT[idx+7] & _BIT3 else background,
-                        color if font.FONT[idx+7] & _BIT2 else background,
-                        color if font.FONT[idx+7] & _BIT1 else background,
-                        color if font.FONT[idx+7] & _BIT0 else background,
-                        color if font.FONT[idx+8] & _BIT7 else background,
-                        color if font.FONT[idx+8] & _BIT6 else background,
-                        color if font.FONT[idx+8] & _BIT5 else background,
-                        color if font.FONT[idx+8] & _BIT4 else background,
-                        color if font.FONT[idx+8] & _BIT3 else background,
-                        color if font.FONT[idx+8] & _BIT2 else background,
-                        color if font.FONT[idx+8] & _BIT1 else background,
-                        color if font.FONT[idx+8] & _BIT0 else background,
-                        color if font.FONT[idx+9] & _BIT7 else background,
-                        color if font.FONT[idx+9] & _BIT6 else background,
-                        color if font.FONT[idx+9] & _BIT5 else background,
-                        color if font.FONT[idx+9] & _BIT4 else background,
-                        color if font.FONT[idx+9] & _BIT3 else background,
-                        color if font.FONT[idx+9] & _BIT2 else background,
-                        color if font.FONT[idx+9] & _BIT1 else background,
-                        color if font.FONT[idx+9] & _BIT0 else background,
-                        color if font.FONT[idx+10] & _BIT7 else background,
-                        color if font.FONT[idx+10] & _BIT6 else background,
-                        color if font.FONT[idx+10] & _BIT5 else background,
-                        color if font.FONT[idx+10] & _BIT4 else background,
-                        color if font.FONT[idx+10] & _BIT3 else background,
-                        color if font.FONT[idx+10] & _BIT2 else background,
-                        color if font.FONT[idx+10] & _BIT1 else background,
-                        color if font.FONT[idx+10] & _BIT0 else background,
-                        color if font.FONT[idx+11] & _BIT7 else background,
-                        color if font.FONT[idx+11] & _BIT6 else background,
-                        color if font.FONT[idx+11] & _BIT5 else background,
-                        color if font.FONT[idx+11] & _BIT4 else background,
-                        color if font.FONT[idx+11] & _BIT3 else background,
-                        color if font.FONT[idx+11] & _BIT2 else background,
-                        color if font.FONT[idx+11] & _BIT1 else background,
-                        color if font.FONT[idx+11] & _BIT0 else background,
-                        color if font.FONT[idx+12] & _BIT7 else background,
-                        color if font.FONT[idx+12] & _BIT6 else background,
-                        color if font.FONT[idx+12] & _BIT5 else background,
-                        color if font.FONT[idx+12] & _BIT4 else background,
-                        color if font.FONT[idx+12] & _BIT3 else background,
-                        color if font.FONT[idx+12] & _BIT2 else background,
-                        color if font.FONT[idx+12] & _BIT1 else background,
-                        color if font.FONT[idx+12] & _BIT0 else background,
-                        color if font.FONT[idx+13] & _BIT7 else background,
-                        color if font.FONT[idx+13] & _BIT6 else background,
-                        color if font.FONT[idx+13] & _BIT5 else background,
-                        color if font.FONT[idx+13] & _BIT4 else background,
-                        color if font.FONT[idx+13] & _BIT3 else background,
-                        color if font.FONT[idx+13] & _BIT2 else background,
-                        color if font.FONT[idx+13] & _BIT1 else background,
-                        color if font.FONT[idx+13] & _BIT0 else background,
-                        color if font.FONT[idx+14] & _BIT7 else background,
-                        color if font.FONT[idx+14] & _BIT6 else background,
-                        color if font.FONT[idx+14] & _BIT5 else background,
-                        color if font.FONT[idx+14] & _BIT4 else background,
-                        color if font.FONT[idx+14] & _BIT3 else background,
-                        color if font.FONT[idx+14] & _BIT2 else background,
-                        color if font.FONT[idx+14] & _BIT1 else background,
-                        color if font.FONT[idx+14] & _BIT0 else background,
-                        color if font.FONT[idx+15] & _BIT7 else background,
-                        color if font.FONT[idx+15] & _BIT6 else background,
-                        color if font.FONT[idx+15] & _BIT5 else background,
-                        color if font.FONT[idx+15] & _BIT4 else background,
-                        color if font.FONT[idx+15] & _BIT3 else background,
-                        color if font.FONT[idx+15] & _BIT2 else background,
-                        color if font.FONT[idx+15] & _BIT1 else background,
-                        color if font.FONT[idx+15] & _BIT0 else background
+                        color if font.FONT[idx + 1] & _BIT7 else background,
+                        color if font.FONT[idx + 1] & _BIT6 else background,
+                        color if font.FONT[idx + 1] & _BIT5 else background,
+                        color if font.FONT[idx + 1] & _BIT4 else background,
+                        color if font.FONT[idx + 1] & _BIT3 else background,
+                        color if font.FONT[idx + 1] & _BIT2 else background,
+                        color if font.FONT[idx + 1] & _BIT1 else background,
+                        color if font.FONT[idx + 1] & _BIT0 else background,
+                        color if font.FONT[idx + 2] & _BIT7 else background,
+                        color if font.FONT[idx + 2] & _BIT6 else background,
+                        color if font.FONT[idx + 2] & _BIT5 else background,
+                        color if font.FONT[idx + 2] & _BIT4 else background,
+                        color if font.FONT[idx + 2] & _BIT3 else background,
+                        color if font.FONT[idx + 2] & _BIT2 else background,
+                        color if font.FONT[idx + 2] & _BIT1 else background,
+                        color if font.FONT[idx + 2] & _BIT0 else background,
+                        color if font.FONT[idx + 3] & _BIT7 else background,
+                        color if font.FONT[idx + 3] & _BIT6 else background,
+                        color if font.FONT[idx + 3] & _BIT5 else background,
+                        color if font.FONT[idx + 3] & _BIT4 else background,
+                        color if font.FONT[idx + 3] & _BIT3 else background,
+                        color if font.FONT[idx + 3] & _BIT2 else background,
+                        color if font.FONT[idx + 3] & _BIT1 else background,
+                        color if font.FONT[idx + 3] & _BIT0 else background,
+                        color if font.FONT[idx + 4] & _BIT7 else background,
+                        color if font.FONT[idx + 4] & _BIT6 else background,
+                        color if font.FONT[idx + 4] & _BIT5 else background,
+                        color if font.FONT[idx + 4] & _BIT4 else background,
+                        color if font.FONT[idx + 4] & _BIT3 else background,
+                        color if font.FONT[idx + 4] & _BIT2 else background,
+                        color if font.FONT[idx + 4] & _BIT1 else background,
+                        color if font.FONT[idx + 4] & _BIT0 else background,
+                        color if font.FONT[idx + 5] & _BIT7 else background,
+                        color if font.FONT[idx + 5] & _BIT6 else background,
+                        color if font.FONT[idx + 5] & _BIT5 else background,
+                        color if font.FONT[idx + 5] & _BIT4 else background,
+                        color if font.FONT[idx + 5] & _BIT3 else background,
+                        color if font.FONT[idx + 5] & _BIT2 else background,
+                        color if font.FONT[idx + 5] & _BIT1 else background,
+                        color if font.FONT[idx + 5] & _BIT0 else background,
+                        color if font.FONT[idx + 6] & _BIT7 else background,
+                        color if font.FONT[idx + 6] & _BIT6 else background,
+                        color if font.FONT[idx + 6] & _BIT5 else background,
+                        color if font.FONT[idx + 6] & _BIT4 else background,
+                        color if font.FONT[idx + 6] & _BIT3 else background,
+                        color if font.FONT[idx + 6] & _BIT2 else background,
+                        color if font.FONT[idx + 6] & _BIT1 else background,
+                        color if font.FONT[idx + 6] & _BIT0 else background,
+                        color if font.FONT[idx + 7] & _BIT7 else background,
+                        color if font.FONT[idx + 7] & _BIT6 else background,
+                        color if font.FONT[idx + 7] & _BIT5 else background,
+                        color if font.FONT[idx + 7] & _BIT4 else background,
+                        color if font.FONT[idx + 7] & _BIT3 else background,
+                        color if font.FONT[idx + 7] & _BIT2 else background,
+                        color if font.FONT[idx + 7] & _BIT1 else background,
+                        color if font.FONT[idx + 7] & _BIT0 else background,
+                        color if font.FONT[idx + 8] & _BIT7 else background,
+                        color if font.FONT[idx + 8] & _BIT6 else background,
+                        color if font.FONT[idx + 8] & _BIT5 else background,
+                        color if font.FONT[idx + 8] & _BIT4 else background,
+                        color if font.FONT[idx + 8] & _BIT3 else background,
+                        color if font.FONT[idx + 8] & _BIT2 else background,
+                        color if font.FONT[idx + 8] & _BIT1 else background,
+                        color if font.FONT[idx + 8] & _BIT0 else background,
+                        color if font.FONT[idx + 9] & _BIT7 else background,
+                        color if font.FONT[idx + 9] & _BIT6 else background,
+                        color if font.FONT[idx + 9] & _BIT5 else background,
+                        color if font.FONT[idx + 9] & _BIT4 else background,
+                        color if font.FONT[idx + 9] & _BIT3 else background,
+                        color if font.FONT[idx + 9] & _BIT2 else background,
+                        color if font.FONT[idx + 9] & _BIT1 else background,
+                        color if font.FONT[idx + 9] & _BIT0 else background,
+                        color if font.FONT[idx + 10] & _BIT7 else background,
+                        color if font.FONT[idx + 10] & _BIT6 else background,
+                        color if font.FONT[idx + 10] & _BIT5 else background,
+                        color if font.FONT[idx + 10] & _BIT4 else background,
+                        color if font.FONT[idx + 10] & _BIT3 else background,
+                        color if font.FONT[idx + 10] & _BIT2 else background,
+                        color if font.FONT[idx + 10] & _BIT1 else background,
+                        color if font.FONT[idx + 10] & _BIT0 else background,
+                        color if font.FONT[idx + 11] & _BIT7 else background,
+                        color if font.FONT[idx + 11] & _BIT6 else background,
+                        color if font.FONT[idx + 11] & _BIT5 else background,
+                        color if font.FONT[idx + 11] & _BIT4 else background,
+                        color if font.FONT[idx + 11] & _BIT3 else background,
+                        color if font.FONT[idx + 11] & _BIT2 else background,
+                        color if font.FONT[idx + 11] & _BIT1 else background,
+                        color if font.FONT[idx + 11] & _BIT0 else background,
+                        color if font.FONT[idx + 12] & _BIT7 else background,
+                        color if font.FONT[idx + 12] & _BIT6 else background,
+                        color if font.FONT[idx + 12] & _BIT5 else background,
+                        color if font.FONT[idx + 12] & _BIT4 else background,
+                        color if font.FONT[idx + 12] & _BIT3 else background,
+                        color if font.FONT[idx + 12] & _BIT2 else background,
+                        color if font.FONT[idx + 12] & _BIT1 else background,
+                        color if font.FONT[idx + 12] & _BIT0 else background,
+                        color if font.FONT[idx + 13] & _BIT7 else background,
+                        color if font.FONT[idx + 13] & _BIT6 else background,
+                        color if font.FONT[idx + 13] & _BIT5 else background,
+                        color if font.FONT[idx + 13] & _BIT4 else background,
+                        color if font.FONT[idx + 13] & _BIT3 else background,
+                        color if font.FONT[idx + 13] & _BIT2 else background,
+                        color if font.FONT[idx + 13] & _BIT1 else background,
+                        color if font.FONT[idx + 13] & _BIT0 else background,
+                        color if font.FONT[idx + 14] & _BIT7 else background,
+                        color if font.FONT[idx + 14] & _BIT6 else background,
+                        color if font.FONT[idx + 14] & _BIT5 else background,
+                        color if font.FONT[idx + 14] & _BIT4 else background,
+                        color if font.FONT[idx + 14] & _BIT3 else background,
+                        color if font.FONT[idx + 14] & _BIT2 else background,
+                        color if font.FONT[idx + 14] & _BIT1 else background,
+                        color if font.FONT[idx + 14] & _BIT0 else background,
+                        color if font.FONT[idx + 15] & _BIT7 else background,
+                        color if font.FONT[idx + 15] & _BIT6 else background,
+                        color if font.FONT[idx + 15] & _BIT5 else background,
+                        color if font.FONT[idx + 15] & _BIT4 else background,
+                        color if font.FONT[idx + 15] & _BIT3 else background,
+                        color if font.FONT[idx + 15] & _BIT2 else background,
+                        color if font.FONT[idx + 15] & _BIT1 else background,
+                        color if font.FONT[idx + 15] & _BIT0 else background,
                     )
-                    self.blit_buffer(buffer, x0, y0+8*line, 16, 8)
+                    self.blit_buffer(buffer, x0, y0 + 8 * line, 16, 8)
             x0 += font.WIDTH
 
     def text(self, font, text, x0, y0, color=WHITE, background=BLACK):
@@ -837,13 +825,14 @@ class GC9A01():
             color_index = 0
             for bit in range(bitmap.BPP):
                 color_index <<= 1
-                color_index |= (bitmap.BITMAP[bs_bit // 8]
-                                & 1 << (7 - (bs_bit % 8))) > 0
+                color_index |= (
+                    bitmap.BITMAP[bs_bit // 8] & 1 << (7 - (bs_bit % 8))
+                ) > 0
                 bs_bit += 1
 
             color = bitmap.PALETTE[color_index]
-            buffer[i] = color & 0xff00 >> 8
-            buffer[i + 1] = color_index & 0xff
+            buffer[i] = color & 0xFF00 >> 8
+            buffer[i + 1] = color_index & 0xFF
 
         self.blit_buffer(buffer, x, y, bitmap.WIDTH, bitmap.HEIGHT)
 
@@ -863,11 +852,11 @@ class GC9A01():
         """
         buffer_len = font.HEIGHT * font.MAX_WIDTH * 2
         buffer = bytearray(buffer_len)
-        fg_hi = (fg & 0xff00) >> 8
-        fg_lo = fg & 0xff
+        fg_hi = (fg & 0xFF00) >> 8
+        fg_lo = fg & 0xFF
 
-        bg_hi = (bg & 0xff00) >> 8
-        bg_lo = bg & 0xff
+        bg_hi = (bg & 0xFF00) >> 8
+        bg_lo = bg & 0xFF
 
         for character in string:
             try:

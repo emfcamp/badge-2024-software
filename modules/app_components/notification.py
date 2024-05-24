@@ -1,3 +1,5 @@
+from .tokens import label_font_size, set_color
+
 
 class Notification:
     _half_hex_rotation = (2 * 3.141593) / 12
@@ -43,25 +45,22 @@ class Notification:
         if not self._is_closed():
             ctx.save()
 
-            ctx.font_size = 20
+            ctx.font_size = label_font_size
             ctx.text_align = ctx.CENTER
             ctx.text_baseline = ctx.MIDDLE
 
             if self._port != 0:
                 ctx.rotate(self._half_hex_rotation * (self._port * 2 - 1))
 
-            ctx.gray(0.3)\
-                .rectangle(-120, -150 - self._animation_state * -30, 240, 30)\
-                .fill()
+            set_color(ctx, "mid_green")
+            ctx.rectangle(-120, -150 - self._animation_state * -30, 240, 30).fill()
 
             if self._port != 0:
                 ctx.rotate(3.14)
-                ctx.gray(1) \
-                    .move_to(0, 135 + self._animation_state * -30) \
-                    .text(self.message)
+                set_color(ctx, "label")
+                ctx.move_to(0, 135 + self._animation_state * -30).text(self.message)
             else:
-                ctx.gray(1)\
-                    .move_to(0, -130 - self._animation_state * -30)\
-                    .text(self.message)
+                set_color(ctx, "label")
+                ctx.move_to(0, -130 - self._animation_state * -30).text(self.message)
 
             ctx.restore()

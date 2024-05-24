@@ -29,7 +29,7 @@ def freeze_images(path, generated_dir):
 
 freeze("$(PORT_DIR)/modules")
 #freeze("$(MPY_DIR)/tools", ("upip.py", "upip_utarfile.py"))
-freeze("$(MPY_DIR)/lib/micropython-lib/micropython/net/ntptime", "ntptime.py")
+#freeze("$(MPY_DIR)/lib/micropython-lib/micropython/net/ntptime", "ntptime.py")
 freeze("$(MPY_DIR)/../modules") # modules - don't freeze while developing as it overrides filesystem stuff apparently?
 # freeze("$(MPY_DIR)/../modules", "boot.py")
 module("bdevice.py", base_path="$(MPY_DIR)/../modules/lib")
@@ -44,5 +44,9 @@ freeze("$(MPY_DIR)/../modules/lib", "typing_extensions.py")
 
 #include("$(MPY_DIR)/extmod/uasyncio/manifest.py")
 #include("$(MPY_DIR)/extmod/webrepl/manifest.py")
-include("$(MPY_DIR)/lib/micropython-lib/micropython/drivers/led/neopixel/manifest.py")
+#include("$(MPY_DIR)/lib/micropython-lib/micropython/drivers/led/neopixel/manifest.py")
 include("$(MPY_DIR)/extmod/asyncio/manifest.py")
+require("neopixel")
+require("ntptime")
+require("requests")
+require("mip")

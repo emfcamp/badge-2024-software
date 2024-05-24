@@ -62,6 +62,7 @@ class UnderscoreFinder(importlib.abc.MetaPathFinder):
 
 sys.path = [
     os.path.join(projectpath, "sim", "fakes"),
+    os.path.join(projectpath, "sim", "apps"),
     os.path.join(projectpath, "modules"),
     os.path.join(projectpath, "modules/lib"),
     os.path.join(projectpath, "micropython/ports/esp32/build-tildagon/frozen_mpy"),
@@ -99,7 +100,9 @@ def _path_replace(p):
         p = p[len("/flash") :]
         p = simpath + p
         return p
-
+    if p.startswith("/apps"):
+        dir = os.path.dirname(__file__)
+        p = f"{dir}{p}"
     return p
 
 

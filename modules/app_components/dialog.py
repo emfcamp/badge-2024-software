@@ -1,8 +1,10 @@
 import asyncio
 
 import display
-from events.input import ButtonDownEvent, BUTTON_TYPES
+from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
+
+from .tokens import label_font_size, set_color
 
 
 class YesNoDialog:
@@ -20,20 +22,24 @@ class YesNoDialog:
 
     async def run(self, render_update):
         # Render once, when the dialogue opens
+        self.app.overlays.append(self)
         await render_update()
-        
+
         # Tightly loop, waiting for a result, then return it
         while self._result is None:
             await asyncio.sleep(0.05)
+        self.app.overlays.pop()
+        await render_update()
         return self._result
 
     def draw_message(self, ctx):
-        ctx.font_size = 20
+        ctx.font_size = label_font_size
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
         text_height = ctx.font_size
 
-        ctx.rgba(1, 1, 1, 1)
+        set_color(ctx, "label")
+
         if isinstance(self.message, list):
             for idx, line in enumerate(self.message):
                 ctx.move_to(0, idx * text_height).text(line)

@@ -11,19 +11,19 @@ class EEPROMPartition:
 
     def readblocks(self, block_num, buf, offset=0):
         addr = block_num * self._block_size + offset + self.partition_offset
-        buf[:] = self.eepy[addr: addr + len(buf)]
+        buf[:] = self.eepy[addr : addr + len(buf)]
 
     def writeblocks(self, block_num, buf, offset=0):
         addr = block_num * self._block_size + offset + self.partition_offset
-        self.eepy[addr: addr + len(buf)] = buf
+        self.eepy[addr : addr + len(buf)] = buf
 
     def ioctl(self, op, arg):
         if op == 3:  # synchronize
             self.eepy.sync()
             return
-        if op == 4: # block count
+        if op == 4:  # block count
             return self.partition_length // self._block_size
-        if op == 5: # block size
+        if op == 5:  # block size
             return self._block_size
-        if op == 6: # erase handled by driver (?)
+        if op == 6:  # erase handled by driver (?)
             return 0

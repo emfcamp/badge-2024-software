@@ -3,12 +3,10 @@ class SchedulerEvent:
         self.app = app
 
 
-class RequestForegroundPushEvent(SchedulerEvent):
-    ...
+class RequestForegroundPushEvent(SchedulerEvent): ...
 
 
-class RequestForegroundPopEvent(SchedulerEvent):
-    ...
+class RequestForegroundPopEvent(SchedulerEvent): ...
 
 
 class RequestStartAppEvent(SchedulerEvent):
@@ -17,5 +15,4 @@ class RequestStartAppEvent(SchedulerEvent):
         self.foreground = foreground
 
 
-class RequestStopAppEvent(SchedulerEvent):
-    ...
+class RequestStopAppEvent(SchedulerEvent): ...

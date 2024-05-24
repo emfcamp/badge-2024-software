@@ -1,5 +1,6 @@
 from events import Event
 
+
 class ShowNotificationEvent(Event):
     def __init__(self, message, port=0):
         if port < 0 or port > 6:

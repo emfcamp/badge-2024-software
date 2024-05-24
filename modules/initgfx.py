@@ -1,4 +1,3 @@
-print("oh hi from boot")
 import display
 import time
 

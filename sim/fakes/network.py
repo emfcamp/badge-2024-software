@@ -1,6 +1,6 @@
 STA_IF = 1
 STAT_CONNECTING = 0
-
+AP_IF = 3
 
 def hostname(hostname: str) -> None:
     return

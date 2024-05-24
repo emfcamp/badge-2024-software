@@ -8,6 +8,7 @@ import time
 from machine import I2C, Pin, SoftI2C
 from eeprom_i2c import EEPROM, T24C512
 
+
 # Return an EEPROM array. Adapt for platforms other than Pyboard or chips
 # smaller than 64KiB.
 def get_eep():
@@ -17,9 +18,15 @@ def get_eep():
         time.sleep(0.1)  # Allow decouplers to charge
 
     if uos.uname().sysname == "esp8266":  # ESP8266 test fixture
-        eep = EEPROM(SoftI2C(scl=Pin(13, Pin.OPEN_DRAIN), sda=Pin(12, Pin.OPEN_DRAIN)), T24C512)
+        eep = EEPROM(
+            SoftI2C(scl=Pin(13, Pin.OPEN_DRAIN), sda=Pin(12, Pin.OPEN_DRAIN)), T24C512
+        )
     elif uos.uname().sysname == "esp32":  # ChronoDot on ESP32-S3
-        eep = EEPROM(SoftI2C(scl=Pin(9, Pin.OPEN_DRAIN), sda=Pin(8, Pin.OPEN_DRAIN)), 256, addr=0x50)        
+        eep = EEPROM(
+            SoftI2C(scl=Pin(9, Pin.OPEN_DRAIN), sda=Pin(8, Pin.OPEN_DRAIN)),
+            256,
+            addr=0x50,
+        )
     else:  # Pyboard D test fixture
         eep = EEPROM(I2C(2), T24C512)
     print("Instantiated EEPROM")
@@ -102,7 +109,9 @@ def test(eep=None):
         eep[sa + v] = v
     for v in range(256):
         if eep[sa + v] != v:
-            print("Fail at address {} data {} should be {}".format(sa + v, eep[sa + v], v))
+            print(
+                "Fail at address {} data {} should be {}".format(sa + v, eep[sa + v], v)
+            )
             break
     else:
         print("Test of byte addressing passed")
@@ -133,7 +142,7 @@ def test(eep=None):
         print("Test chip boundary skipped: only one chip!")
     pe = eep.get_page_size() + 1  # One byte past page
     eep[pe] = 0xFF
-    write_length  = min(257, len(eep))
+    write_length = min(257, len(eep))
     eep[:write_length] = b"\0" * write_length
     print("Test page size: ", end="")
     if eep[pe]:
@@ -183,7 +192,9 @@ def cptest(eep=None):  # Assumes pre-existing filesystem of either type
         print('Contents of "/eeprom": {}'.format(uos.listdir("/eeprom")))
         print(uos.statvfs("/eeprom"))
     except NameError:
-        print("Test cannot be performed by this MicroPython port. Consider using upysh.")
+        print(
+            "Test cannot be performed by this MicroPython port. Consider using upysh."
+        )
 
 
 # ***** TEST OF HARDWARE *****

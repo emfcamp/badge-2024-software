@@ -14,7 +14,7 @@ class BasicApp(app.App):
     async def run(self, render_update):
         # Render initial state
         await render_update()
-        
+
         while True:
             await asyncio.sleep(2)
 
