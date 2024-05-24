@@ -78,6 +78,7 @@ class Launcher(App):
             # ("Name Badge", "hello", "Hello"),
             ("Logo", "firmware_apps.intro_app", "IntroApp"),
             ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
+            ("Kbd demo", "firmware_apps.text_demo", "TextDemo"),
             # ("Update Firmware", "otaupdate", "OtaUpdate"),
             # ("Wi-Fi Connect", "wifi_client", "WifiClient"),
             # ("Sponsors", "sponsors", "Sponsors"),
@@ -85,6 +86,7 @@ class Launcher(App):
             # ("Accelerometer", "accel_app", "Accel"),
             # ("Magnetometer", "magnet_app", "Magnetometer"),
             ("Update", "system.ota.ota", "OtaUpdate"),
+            ("Power Off", "firmware_apps.poweroff", "PowerOff"),
             # ("Settings", "settings_app", "SettingsApp"),
         ]
         core_apps = []

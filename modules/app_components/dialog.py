@@ -1,5 +1,4 @@
 import asyncio
-import string
 
 import display
 from events.input import BUTTON_TYPES, ButtonDownEvent
@@ -70,7 +69,7 @@ class YesNoDialog:
 
 
 class TextDialog:
-    alphabet = string.ascii_letters
+    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
     def __init__(self, message, app, masked=False, on_complete=None, on_cancel=None):
         self.open = True
@@ -94,7 +93,7 @@ class TextDialog:
 
         # Tightly loop, waiting for a result, then return it
         while self._result is None:
-            await asyncio.sleep(0.05)
+            await render_update()
         self.app.overlays.pop()
         await render_update()
         return self._result
