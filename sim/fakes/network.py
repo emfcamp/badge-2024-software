@@ -30,3 +30,4 @@ class WLAN:
 
     def config(self, a):
         return None
+

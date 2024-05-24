@@ -70,6 +70,7 @@ class HexpansionManagerApp(app.App):
             self.format_dialog_port = port
 
             eventbus.emit(RequestForegroundPushEvent(self))
+            return True
 
     def draw(self, ctx):
         if self.format_dialog is not None:
