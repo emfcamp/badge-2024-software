@@ -32,6 +32,7 @@ import sys
 
 class HexpansionManagerApp(app.App):
     def __init__(self, autolaunch=True):
+        super().__init__()
         eventbus.on_async(
             HexpansionInsertionEvent, self.handle_hexpansion_insertion, self
         )
@@ -69,6 +70,7 @@ class HexpansionManagerApp(app.App):
             self.format_dialog_port = port
 
             eventbus.emit(RequestForegroundPushEvent(self))
+            return True
 
     def draw(self, ctx):
         if self.format_dialog is not None:
@@ -151,6 +153,7 @@ class HexpansionManagerApp(app.App):
         except Exception as e:
             print(f"Failed to mount: {e}")
             self.format_requests.append((eep, port))
+            eventbus.emit(RequestForegroundPushEvent(self))
             return
 
         self.mountpoints[port] = mountpoint

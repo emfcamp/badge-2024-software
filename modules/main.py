@@ -1,4 +1,5 @@
 # main.py -- put your code here!
+from esp32 import Partition
 
 from system.scheduler import scheduler
 from system.hexpansion.app import HexpansionManagerApp
@@ -22,6 +23,8 @@ scheduler.start_app(Launcher(), foreground=True)
 
 # Start notification handler
 scheduler.start_app(NotificationService(), always_on_top=True)
+
+Partition.mark_app_valid_cancel_rollback()
 
 scheduler.run_forever()
 

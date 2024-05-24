@@ -11,7 +11,7 @@ class TestApp:
         )
 
     def update(self, delta):
-        pass
+        return True
 
     def draw_background(self, ctx):
         ctx.gray(0).rectangle(-120, -120, 240, 240).fill()

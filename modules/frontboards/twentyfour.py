@@ -32,6 +32,7 @@ class TwentyTwentyFour(FrontBoard):
 
         button_states = {button: False for button in self.BUTTON_PINS.keys()}
         while True:
+            tildagonos.read_egpios()
             for button, pin in self.BUTTON_PINS.items():
                 button_down = not tildagonos.check_egpio_state(pin, readgpios=False)
                 if button_down and not button_states[button]:
