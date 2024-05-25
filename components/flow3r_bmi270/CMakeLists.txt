@@ -1,0 +1,10 @@
+idf_component_register(
+    SRCS
+        bmi270.c
+        bmi2.c
+    INCLUDE_DIRS
+        .
+        ../st3m
+    REQUIRES
+		main_esp32s3
+)

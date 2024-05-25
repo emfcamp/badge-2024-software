@@ -1,3 +1,4 @@
+#include "st3m_imu.h"
 
 // This is the default startup handler for ESP32, does VFS and stuff
 void boardctrl_startup(void);
@@ -17,4 +18,6 @@ void tildagon_startup(void) {
     tildagon_usb_init();
 
     tildagon_i2c_init();
+    
+    st3m_imu_init();
 }

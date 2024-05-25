@@ -36,7 +36,6 @@
 #include "driver/i2c.h"
 #include "hal/i2c_ll.h"
 
-#include "tca9548a.h"
 #include "tildagon_i2c.h"
 
 
@@ -48,15 +47,22 @@
 #define MP_I2C_MUX_PORT_MAX (7)
 
 
-typedef struct _tildagon_mux_i2c_obj_t {
-    mp_obj_base_t base;
-    const tca9548a_i2c_mux_t *mux;
-    tca9548a_i2c_port_t port;
-} tildagon_mux_i2c_obj_t;
 
 static tildagon_mux_i2c_obj_t tildagon_mux_i2c_obj[8];
 
 static tca9548a_i2c_mux_t tildagon_i2c_mux;
+
+tildagon_mux_i2c_obj_t* tildagon_get_mux_obj( uint8_t port )
+{
+    if ( tildagon_mux_i2c_obj[port].base.type == NULL ) 
+    {
+        // Created for the first time
+        tildagon_mux_i2c_obj[port].base.type = &machine_i2c_type;
+        tildagon_mux_i2c_obj[port].mux = tildagon_get_i2c_mux();
+        tildagon_mux_i2c_obj[port].port = port;
+    }
+    return &tildagon_mux_i2c_obj[port];
+}
 
 const tca9548a_i2c_mux_t *tildagon_get_i2c_mux() {
     return &tildagon_i2c_mux;
@@ -81,16 +87,11 @@ void tildagon_i2c_init() {
     i2c_driver_install(TILDAGON_HOST_I2C_PORT, I2C_MODE_MASTER, 0, 0, 0);
 }
 
-int tildagon_mux_i2c_transfer(mp_obj_base_t *self_in, uint16_t addr, size_t n, mp_machine_i2c_buf_t *bufs, unsigned int flags) {
-    tildagon_mux_i2c_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
-    if (addr == self->mux->addr) {
-        return -MP_ENODEV;
-    }
-    
-
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+int tildagon_mux_i2c_transaction(tildagon_mux_i2c_obj_t *self, uint16_t addr, size_t n, mp_machine_i2c_buf_t *bufs, unsigned int flags) {
+   
     int data_len = 0;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 
     if (flags & MP_MACHINE_I2C_FLAG_WRITE1) {
         i2c_master_start(cmd);
@@ -132,6 +133,16 @@ int tildagon_mux_i2c_transfer(mp_obj_base_t *self_in, uint16_t addr, size_t n, m
     }
 
     return data_len;
+}
+
+int tildagon_mux_i2c_transfer(mp_obj_base_t *self_in, uint16_t addr, size_t n, mp_machine_i2c_buf_t *bufs, unsigned int flags) {
+    tildagon_mux_i2c_obj_t *self = MP_OBJ_TO_PTR(self_in);
+
+    if (addr == self->mux->addr) {
+        return -MP_ENODEV;
+    }
+    
+    return tildagon_mux_i2c_transaction( self, addr, n, bufs, flags);
 }
 
 /******************************************************************************/
