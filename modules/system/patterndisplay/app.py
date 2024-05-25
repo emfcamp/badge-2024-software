@@ -18,9 +18,13 @@ class PatternDisplay(App):
 
     async def background_task(self):
         while True:
+            brightness = settings.get("pattern_brightness", 1.0)
             next_frame = self._p.next()
             for l in range(12):
-                tildagonos.leds[l + 1] = next_frame[l]
+                if brightness < 1.0:
+                    tildagonos.leds[l + 1] = tuple(int(i*brightness) for i in next_frame[l])
+                else:
+                    tildagonos.leds[l + 1] = next_frame[l]
             tildagonos.leds.write()
             if not self._p.fps:
                 break
