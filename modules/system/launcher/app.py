@@ -3,6 +3,7 @@ import json
 
 from app import App
 from app_components.menu import Menu
+from app_components import clear_background
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
 from system.scheduler.events import RequestStartAppEvent, RequestForegroundPushEvent
@@ -77,6 +78,7 @@ class Launcher(App):
             # ("Name Badge", "hello", "Hello"),
             ("Logo", "firmware_apps.intro_app", "IntroApp"),
             ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
+            ("Kbd demo", "firmware_apps.text_demo", "TextDemo"),
             # ("Update Firmware", "otaupdate", "OtaUpdate"),
             # ("Wi-Fi Connect", "wifi_client", "WifiClient"),
             # ("Sponsors", "sponsors", "Sponsors"),
@@ -84,6 +86,7 @@ class Launcher(App):
             # ("Accelerometer", "accel_app", "Accel"),
             # ("Magnetometer", "magnet_app", "Magnetometer"),
             ("Update", "system.ota.ota", "OtaUpdate"),
+            ("Power Off", "firmware_apps.poweroff", "PowerOff"),
             # ("Settings", "settings_app", "SettingsApp"),
         ]
         core_apps = []
@@ -143,11 +146,8 @@ class Launcher(App):
         #    return
         # self.set_menu("main")
 
-    def draw_background(self, ctx):
-        ctx.gray(0).rectangle(-120, -120, 240, 240).fill()
-
     def draw(self, ctx):
-        self.draw_background(ctx)
+        clear_background(ctx)
         self.menu.draw(ctx)
 
     def update(self, delta):

@@ -1,7 +1,6 @@
 import asyncio
 import time
 
-from perf_timer import PerfTimer
 from system.eventbus import eventbus
 from system.scheduler.events import RequestForegroundPopEvent
 
@@ -19,13 +18,14 @@ class App:
         while True:
             cur_time = time.ticks_ms()
             delta_ticks = time.ticks_diff(cur_time, last_time)
-            with PerfTimer(f"Updating {self}"):
-                self.update(delta_ticks)
-            await render_update()
+            if self.update(delta_ticks) is not False:
+                await render_update()
+            else:
+                await asyncio.sleep(0.05)
             last_time = cur_time
 
-    def update(self, delta):
-        pass
+    def update(self, delta: float) -> bool:
+        return False
 
     def draw(self, ctx):
         self.draw_overlays(ctx)

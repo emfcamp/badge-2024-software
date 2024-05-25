@@ -8,6 +8,7 @@ class TickApp:
 
     def update(self, delta):
         self.acc_time += delta
+        return True
 
     def draw(self, ctx):
         if self.acc_time > 1000_000:

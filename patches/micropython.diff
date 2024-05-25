@@ -1,5 +1,5 @@
 diff --git a/ports/esp32/esp32_common.cmake b/ports/esp32/esp32_common.cmake
-index 89e46f9cf..ed2cc007c 100644
+index e928fb439..fde5160a5 100644
 --- a/ports/esp32/esp32_common.cmake
 +++ b/ports/esp32/esp32_common.cmake
 @@ -11,6 +11,9 @@ endif()

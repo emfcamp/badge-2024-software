@@ -6,13 +6,11 @@ from system.hexpansion.util import (
     read_hexpansion_header,
 )
 import vfs
-from tildagonos import tildagonos
 
 # Need to init this to make sure i2c works
-t = tildagonos()
 
 # Set up i2c
-port = 0  # <<-- Customize!!
+port = 2  # <<-- Customize!!
 i2c = I2C(port)
 
 # autodetect eeprom address
@@ -23,17 +21,26 @@ print(f"Detected eeprom at {hex(addr)}")
 header = HexpansionHeader(
     manifest_version="2024",
     fs_offset=32,
-    eeprom_page_size=32,
-    eeprom_total_size=1024 * 64,
+    eeprom_page_size=16,
+    eeprom_total_size=1024 * (16 // 8) // 8,
     vid=0xCA75,
     pid=0x1337,
     unique_id=0x0,
-    friendly_name="Internal",
+    friendly_name="Flopagon",
 )
 
+# Determine amount of bytes in internal address
+addr_len = 2 if header.eeprom_total_size > 256 else 1
+print(f"Using {addr_len} bytes for eeprom internal address")
+
 # Write and read back header
-write_header(port, header, addr)
-header = read_hexpansion_header(i2c, addr)
+write_header(
+    port, header, addr=addr, addr_len=addr_len, page_size=header.eeprom_page_size
+)
+header = read_hexpansion_header(i2c, addr, set_read_addr=True, addr_len=addr_len)
+
+if header is None:
+    raise RuntimeError("Failed to read back hexpansion header")
 
 # Get block devices
 eep, partition = get_hexpansion_block_devices(i2c, header, addr)

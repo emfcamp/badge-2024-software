@@ -1,5 +1,6 @@
 import struct
 from machine import I2C
+import time
 
 
 class HexpansionHeader:
@@ -93,18 +94,41 @@ class HexpansionHeader:
         )
 
 
-def write_header(port, header, addr=0x50):
+def write_header(port, header, addr=0x50, addr_len=2, page_size=32):
     i2c = I2C(port)
 
-    # Write header to 0x00 of the eeprom
-    i2c.writeto(addr, bytes([0, 0]) + header.to_bytes())
+    addr_bytes = [0] * addr_len
+    i2c.writeto(addr, bytes(addr_bytes))
+
+    # We can't write more bytes than the page size in one transaction, so chunk the bytes if necessary:
+    header_bytes = header.to_bytes()
+    header_chunks = [
+        header_bytes[i : i + page_size] for i in range(0, len(header_bytes), page_size)
+    ]
+
+    for idx, chunk in enumerate(header_chunks):
+        write_addr = bytes([idx * page_size])
+        print(f"Writing {len(chunk)} bytes at {write_addr}:", chunk)
+
+        i2c.writeto(addr, bytes([idx * page_size]) + chunk)
+
+        # Poll ACK
+        while True:
+            try:
+                if i2c.writeto(addr, bytes([0])):  # Poll ACK
+                    break
+            except OSError:
+                pass
+            finally:
+                time.sleep_ms(1)
 
 
-def read_header(port, addr=0x50):
+def read_header(port, addr=0x50, addr_len=2):
     i2c = I2C(port)
 
     # Set internal address to 0x00
-    i2c.writeto(addr, bytes([0, 0]))
+    addr_bytes = [0] * addr_len
+    i2c.writeto(addr, bytes(addr_bytes))
 
     header_bytes = i2c.readfrom(addr, 32)
     header = HexpansionHeader.from_bytes(header_bytes)
