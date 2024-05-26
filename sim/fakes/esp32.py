@@ -9,3 +9,6 @@ class Partition:
     
     def into(self):
         return (1,2,3,4)
+
+    def mark_app_valid_cancel_rollback():
+        return

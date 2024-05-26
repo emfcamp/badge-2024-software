@@ -43,6 +43,7 @@ class PingApp:
             if delta > 1000:
                 print("sync pong")
                 self.time_since_received = None
+        return True
 
     def draw(self, ctx):
         pass
@@ -70,6 +71,7 @@ class PongApp:
             if delta > 1000:
                 print("sync ping")
                 self.time_since_received = None
+        return True
 
     def draw(self, ctx):
         pass

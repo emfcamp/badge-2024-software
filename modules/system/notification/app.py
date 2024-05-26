@@ -24,6 +24,7 @@ class NotificationService(app.App):
             except Exception as e:
                 print(e)
                 continue
+        return any(notification._open for notification in self.notifications)
 
     def draw(self, ctx):
         for notification in self.notifications:

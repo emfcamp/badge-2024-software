@@ -164,6 +164,7 @@ class OtaUpdate(App):
 
         self.version = version
         self.progress_pct = val
+        self.status = f"{val} %"
         print(version, val)
         # window.progress_bar(window.get_next_line(), val)
         return True

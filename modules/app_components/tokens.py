@@ -28,6 +28,10 @@ colors = {
     "blue": (46, 173, 217),
 }
 
+colors = {
+    name: (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0) for (name, c) in colors.items()
+}
+
 ui_colors = {"background": colors["dark_green"], "label": (232, 230, 227)}
 
 
