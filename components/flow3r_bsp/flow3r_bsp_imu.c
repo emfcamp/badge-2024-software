@@ -120,7 +120,7 @@ esp_err_t flow3r_bsp_imu_init(flow3r_bsp_imu_t *imu) {
     bmi2_error_codes_print_result(rslt);
     if (rslt != BMI2_OK) return ESP_FAIL;
 
-    uint8_t sensor_list[] = { BMI2_ACCEL, BMI2_GYRO, BMI2_AUX };
+    uint8_t sensor_list[] = { BMI2_ACCEL, BMI2_GYRO };
     rslt = bmi2_sensor_enable(sensor_list, sizeof(sensor_list), &(imu->bmi));
     bmi2_error_codes_print_result(rslt);
     if (rslt != BMI2_OK) return ESP_FAIL;
