@@ -52,3 +52,9 @@ def clear_background(ctx):
 
 def set_color(ctx, color):
     ctx.rgb(*ui_colors.get(color, colors.get(color, color)))
+
+
+try:
+    from frontboard.tokens import *  # noqa: F403
+except ImportError:
+    pass
