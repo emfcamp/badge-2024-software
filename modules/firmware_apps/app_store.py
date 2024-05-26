@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Callable
 
 import app
@@ -17,7 +18,7 @@ REFRESH = "Refresh Apps"
 
 
 class AppStoreApp(app.App):
-    state = "checking_wifi"
+    state = "init"
 
     def __init__(self):
         super().__init__()
@@ -37,10 +38,34 @@ class AppStoreApp(app.App):
         self.update_menu = None
         self.codeinstall = None
         self.app_store_index = []
-        self.get_index()
+
+    def connect_wifi(self):
+        ssid = wifi.get_ssid()
+        if not ssid:
+            print("No WIFI config!")
+            return
+
+        if not wifi.status():
+            wifi.connect()
+            while True:
+                print("Connecting to")
+                print(f"{ssid}...")
+                if wifi.wait():
+                    # Returning true means connected
+                    break
+
+    async def run(self, render_update):
+        await render_update()
+
+        while True:
+            await asyncio.sleep(2)
+            await render_update()
 
     def check_wifi(self):
+        self.update_state("checking_wifi")
+        self.connect_wifi()
         return True
+
         if self.state != "checking_wifi":
             self.update_state("checking_wifi")
         connected = wifi.status()
@@ -51,18 +76,11 @@ class AppStoreApp(app.App):
         print(wifi.get_sta_status())
         return connected
 
-    def get_index(self):
-        self.check_wifi()
+    async def get_index(self):
+        if not self.check_wifi():
+            return
         self.update_state("refreshing_index")
         response = get(APP_STORE_LISTING_URL)
-        # self.app_store_index = [
-        #     {
-        #         "name": "Test App",
-        #         "path": "firmware_apps.test_app",
-        #         "callable": "TestApp",
-        #     }
-        # ]
-        print(response.json()["items"])
         self.app_store_index = response.json()["items"]
         self.available_menu = Menu(
             self,
@@ -82,7 +100,7 @@ class AppStoreApp(app.App):
         print(f"Installing {app}")
         self.update_state("main_menu")
 
-    def on_select(self, value, idx):
+    async def on_select(self, value, idx):
         if value == CODE_INSTALL:
             self.codeinstall = CodeInstall(
                 install_handler=lambda id: self.handle_code_input(id), app=self
@@ -95,7 +113,7 @@ class AppStoreApp(app.App):
         elif value == UPDATE:
             self.update_state("update_menu")
         elif value == REFRESH:
-            self.get_index()
+            await self.get_index()
 
     def on_cancel(self):
         self.minimise()
@@ -103,7 +121,10 @@ class AppStoreApp(app.App):
     def error_screen(self, ctx, message):
         ctx.gray(1).move_to(0, 0).text(message)
 
-    def update(self, delta):
+    async def update(self, delta):
+        if self.state == "init":
+            await self.get_index()
+
         if self.menu:
             self.menu.update(delta)
         if self.available_menu:
