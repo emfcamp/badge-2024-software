@@ -28,6 +28,7 @@ from machine import I2C
 from events.input import Buttons
 import vfs
 import sys
+import settings
 
 
 class HexpansionManagerApp(app.App):
@@ -230,7 +231,10 @@ class HexpansionManagerApp(app.App):
                         n, readgpios=False
                     )
                     if hexpansion_present:
-                        tildagonos.leds[13 + i] = led_colours[i]
+                        if settings.get("pattern_mirror_hexpansions", False):
+                            tildagonos.leds[13 + i] = tildagonos.leds[1 + (i*2)]
+                        else:
+                            tildagonos.leds[13 + i] = led_colours[i]
                     else:
                         tildagonos.leds[13 + i] = (0, 0, 0)
                     if hexpansion_present and not hexpansion_plugin_states[i]:
