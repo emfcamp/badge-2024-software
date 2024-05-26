@@ -1,10 +1,10 @@
 from typing import Any, Callable
 
 import app
-import display
 import wifi
 from app_components import Menu, clear_background
-from events.input import BUTTON_TYPES, Buttons
+from events.input import BUTTON_TYPES, ButtonDownEvent
+from system.eventbus import eventbus
 from urequests import get
 
 APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
@@ -14,10 +14,6 @@ AVAILABLE = "Available"
 INSTALLED = "Installed"
 UPDATE = "Update"
 REFRESH = "Refresh Apps"
-
-
-def install_app(app):
-    print(f"Installing {app['name']}")
 
 
 class AppStoreApp(app.App):
@@ -39,8 +35,8 @@ class AppStoreApp(app.App):
         self.available_menu = None
         self.installed_menu = None
         self.update_menu = None
+        self.codeinstall = None
         self.app_store_index = []
-        self.button_states = Buttons(self)
         self.get_index()
 
     def check_wifi(self):
@@ -76,7 +72,7 @@ class AppStoreApp(app.App):
         self.update_state("main_menu")
 
     def install_app(self, app):
-        print(f"Installing {app['name']}")
+        print(f"Installing {app}")
 
     def update_state(self, state):
         print(f"State Transition: '{self.state}' -> '{state}'")
@@ -89,8 +85,7 @@ class AppStoreApp(app.App):
     def on_select(self, value, idx):
         if value == CODE_INSTALL:
             self.codeinstall = CodeInstall(
-                install_handler=lambda id: self.handle_code_input(id),
-                buttons=self.button_states,
+                install_handler=lambda id: self.handle_code_input(id), app=self
             )
             self.update_state("code_install_input")
         elif value == AVAILABLE:
@@ -117,8 +112,6 @@ class AppStoreApp(app.App):
             self.installed_menu.update(delta)
         if self.update_menu:
             self.update_menu.update(delta)
-        if self.codeinstall:
-            self.codeinstall.update()
         return super().update(delta)
 
     def draw(self, ctx):
@@ -150,34 +143,37 @@ class AppStoreApp(app.App):
 
 
 class CodeInstall:
-    def __init__(self, install_handler: Callable[[str], Any], buttons: Buttons):
+    def __init__(self, install_handler: Callable[[str], Any], app: app.App):
         self.install_handler = install_handler
         self.state = "input"
         self.id: str = ""
-        self.buttons_state = buttons
+        eventbus.on(ButtonDownEvent, self._handle_buttondown, app)
+
+    def _handle_buttondown(self, event: ButtonDownEvent):
+        print(event)
+        if BUTTON_TYPES["UP"] in event.button:
+            self.id += "0"
+        elif BUTTON_TYPES["RIGHT"] in event.button:
+            self.id += "1"
+        elif BUTTON_TYPES["CONFIRM"] in event.button:
+            print("confirm")
+            self.id += "2"
+        elif BUTTON_TYPES["DOWN"] in event.button:
+            self.id += "3"
+        elif BUTTON_TYPES["LEFT"] in event.button:
+            self.id += "4"
+        elif BUTTON_TYPES["CANCEL"] in event.button:
+            self.id += "5"
+
+        print(self.id)
+
+        if len(self.id) == 8:
+            eventbus.remove(ButtonDownEvent, self._handle_buttondown, self)
+            self.install_handler(self.id)
 
     def draw(self, ctx):
         ctx.save()
-        ctx.rgb(0, 0, 0).rectangle(-120, -120, 240, 240).fill()
-        ctx.rgb(1, 0, 0)
-        display.hexagon(ctx, 0, 0, 80)
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
-        ctx.move_to(0, 0).text(id)
+        ctx.gray(1).move_to(0, 0).text(self.id)
         ctx.restore()
-
-    def update(self):
-        if len(self.id) == 8:
-            self.install_handler(self.id)
-        if self.buttons_state.get(BUTTON_TYPES["UP"]):
-            self.id += "0"
-        elif self.buttons_state.get(BUTTON_TYPES["RIGHT"]):
-            self.id += "1"
-        elif self.buttons_state.get(BUTTON_TYPES["CONFIRM"]):
-            self.id += "2"
-        elif self.buttons_state.get(BUTTON_TYPES["DOWN"]):
-            self.id += "3"
-        elif self.buttons_state.get(BUTTON_TYPES["LEFT"]):
-            self.id += "4"
-        elif self.buttons_state.get(BUTTON_TYPES["CANCEl"]):
-            self.id += "5"

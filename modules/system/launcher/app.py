@@ -4,6 +4,7 @@ import os
 from app import App
 from app_components.menu import Menu
 from perf_timer import PerfTimer
+
 from system.eventbus import eventbus
 from system.scheduler.events import RequestForegroundPushEvent, RequestStartAppEvent
 
@@ -132,7 +133,7 @@ class Launcher(App):
         self.update_menu()
         self._apps = {}
 
-    def select_handler(self, item):
+    def select_handler(self, item, idx):
         for app in self.menu_items:
             if item == app["name"]:
                 self.launch(app)
