@@ -6,7 +6,11 @@ from app_components.menu import Menu
 from app_components import clear_background
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
-from system.scheduler.events import RequestStartAppEvent, RequestForegroundPushEvent
+from system.scheduler.events import (
+    RequestStartAppEvent,
+    RequestForegroundPushEvent,
+    RequestStopAppEvent,
+)
 
 
 def path_isfile(path):
@@ -36,6 +40,18 @@ def recursive_delete(path):
 
 
 class Launcher(App):
+    def __init__(self):
+        self.update_menu()
+        self._apps = {}
+        eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)
+
+    async def _handle_stop_app(self, event: RequestStopAppEvent):
+        # If an app is stopped, remove our cache of it as it needs restarting
+        for key, app in self._apps.items():
+            if app == event.app:
+                self._apps[key] = None
+                print(f"Removing launcher cache for {key}")
+
     def list_user_apps(self):
         with PerfTimer("List user apps"):
             apps = []
@@ -128,10 +144,6 @@ class Launcher(App):
         # with open("/lastapplaunch.txt", "w") as f:
         #    f.write(str(self.window.focus_idx()))
         # eventbus.emit(RequestForegroundPopEvent(self))
-
-    def __init__(self):
-        self.update_menu()
-        self._apps = {}
 
     def select_handler(self, item):
         for app in self.menu_items:
