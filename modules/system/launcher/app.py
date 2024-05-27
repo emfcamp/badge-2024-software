@@ -80,6 +80,7 @@ class Launcher(App):
             ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
             ("Kbd demo", "firmware_apps.text_demo", "TextDemo"),
             # ("Update Firmware", "otaupdate", "OtaUpdate"),
+            # ("Inhibit LEDs", "firmware_apps.patterninhibit", "PatternInhibit"),
             # ("Wi-Fi Connect", "wifi_client", "WifiClient"),
             # ("Sponsors", "sponsors", "Sponsors"),
             # ("Battery", "battery", "Battery"),
