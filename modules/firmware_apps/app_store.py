@@ -1,9 +1,8 @@
-import asyncio
 from typing import Any, Callable
 
 import app
 import wifi
-from app_components import Menu, clear_background
+from app_components import Menu, clear_background, sixteen_pt, ten_pt
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
 from urequests import get
@@ -22,22 +21,15 @@ class AppStoreApp(app.App):
 
     def __init__(self):
         super().__init__()
-        self.menu = Menu(
-            self,
-            menu_items=[
-                CODE_INSTALL,
-                # AVAILABLE,
-                # UPDATE,
-                # INSTALLED
-            ],
-            select_handler=self.on_select,
-            back_handler=self.on_cancel,
-        )
+        self.menu = None
         self.available_menu = None
         self.installed_menu = None
         self.update_menu = None
         self.codeinstall = None
+        self.response = None
         self.app_store_index = []
+        self.to_install_app = None
+        self.tarball = None
 
     def connect_wifi(self):
         ssid = wifi.get_ssid()
@@ -54,14 +46,8 @@ class AppStoreApp(app.App):
                     # Returning true means connected
                     break
 
-    async def run(self, render_update):
-        await render_update()
-
-        while True:
-            await asyncio.sleep(2)
-            await render_update()
-
     def check_wifi(self):
+        print("in check_wifi")
         self.update_state("checking_wifi")
         self.connect_wifi()
         return True
@@ -76,35 +62,63 @@ class AppStoreApp(app.App):
         print(wifi.get_sta_status())
         return connected
 
-    async def get_index(self):
+    def get_index(self):
         if not self.check_wifi():
-            return
+            self.update_state("no_wifi")
         self.update_state("refreshing_index")
-        response = get(APP_STORE_LISTING_URL)
-        self.app_store_index = response.json()["items"]
-        self.available_menu = Menu(
-            self,
-            menu_items=[app["manifest"]["app"]["name"] for app in self.app_store_index],
-            select_handler=lambda _, i: self.install_app(self.app_store_index[i]),
-        )
+
+    def background_update(self, delta):
+        if self.state == "refreshing_index":
+            self.response = get(APP_STORE_LISTING_URL)
+            self.update_state("index_received")
+        if self.to_install_app:
+            self.install_app(self.to_install_app)
+            self.to_install_app = None
+
+    def handle_index(self):
+        if not self.response:
+            return
+        self.app_store_index = self.response.json()["items"]
+
         self.update_state("main_menu")
 
     def install_app(self, app):
+        ## This is fine to block because we only call it from background_update
         print(f"Installing {app}")
+
+        tarball = get(app["tarballUrl"])
+        print(tarball)
+        print(tarball.body)
+
+        # Unzip tarball
+        # Validate the manifest
+        # Write the files to storage
+
+        # TODO: Success/Failure Notification
+        self.update_state("main_menu")
 
     def update_state(self, state):
         print(f"State Transition: '{self.state}' -> '{state}'")
         self.state = state
 
-    def handle_code_input(self, app):
-        print(f"Installing {app}")
-        self.update_state("main_menu")
+    def handle_code_input(self, code):
+        print(f"Installing {code}")
+        try:
+            app = [app for app in self.app_store_index if app["code"] == code][0]
+            self.to_install_app = app
+            self.update_state("installing_app")
+        except IndexError:
+            # TODO notify user of invalid code
+            self.update_state("main_menu")
 
-    async def on_select(self, value, idx):
+    def on_select(self, value, idx):
         if value == CODE_INSTALL:
             self.codeinstall = CodeInstall(
                 install_handler=lambda id: self.handle_code_input(id), app=self
             )
+            if self.menu:
+                self.menu._cleanup()
+                self.menu = None
             self.update_state("code_install_input")
         elif value == AVAILABLE:
             self.update_state("available_menu")
@@ -113,7 +127,7 @@ class AppStoreApp(app.App):
         elif value == UPDATE:
             self.update_state("update_menu")
         elif value == REFRESH:
-            await self.get_index()
+            self.get_index()
 
     def on_cancel(self):
         self.minimise()
@@ -121,9 +135,37 @@ class AppStoreApp(app.App):
     def error_screen(self, ctx, message):
         ctx.gray(1).move_to(0, 0).text(message)
 
-    async def update(self, delta):
+    def update(self, delta):
         if self.state == "init":
-            await self.get_index()
+            print("calling get index")
+            self.get_index()
+        elif self.state == "index_received":
+            self.handle_index()
+        elif self.state == "main_menu" and not self.menu:
+            self.menu = Menu(
+                self,
+                menu_items=[
+                    CODE_INSTALL,
+                    # AVAILABLE,
+                    # UPDATE,
+                    # INSTALLED
+                ],
+                select_handler=self.on_select,
+                back_handler=self.on_cancel,
+            )
+        elif self.state == "available_menu" and not self.available_menu:
+
+            def wouldveUsedALambdaButICant(_, i):
+                self.to_install_app = self.app_store_index[i]
+                self.update_state("installing_app")
+
+            self.available_menu = Menu(
+                self,
+                menu_items=[
+                    app["manifest"]["app"]["name"] for app in self.app_store_index
+                ],
+                select_handler=wouldveUsedALambdaButICant,
+            )
 
         if self.menu:
             self.menu.update(delta)
@@ -133,7 +175,6 @@ class AppStoreApp(app.App):
             self.installed_menu.update(delta)
         if self.update_menu:
             self.update_menu.update(delta)
-        return super().update(delta)
 
     def draw(self, ctx):
         ctx.save()
@@ -153,9 +194,18 @@ class AppStoreApp(app.App):
         elif self.state == "checking_wifi":
             self.error_screen(ctx, "Checking\nWi-Fi connection")
         elif self.state == "refreshing_index":
-            self.error_screen(ctx, "Refreshing app store index")
+            self.error_screen(ctx, "Refreshing\napp store\nindex")
         elif self.state == "code_install_input" and self.codeinstall:
             self.codeinstall.draw(ctx)
+        elif self.state == "installing_app":
+            if self.to_install_app:
+                self.error_screen(
+                    ctx, "Installing\n" + self.to_install_app["manifest"]["app"]["name"]
+                )
+            else:
+                self.error_screen(ctx, "Installing...")
+        elif self.state == "init":
+            self.error_screen(ctx, "Loading...")
         else:
             self.error_screen(ctx, "Unknown error")
         ctx.restore()
@@ -171,13 +221,11 @@ class CodeInstall:
         eventbus.on(ButtonDownEvent, self._handle_buttondown, app)
 
     def _handle_buttondown(self, event: ButtonDownEvent):
-        print(event)
         if BUTTON_TYPES["UP"] in event.button:
             self.id += "0"
         elif BUTTON_TYPES["RIGHT"] in event.button:
             self.id += "1"
         elif BUTTON_TYPES["CONFIRM"] in event.button:
-            print("confirm")
             self.id += "2"
         elif BUTTON_TYPES["DOWN"] in event.button:
             self.id += "3"
@@ -186,15 +234,17 @@ class CodeInstall:
         elif BUTTON_TYPES["CANCEL"] in event.button:
             self.id += "5"
 
-        print(self.id)
-
         if len(self.id) == 8:
             eventbus.remove(ButtonDownEvent, self._handle_buttondown, self)
+            print("calling install handler")
             self.install_handler(self.id)
 
     def draw(self, ctx):
         ctx.save()
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
+        ctx.font_size = ten_pt
+        ctx.gray(1).move_to(0, -3 * ten_pt).text("Enter code:")
+        ctx.font_size = sixteen_pt
         ctx.gray(1).move_to(0, 0).text(self.id)
         ctx.restore()
