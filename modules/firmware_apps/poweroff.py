@@ -30,7 +30,14 @@ class PowerOff(app.App):
 
     def draw(self, ctx):
         ctx.save()
-        clear_background(ctx)
+        if not self.off:
+            clear_background(ctx)
+        if self.off:
+            ctx.rgb(0, 0, 0).rectangle(-120, -120, 240, 240).fill()
+            ctx.font_size = 22
+            ctx.text_align = ctx.CENTER
+            ctx.rgb(0.96, 0.49, 0).move_to(0, -11).text("It is now safe to unplug")
+            ctx.move_to(0, 11).text("your badge.")
         ctx.restore()
 
         self.draw_overlays(ctx)
