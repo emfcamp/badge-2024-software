@@ -1,8 +1,9 @@
+import gzip
 from typing import Any, Callable
 
 import app
 import wifi
-from app_components import Menu, clear_background, sixteen_pt, ten_pt
+from app_components import Menu, clear_background, fourteen_pt, sixteen_pt, ten_pt
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
 from urequests import get
@@ -50,16 +51,16 @@ class AppStoreApp(app.App):
         print("in check_wifi")
         self.update_state("checking_wifi")
         self.connect_wifi()
-        return True
+        # return True
 
         if self.state != "checking_wifi":
             self.update_state("checking_wifi")
         connected = wifi.status()
-        print(wifi.get_ip())
+        # print(wifi.get_ip())
         print("Connected" if connected else "Not connected")
         if not connected:
             self.update_state("no_wifi")
-        print(wifi.get_sta_status())
+        # print(wifi.get_sta_status())
         return connected
 
     def get_index(self):
@@ -87,8 +88,11 @@ class AppStoreApp(app.App):
         print(f"Installing {app}")
 
         tarball = get(app["tarballUrl"])
+
         print(tarball)
-        print(tarball.body)
+        # TODO: Investigate using deflate.DeflateIO instead. Can't do it now
+        # because it's not available in the simulator.
+        print(gzip.decompress(tarball.text))
 
         # Unzip tarball
         # Validate the manifest
@@ -133,7 +137,16 @@ class AppStoreApp(app.App):
         self.minimise()
 
     def error_screen(self, ctx, message):
-        ctx.gray(1).move_to(0, 0).text(message)
+        ctx.save()
+        ctx.text_align = ctx.CENTER
+        ctx.text_baseline = ctx.MIDDLE
+
+        lines = message.split("\n")
+        start_y = -len(lines) * ctx.font_size / 2
+
+        for i, line in enumerate(lines):
+            ctx.gray(1).move_to(0, start_y + i * ctx.font_size).text(line)
+        ctx.restore()
 
     def update(self, delta):
         if self.state == "init":
@@ -146,7 +159,7 @@ class AppStoreApp(app.App):
                 self,
                 menu_items=[
                     CODE_INSTALL,
-                    # AVAILABLE,
+                    AVAILABLE,
                     # UPDATE,
                     # INSTALLED
                 ],
@@ -159,12 +172,21 @@ class AppStoreApp(app.App):
                 self.to_install_app = self.app_store_index[i]
                 self.update_state("installing_app")
 
+            def exit_available_menu():
+                if self.available_menu:
+                    self.available_menu._cleanup()
+                    self.available_menu = None
+                self.update_state("main_menu")
+
             self.available_menu = Menu(
                 self,
                 menu_items=[
                     app["manifest"]["app"]["name"] for app in self.app_store_index
                 ],
                 select_handler=wouldveUsedALambdaButICant,
+                back_handler=exit_available_menu,
+                focused_item_font_size=fourteen_pt,
+                item_font_size=ten_pt,
             )
 
         if self.menu:
@@ -190,7 +212,7 @@ class AppStoreApp(app.App):
         elif self.state == "update_menu" and self.update_menu:
             self.update_menu.draw(ctx)
         elif self.state == "no_wifi":
-            self.error_screen(ctx, "No Wi-Fi connection")
+            self.error_screen(ctx, "No Wi-Fi\nconnection")
         elif self.state == "checking_wifi":
             self.error_screen(ctx, "Checking\nWi-Fi connection")
         elif self.state == "refreshing_index":
