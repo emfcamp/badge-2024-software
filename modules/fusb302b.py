@@ -828,10 +828,9 @@ class fusb302:
 if __name__ == "__main__":
     from machine import Pin, I2C
 
-    i2c = I2C(0, scl=Pin(46), sda=Pin(45), freq=400000)
+    i2c = I2C(0)
     pin_reset_i2c = Pin(9, Pin.OUT)
     pin_reset_i2c.on()
-    i2c.writeto(0x77, bytes([(0x1 << 7)]))
     usb_in = fusb302(i2c)
     usb_in.setup_device()
     usb_in.determine_input_current_limit()

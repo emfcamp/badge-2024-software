@@ -9,6 +9,8 @@ from system.launcher.app import Launcher
 
 from frontboards.twentyfour import TwentyTwentyFour
 
+import power_handler
+
 # Start front-board interface
 scheduler.start_app(TwentyTwentyFour())
 

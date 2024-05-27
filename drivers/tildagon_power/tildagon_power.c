@@ -9,6 +9,7 @@
 #include "modmachine.h"
 
 #include "tildagon_power.h"
+#include "mp_power_event.h"
 
 typedef enum
 {
@@ -62,6 +63,7 @@ void generate_events( void );
 void determine_input_current_limit ( usb_state_t* state );
 void clean_in( void );
 void clean_out( void );
+
 
 funptr_t host_attach_machine[MAX_STATES] =  
 {
@@ -272,6 +274,7 @@ void host_unattached_handler( event_t event )
         fusbpd_vendor_specific( &usb_out.pd );
         fusb_send ( &usb_out.fusb, usb_out.pd.tx_buffer, usb_out.pd.message_length );
         host_pd_state = VENDOR_SENT;
+        push_event( MP_POWER_EVENT_HOST_ATTACH );
     }
 }
 
@@ -284,6 +287,7 @@ void host_attached_handler( event_t event )
     {
         host_attach_state = DISABLED;
         clean_out();
+        push_event( MP_POWER_EVENT_HOST_DETACH );
     }
     else
     {
@@ -325,6 +329,7 @@ void device_unattached_handler( event_t event )
     if ( event == DEVICE_ATTACH )
     {
         device_attach_state = ATTACHED;
+        push_event( MP_POWER_EVENT_DEVICE_ATTACH );
     } 
     else if ( event == DEVICE_BC_LEVEL )
     {
@@ -337,11 +342,6 @@ void device_unattached_handler( event_t event )
         }
         fusb_mask_interrupt_bclevel( &usb_in.fusb, 1 );
     }
-    else if ( event == DEVICE_DETACH)
-    {
-        device_attach_state = DISABLED;
-        clean_in();
-    }
 }
 
 /**
@@ -353,6 +353,7 @@ void device_attached_handler( event_t event )
     {
         device_attach_state = DISABLED;
         clean_in();
+        push_event( MP_POWER_EVENT_DEVICE_DETACH );
     }
     else if ( event == DEVICE_BC_LEVEL )
     {
@@ -431,11 +432,27 @@ void device_pd_machine ( event_t event )
  */
 void generate_events( void )
 {
+    uint8_t prev_status = pmic.status;
+    uint8_t prev_faut = pmic.fault;
+    
     bq_update_state( &pmic );
     if ( ( pmic.vbus > 2.6 ) && ( pmic.vbus < 4.3 ) )
     {
         bq_enable_HiZ_input( &pmic, 1 );
         lanyard_mode = true;
+        push_event(MP_POWER_EVENT_LANYARD_ATTACH);
+    }
+    if ( prev_status == pmic.status )
+    {
+        uint8_t status_change = prev_status ^ pmic.status;
+        if ( status_change & BQ_CHARGE_STAT_MASK )
+        {
+            push_event( MP_POWER_EVENT_CHARGE );
+        }
+    }
+    if ( ( prev_faut ^ pmic.fault ) & 0x71 )
+    {
+        push_event( MP_POWER_EVENT_FAULT );
     }
     if ( gpio_get_level( GPIO_NUM_10 ) == 0 )
     {
@@ -583,8 +600,8 @@ void clean_out( void )
     if ( lanyard_mode )
     {
         lanyard_mode = false;
-        const event_t event = DEVICE_DETACH;
-        xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );  
+        clean_in();
+        push_event(MP_POWER_EVENT_LANYARD_DETACH);
     }
 }
 
