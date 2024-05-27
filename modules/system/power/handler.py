@@ -1,9 +1,20 @@
 from system.eventbus import eventbus
 from system.power import events
-import power_event
+
+import power_event as pe
 
 
 class PowerEventHandler:
+    def RegisterDefaultCallbacks(self):
+        pe.set_charge_cb(self.ChargeEventHandler)
+        pe.set_device_attach_cb(self.DeviceAttachHandler)
+        pe.set_device_detach_cb(self.DeviceDetachHandler)
+        pe.set_fault_cb(self.FaultEventHandler)
+        pe.set_host_attach_cb(self.HostAttachHandler)
+        pe.set_host_detach_cb(self.HostDetachHandler)
+        pe.set_lanyard_attach_cb(self.LanyardAttachHandler)
+        pe.set_lanyard_detach_cb(self.LanyardDetachHandler)
+
     def ChargeEventHandler(self):
         eventbus.emit(
             events.RequestChargeEvent(events.PowerEvent("Charge Cycle change"))
@@ -41,13 +52,3 @@ class PowerEventHandler:
         eventbus.emit(
             events.RequestLanyardDetachEvent(events.PowerEvent("Lanyard Detatched"))
         )
-
-
-power_event.set_charge_cb(PowerEventHandler.ChargeEventHandler)
-power_event.set_device_attach_cb(PowerEventHandler.DeviceAttachHandler)
-power_event.set_device_detach_cb(PowerEventHandler.DeviceDetachHandler)
-power_event.set_fault_cb(PowerEventHandler.FaultEventHandler)
-power_event.set_host_attach_cb(PowerEventHandler.HostAttachHandler)
-power_event.set_host_detach_cb(PowerEventHandler.HostDetachHandler)
-power_event.set_lanyard_attach_cb(PowerEventHandler.LanyardAttachHandler)
-power_event.set_lanyard_detach_cb(PowerEventHandler.LanyardDetachHandler)
