@@ -26,13 +26,22 @@ colors = {
     "orange": (246, 127, 2),
     "pink": (245, 80, 137),
     "blue": (46, 173, 217),
+    "black": (0, 0, 0),
+    "white": (255, 255, 255),
 }
 
 colors = {
     name: (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0) for (name, c) in colors.items()
 }
 
-ui_colors = {"background": colors["dark_green"], "label": (232, 230, 227)}
+ui_colors = {
+    "background": colors["dark_green"],
+    "label": colors["white"],
+    "button_background": colors["pale_green"],
+    "button_text": colors["black"],
+    "active_button_background": colors["yellow"],
+    "active_button_text": colors["black"],
+}
 
 
 def clear_background(ctx):
