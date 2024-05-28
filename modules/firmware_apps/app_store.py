@@ -1,7 +1,8 @@
 import gc
 import gzip
 import io
-from tarfile import TarFile
+import os
+from tarfile import DIRTYPE, TarFile
 from typing import Any, Callable
 
 import app
@@ -9,6 +10,7 @@ import wifi
 from app_components import Menu, clear_background, fourteen_pt, sixteen_pt, ten_pt
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
+from system.launcher.app import APP_DIR
 from urequests import get
 
 APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
@@ -100,11 +102,23 @@ class AppStoreApp(app.App):
             gc.collect()
             t = TarFile(fileobj=io.BytesIO(tar))
 
-            for i in t:
-                print(i.name)
+            validate_app_files(t)
 
-            # Validate the manifest
-            # Write the files to storage
+            # TODO: Check we have enough storage in advance
+
+            for i in t:
+                if i:
+                    if i.type == DIRTYPE:
+                        dirname = os.path.join(APP_DIR, i.name)
+                        if not os.path.exists(dirname):
+                            os.makedirs(dirname)
+                    else:
+                        filename = os.path.join(APP_DIR, i.name)
+                        f = t.extractfile(i)
+                        if f:
+                            with open(filename, "wb") as file:
+                                while data := f.read():
+                                    file.write(data)
 
             # TODO: Success/Failure Notification
             self.update_state("main_menu")
@@ -285,3 +299,21 @@ class CodeInstall:
         ctx.font_size = sixteen_pt
         ctx.gray(1).move_to(0, 0).text(self.id)
         ctx.restore()
+
+
+def validate_app_files(tar):
+    prefix = None
+    seen_app_py = False
+    for i, f in enumerate(tar):
+        print(f.name)
+        if i == 0 and f.isdir():
+            prefix = f.name
+            continue
+        if prefix and not f.name.startswith(prefix):
+            raise ValueError(f"Invalid file {f.name}")
+        if not seen_app_py and prefix and f.name == prefix + "/app.py":
+            seen_app_py = True
+    if not prefix:
+        raise ValueError("No root dir in tarball")
+    if not seen_app_py:
+        raise ValueError("No app.py found in tarball")

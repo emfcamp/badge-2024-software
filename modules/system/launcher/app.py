@@ -5,13 +5,14 @@ from app import App
 from app_components import clear_background
 from app_components.menu import Menu
 from perf_timer import PerfTimer
-
 from system.eventbus import eventbus
 from system.scheduler.events import (
     RequestForegroundPushEvent,
     RequestStartAppEvent,
     RequestStopAppEvent,
 )
+
+APP_DIR = "/apps"
 
 
 def path_isfile(path):
@@ -53,25 +54,22 @@ def load_info(folder, name):
 def list_user_apps():
     with PerfTimer("List user apps"):
         apps = []
-        app_dir = "/apps"
         try:
-            contents = os.listdir(app_dir)
+            contents = os.listdir(APP_DIR)
         except OSError:
             # No apps dir full stop
             return []
 
         for name in contents:
-            if not path_isfile(f"{app_dir}/{name}/app.py"):
+            if not path_isfile(f"{APP_DIR}/{name}/app.py"):
                 continue
             app = {
                 "path": name,
                 "callable": "main",
                 "name": name,
-                "icon": None,
-                "category": "unknown",
                 "hidden": False,
             }
-            metadata = load_info(app_dir, name)
+            metadata = load_info(APP_DIR, name)
             app.update(metadata)
             if not app["hidden"]:
                 apps.append(app)
@@ -116,8 +114,6 @@ class Launcher(App):
                     "path": core_app[1],
                     "callable": core_app[2],
                     "name": core_app[0],
-                    "icon": None,
-                    "category": "unknown",
                 }
             )
         return core_apps
