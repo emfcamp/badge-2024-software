@@ -1,5 +1,8 @@
+import gc
 import gzip
-from typing import Any, Callable
+import io
+from tarfile import TarFile
+from typing import Any, Callable, List
 
 import app
 import wifi
@@ -83,23 +86,48 @@ class AppStoreApp(app.App):
 
         self.update_state("main_menu")
 
+    def download_file(self, url: str, block_size=10240) -> List[bytes]:
+        gc.collect()
+        req = get(url)
+        total_size = int(req.headers["Content-Length"])
+
+        try:
+            while True:
+                new_data = req.raw.read(block_size)
+                yield new_data, total_size
+                if len(new_data) < block_size:
+                    break
+        finally:
+            req.close()
+
     def install_app(self, app):
-        ## This is fine to block because we only call it from background_update
-        print(f"Installing {app}")
+        try:
+            ## This is fine to block because we only call it from background_update
+            gc.collect()
 
-        tarball = get(app["tarballUrl"])
+            tarball = get(app["tarballUrl"])
+            # tarballGenerator = self.download_file(app["tarballUrl"])
 
-        print(tarball)
-        # TODO: Investigate using deflate.DeflateIO instead. Can't do it now
-        # because it's not available in the simulator.
-        print(gzip.decompress(tarball.text))
+            # TODO: Investigate using deflate.DeflateIO instead. Can't do it now
+            # because it's not available in the simulator.
+            tar = gzip.decompress(tarball.content)
+            gc.collect()
+            t = TarFile(fileobj=io.BytesIO(tar))
 
-        # Unzip tarball
-        # Validate the manifest
-        # Write the files to storage
+            for i in t:
+                print(i.name)
 
-        # TODO: Success/Failure Notification
-        self.update_state("main_menu")
+            # Unzip tarball
+            # Validate the manifest
+            # Write the files to storage
+
+            # TODO: Success/Failure Notification
+            self.update_state("main_menu")
+        except MemoryError:
+            gc.collect()
+            self.update_state("install_oom")
+        except Exception as e:
+            print(e)
 
     def update_state(self, state):
         print(f"State Transition: '{self.state}' -> '{state}'")
@@ -217,6 +245,8 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Checking\nWi-Fi connection")
         elif self.state == "refreshing_index":
             self.error_screen(ctx, "Refreshing\napp store\nindex")
+        elif self.state == "install_oom":
+            self.error_screen(ctx, "Out of memory\n(app too big?)")
         elif self.state == "code_install_input" and self.codeinstall:
             self.codeinstall.draw(ctx)
         elif self.state == "installing_app":
