@@ -2,10 +2,9 @@ import json
 import os
 
 from app import App
-from app_components.menu import Menu
 from app_components import clear_background
+from app_components.menu import Menu
 from perf_timer import PerfTimer
-
 from system.eventbus import eventbus
 from system.scheduler.events import RequestForegroundPushEvent, RequestStartAppEvent
 
@@ -38,7 +37,7 @@ def recursive_delete(path):
 
 def loadInfo(folder, name):
     try:
-        info_file = "{}/{}/metadata.json".format(folder, name)
+        info_file = "{}/{}/__internal__metadata.json".format(folder, name)
         with open(info_file) as f:
             information = f.read()
         return json.loads(information)
@@ -57,7 +56,7 @@ def list_user_apps():
             return []
 
         for name in contents:
-            if not path_isfile(f"{app_dir}/{name}/__init__.py"):
+            if not path_isfile(f"{app_dir}/{name}/app.py"):
                 continue
             app = {
                 "path": name,

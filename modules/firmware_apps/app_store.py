@@ -2,7 +2,7 @@ import gc
 import gzip
 import io
 from tarfile import TarFile
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 import app
 import wifi
@@ -86,20 +86,6 @@ class AppStoreApp(app.App):
 
         self.update_state("main_menu")
 
-    def download_file(self, url: str, block_size=10240) -> List[bytes]:
-        gc.collect()
-        req = get(url)
-        total_size = int(req.headers["Content-Length"])
-
-        try:
-            while True:
-                new_data = req.raw.read(block_size)
-                yield new_data, total_size
-                if len(new_data) < block_size:
-                    break
-        finally:
-            req.close()
-
     def install_app(self, app):
         try:
             ## This is fine to block because we only call it from background_update
@@ -117,7 +103,6 @@ class AppStoreApp(app.App):
             for i in t:
                 print(i.name)
 
-            # Unzip tarball
             # Validate the manifest
             # Write the files to storage
 
