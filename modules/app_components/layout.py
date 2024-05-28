@@ -143,7 +143,6 @@ class LinearLayout(Layoutable):
         cumulative_height = 0
         for item in self.items:
             cumulative_height += item.height * self.scale_factor
-            print(f"Y: {self.y_offset}, cumulative: {cumulative_height}")
             if round(cumulative_height) > round(120 - self.y_offset):
                 return item
         return item
@@ -151,7 +150,6 @@ class LinearLayout(Layoutable):
     async def button_event(self, event) -> bool:
         focused = self.centred_component()
         to_jump = min(focused.height * self.scale_factor, 60)
-        print(f"Y: {self.y_offset}, Jump: {to_jump}")
         if BUTTON_TYPES["UP"] in event.button:
             self.y_offset += to_jump
             if self.y_offset > 120:
