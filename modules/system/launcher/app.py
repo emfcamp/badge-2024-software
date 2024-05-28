@@ -104,6 +104,7 @@ class Launcher(App):
             # ("Magnetometer", "magnet_app", "Magnetometer"),
             ("Update", "system.ota.ota", "OtaUpdate"),
             ("Power Off", "firmware_apps.poweroff", "PowerOff"),
+            ("Settings", "firmware_apps.settings_app", "SettingsApp"),
             # ("Settings", "settings_app", "SettingsApp"),
         ]
         core_apps = []
