@@ -95,7 +95,7 @@ jobs:
         with:
           path: ./flasher
   deploy:
-    needs: build
+    needs: Build-Firmware
 
     permissions:
       pages: write      # to deploy to Pages
