@@ -11,6 +11,9 @@ env:
 jobs:
   Build-Firmware:
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - name: Install dependencies
         run: |
@@ -91,7 +94,7 @@ jobs:
           cp merged-firmware.bin $GITHUB_WORKSPACE/flasher/
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/upload-pages-artifact@v4 # or specific "vX.X.X" version tag for this action
+        uses: actions/upload-pages-artifact@v3 # or specific "vX.X.X" version tag for this action
         with:
           path: ./flasher
   deploy:
