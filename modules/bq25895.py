@@ -488,10 +488,9 @@ if __name__ == "__main__":
     from machine import Pin, I2C
     from utime import sleep_ms
 
-    i2c = I2C(0, scl=Pin(46), sda=Pin(45), freq=400000)
+    i2c = I2C(7)
     pin_reset_i2c = Pin(9, Pin.OUT)
     pin_reset_i2c.on()
-    i2c.writeto(0x77, bytes([(0x1 << 7)]))
     pmic = bq25895(i2c)
     pmic.init()
     # start 1Hz ADC sampling
