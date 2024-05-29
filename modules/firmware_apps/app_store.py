@@ -1,6 +1,7 @@
 import gc
 import gzip
 import io
+import json
 import os
 from tarfile import DIRTYPE, TarFile
 from typing import Any, Callable
@@ -9,10 +10,11 @@ import app
 import wifi
 from app_components import Menu, clear_background, fourteen_pt, sixteen_pt, ten_pt
 from events.input import BUTTON_TYPES, ButtonDownEvent
+from requests import get
 from system.eventbus import eventbus
-from system.launcher.app import APP_DIR
-from urequests import get
+from system.launcher.app import APP_DIR, list_user_apps
 
+APP_STORE_LISTING_LIVE_URL = "https://api.badge.emf.camp/v1/apps"
 APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
 
 CODE_INSTALL = "CodeInstall"
@@ -37,35 +39,29 @@ class AppStoreApp(app.App):
         self.to_install_app = None
         self.tarball = None
 
-    def connect_wifi(self):
-        ssid = wifi.get_ssid()
-        if not ssid:
-            print("No WIFI config!")
-            return
+    def cleanup_ui_widgets(self):
+        widgets = [
+            self.menu,
+            self.available_menu,
+            self.installed_menu,
+            self.update_menu,
+            self.codeinstall,
+        ]
 
-        if not wifi.status():
-            wifi.connect()
-            while True:
-                print("Connecting to")
-                print(f"{ssid}...")
-                if wifi.wait():
-                    # Returning true means connected
-                    break
+        for widget in widgets:
+            if widget:
+                widget._cleanup()
+                widget = None
 
     def check_wifi(self):
-        print("in check_wifi")
         self.update_state("checking_wifi")
-        self.connect_wifi()
-        # return True
+        connect_wifi()
 
         if self.state != "checking_wifi":
             self.update_state("checking_wifi")
         connected = wifi.status()
-        # print(wifi.get_ip())
-        print("Connected" if connected else "Not connected")
         if not connected:
             self.update_state("no_wifi")
-        # print(wifi.get_sta_status())
         return connected
 
     def get_index(self):
@@ -75,7 +71,14 @@ class AppStoreApp(app.App):
 
     def background_update(self, delta):
         if self.state == "refreshing_index":
-            self.response = get(APP_STORE_LISTING_URL)
+            try:
+                self.response = get(APP_STORE_LISTING_LIVE_URL)
+            except Exception:
+                try:
+                    self.response = get(APP_STORE_LISTING_URL)
+                except Exception:
+                    self.update_state("no_index")
+                    return
             self.update_state("index_received")
         if self.to_install_app:
             self.install_app(self.to_install_app)
@@ -90,43 +93,15 @@ class AppStoreApp(app.App):
 
     def install_app(self, app):
         try:
-            ## This is fine to block because we only call it from background_update
-            gc.collect()
-
-            tarball = get(app["tarballUrl"])
-            # tarballGenerator = self.download_file(app["tarballUrl"])
-
-            # TODO: Investigate using deflate.DeflateIO instead. Can't do it now
-            # because it's not available in the simulator.
-            tar = gzip.decompress(tarball.content)
-            gc.collect()
-            t = TarFile(fileobj=io.BytesIO(tar))
-
-            validate_app_files(t)
-
-            # TODO: Check we have enough storage in advance
-
-            for i in t:
-                if i:
-                    if i.type == DIRTYPE:
-                        dirname = os.path.join(APP_DIR, i.name)
-                        if not os.path.exists(dirname):
-                            os.makedirs(dirname)
-                    else:
-                        filename = os.path.join(APP_DIR, i.name)
-                        f = t.extractfile(i)
-                        if f:
-                            with open(filename, "wb") as file:
-                                while data := f.read():
-                                    file.write(data)
-
-            # TODO: Success/Failure Notification
+            install_app(app)
             self.update_state("main_menu")
+            # TODO Notify success
         except MemoryError:
-            gc.collect()
             self.update_state("install_oom")
         except Exception as e:
             print(e)
+            # TODO Notify user of failure
+            self.update_state("main_menu")
 
     def update_state(self, state):
         print(f"State Transition: '{self.state}' -> '{state}'")
@@ -142,26 +117,75 @@ class AppStoreApp(app.App):
             # TODO notify user of invalid code
             self.update_state("main_menu")
 
-    def on_select(self, value, idx):
-        if value == CODE_INSTALL:
-            self.codeinstall = CodeInstall(
-                install_handler=lambda id: self.handle_code_input(id), app=self
-            )
-            if self.menu:
-                self.menu._cleanup()
-                self.menu = None
-            self.update_state("code_install_input")
-        elif value == AVAILABLE:
-            self.update_state("available_menu")
-        elif value == INSTALLED:
-            self.update_state("installed_menu")
-        elif value == UPDATE:
-            self.update_state("update_menu")
-        elif value == REFRESH:
-            self.get_index()
+    def prepare_available_menu(self):
+        def on_select(_, i):
+            self.to_install_app = self.app_store_index[i]
+            self.update_state("installing_app")
 
-    def on_cancel(self):
-        self.minimise()
+        def exit_available_menu():
+            self.cleanup_ui_widgets()
+            self.update_state("main_menu")
+
+        self.available_menu = Menu(
+            self,
+            menu_items=[app["manifest"]["app"]["name"] for app in self.app_store_index],
+            select_handler=on_select,
+            back_handler=exit_available_menu,
+            focused_item_font_size=fourteen_pt,
+            item_font_size=ten_pt,
+        )
+
+    def prepare_main_menu(self):
+        def on_cancel():
+            self.minimise()
+
+        def on_select(value, idx):
+            if value == CODE_INSTALL:
+                self.cleanup_ui_widgets()
+                self.codeinstall = CodeInstall(
+                    install_handler=lambda id: self.handle_code_input(id), app=self
+                )
+                self.update_state("code_install_input")
+            elif value == AVAILABLE:
+                self.update_state("available_menu")
+            elif value == INSTALLED:
+                self.update_state("installed_menu")
+            elif value == UPDATE:
+                self.update_state("update_menu")
+            elif value == REFRESH:
+                self.get_index()
+
+        self.menu = Menu(
+            self,
+            menu_items=[
+                CODE_INSTALL,
+                AVAILABLE,
+                # UPDATE,
+                INSTALLED,
+            ],
+            select_handler=on_select,
+            back_handler=on_cancel,
+        )
+
+    def prepare_installed_menu(self):
+        def on_cancel():
+            self.cleanup_ui_widgets()
+            self.update_state("main_menu")
+
+        def on_select(_, __):
+            # TODO maybe implement uninstalling apps
+            pass
+
+        installed_apps = list_user_apps()
+
+        self.installed_menu = Menu(
+            self,
+            menu_items=[app["name"] for app in installed_apps],
+            select_handler=on_select,
+            back_handler=on_cancel,
+            focused_item_font_size=fourteen_pt,
+            item_font_size=ten_pt,
+        )
 
     def error_screen(self, ctx, message):
         ctx.save()
@@ -182,39 +206,11 @@ class AppStoreApp(app.App):
         elif self.state == "index_received":
             self.handle_index()
         elif self.state == "main_menu" and not self.menu:
-            self.menu = Menu(
-                self,
-                menu_items=[
-                    CODE_INSTALL,
-                    AVAILABLE,
-                    # UPDATE,
-                    # INSTALLED
-                ],
-                select_handler=self.on_select,
-                back_handler=self.on_cancel,
-            )
+            self.prepare_main_menu()
         elif self.state == "available_menu" and not self.available_menu:
-
-            def wouldveUsedALambdaButICant(_, i):
-                self.to_install_app = self.app_store_index[i]
-                self.update_state("installing_app")
-
-            def exit_available_menu():
-                if self.available_menu:
-                    self.available_menu._cleanup()
-                    self.available_menu = None
-                self.update_state("main_menu")
-
-            self.available_menu = Menu(
-                self,
-                menu_items=[
-                    app["manifest"]["app"]["name"] for app in self.app_store_index
-                ],
-                select_handler=wouldveUsedALambdaButICant,
-                back_handler=exit_available_menu,
-                focused_item_font_size=fourteen_pt,
-                item_font_size=ten_pt,
-            )
+            self.prepare_available_menu()
+        elif self.state == "installed_menu" and not self.installed_menu:
+            self.prepare_installed_menu()
 
         if self.menu:
             self.menu.update(delta)
@@ -240,6 +236,8 @@ class AppStoreApp(app.App):
             self.update_menu.draw(ctx)
         elif self.state == "no_wifi":
             self.error_screen(ctx, "No Wi-Fi\nconnection")
+        elif self.state == "no_wifi":
+            self.error_screen(ctx, "Couldn't\nconnect to\napp store")
         elif self.state == "checking_wifi":
             self.error_screen(ctx, "Checking\nWi-Fi connection")
         elif self.state == "refreshing_index":
@@ -286,9 +284,11 @@ class CodeInstall:
             self.id += "5"
 
         if len(self.id) == 8:
-            eventbus.remove(ButtonDownEvent, self._handle_buttondown, self)
-            print("calling install handler")
+            self._cleanup()
             self.install_handler(self.id)
+
+    def _cleanup(self):
+        eventbus.remove(ButtonDownEvent, self._handle_buttondown, self)
 
     def draw(self, ctx):
         ctx.save()
@@ -299,6 +299,57 @@ class CodeInstall:
         ctx.font_size = sixteen_pt
         ctx.gray(1).move_to(0, 0).text(self.id)
         ctx.restore()
+
+
+def install_app(app):
+    try:
+        ## This is fine to block because we only call it from background_update
+        gc.collect()
+
+        tarball = get(app["tarballUrl"])
+        # tarballGenerator = self.download_file(app["tarballUrl"])
+
+        # TODO: Investigate using deflate.DeflateIO instead. Can't do it now
+        # because it's not available in the simulator.
+        tar = gzip.decompress(tarball.content)
+        gc.collect()
+        t = TarFile(fileobj=io.BytesIO(tar))
+
+        prefix = validate_app_files(t)
+
+        # TODO: Check we have enough storage in advance
+
+        for i in t:
+            if i:
+                if i.type == DIRTYPE:
+                    dirname = os.path.join(APP_DIR, i.name)
+                    if not os.path.exists(dirname):
+                        os.makedirs(dirname)
+                else:
+                    filename = os.path.join(APP_DIR, i.name)
+                    f = t.extractfile(i)
+                    if f:
+                        with open(filename, "wb") as file:
+                            while data := f.read():
+                                file.write(data)
+
+        internal_manifest = {
+            "path": prefix,
+            "callable": "__app_export__",
+            "name": app["manifest"]["app"]["name"],
+            "hidden": False,
+        }
+        with open(
+            os.path.join(APP_DIR, prefix, "__internal__metadata.json"), "w+"
+        ) as internal_manifest_file_handler:
+            json.dump(internal_manifest, internal_manifest_file_handler)
+
+    except MemoryError as e:
+        gc.collect()
+        raise e
+    except Exception as e:
+        print(e)
+        raise e
 
 
 def validate_app_files(tar):
@@ -317,3 +368,19 @@ def validate_app_files(tar):
         raise ValueError("No root dir in tarball")
     if not seen_app_py:
         raise ValueError("No app.py found in tarball")
+    return prefix
+
+
+def connect_wifi():
+    ssid = wifi.get_ssid()
+    if not ssid:
+        print("No WIFI config!")
+        return
+
+    if not wifi.status():
+        wifi.connect()
+        while True:
+            print("Connecting to")
+            print(f"{ssid}...")
+            if wifi.wait():
+                break
