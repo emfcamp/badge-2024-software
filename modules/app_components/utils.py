@@ -17,5 +17,8 @@ def wrap_text(ctx, text, width=None):
     lines = []
     while remaining_text:
         line, remaining_text = fill_line(ctx, remaining_text, width)
-        lines.append(line)
+        if "\n" in line:
+            lines += line.split("\n")
+        else:
+            lines.append(line)
     return lines

@@ -3,7 +3,6 @@ import async_helpers
 from app import App
 from esp32 import Partition
 import machine
-from app_components.dialog import YesNoDialog
 from app_components import layout, tokens
 import network
 import ota
@@ -12,6 +11,7 @@ import requests
 import wifi
 from system.eventbus import eventbus
 from system.scheduler.events import RequestStopAppEvent
+from events.input import BUTTON_TYPES, ButtonDownEvent
 
 
 class OtaUpdate(App):
@@ -19,14 +19,28 @@ class OtaUpdate(App):
         self.status = None
         super().__init__()
         self.status = layout.DefinitionDisplay("Status", "")
-        self.old_version = layout.DefinitionDisplay("Current", "")
-        self.new_version = layout.DefinitionDisplay("New", "")
+        self.old_version = layout.DefinitionDisplay("Current", "-")
+        self.new_version = layout.DefinitionDisplay("New", "-")
         self.layout = layout.LinearLayout(
             [self.status, self.old_version, self.new_version]
         )
+        self.layout.y_offset = 70
+        self.task = None
+        eventbus.on_async(ButtonDownEvent, self._button_handler, self)
+
+    async def _button_handler(self, event):
+        layout_handled = await self.layout.button_event(event)
+        if not layout_handled:
+            if BUTTON_TYPES["CANCEL"] in event.button:
+                self.minimise()
 
     def minimise(self):
         # Close this app each time
+        if self.task is not None:
+            try:
+                self.task.cancel()
+            except Exception:
+                pass
         eventbus.emit(RequestStopAppEvent(self))
 
     async def run(self, render_update):
@@ -73,20 +87,15 @@ class OtaUpdate(App):
                 self.status.value = f"Connecting to {ssid}"
                 await render_update()
 
-                if wifi.wait():
+                if await wifi.async_wait():
                     # Returning true means connected
                     break
 
-                dialog = YesNoDialog("Retry connection?", self)
-                self.overlays = [dialog]
-
-                # Wait for an answer from the dialogue
-                if await dialog.run(render_update):
-                    if wifi.get_sta_status() == network.STAT_CONNECTING:
-                        pass  # go round loop and keep waiting
-                    else:
-                        wifi.disconnect()
-                        wifi.connect()
+                if wifi.get_sta_status() == network.STAT_CONNECTING:
+                    pass  # go round loop and keep waiting
+                else:
+                    wifi.disconnect()
+                    wifi.connect()
         ntptime.settime()
         print("IP:")
         print(wifi.get_ip())
@@ -99,18 +108,36 @@ class OtaUpdate(App):
 
         retry = True
         self.status.value = "Searching for OTA"
+
         await render_update()
 
         while retry:
             # window.clear_from_line(line)
-            response = await async_helpers.unblock(
+            self.task = async_helpers.unblock(
                 requests.head,
                 render_update,
                 "https://github.com/emfcamp/badge-2024-software/releases/download/latest/micropython.bin",
                 allow_redirects=False,
             )
-            print(response)
+            response = await self.task
             url = response.headers["Location"]
+
+            self.task = async_helpers.unblock(
+                requests.get,
+                render_update,
+                "https://api.github.com/repos/emfcamp/badge-2024-software/releases/tags/latest",
+                headers={"User-Agent": "Badge OTA"},
+            )
+            notes = await self.task
+
+            if notes.status_code == 200:
+                release_notes = notes.json()["body"]
+                release_notes = [
+                    line.split("[")[0].strip() for line in release_notes.split("\n")
+                ]
+                release_notes = "\n".join(release_notes)
+                self.notes = layout.DefinitionDisplay("Release notes", release_notes)
+                self.layout.items.append(self.notes)
 
             try:
                 result = await async_helpers.unblock(
@@ -122,14 +149,11 @@ class OtaUpdate(App):
                 retry = False
             except OSError as e:
                 print("Error:" + str(e))
-                # window.println("Update failed!")
-                # window.println("Error {}".format(e.errno))
-                # window.println("[A] to retry")
-                # if not self.wait_for_a():
-                #    result = None
-                #    retry = False
+                self.status.value = f"Failed: {e}"
+                result = False
             except Exception as e:
                 print(e)
+                raise
 
         if result:
             # window.println("Updated OK.")
@@ -180,4 +204,3 @@ class OtaUpdate(App):
         # print("draw")
         tokens.clear_background(ctx)
         self.layout.draw(ctx)
-        self.layout.y_offset = 70
