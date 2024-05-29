@@ -454,79 +454,82 @@ void generate_events( void )
     {
         push_event( MP_POWER_EVENT_FAULT );
     }
-    if ( gpio_get_level( GPIO_NUM_10 ) == 0 )
+    while ( gpio_get_level( GPIO_NUM_10 ) == 0 )
     {
-        uint16_t interruptab = fusb_get_interruptab( &usb_in.fusb );
-        uint8_t interrupt = fusb_get_interrupt( &usb_in.fusb );
-        fusb_get_status( &usb_in.fusb );
-        fusb_get_statusa( &usb_in.fusb );
-        if( interruptab & FUSB_TOGGLE_I_MASK ) 
+        if ( gpio_get_level( GPIO_NUM_10 ) == 0 )
         {
-            const event_t event = DEVICE_TOGGLE;
-            xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
-        }
-        if( ( interrupt & FUSB_VBUSOK_I_MASK ) && ( usb_in.fusb.status & FUSB_STATUS_VBUSOK_MASK ) )
-        {
-            const event_t event = DEVICE_ATTACH;
-            xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
-        }
-        else if ( ( interrupt & FUSB_VBUSOK_I_MASK ) && ( ( usb_in.fusb.status & FUSB_STATUS_VBUSOK_MASK ) == 0 ) )
-        {
-            const event_t event = DEVICE_DETACH;
-            xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );  
-        }
-        if ( device_pd_state > NOT_STARTED )
-        {
-            if ( interruptab & FUSB_GD_CRC_I_MASK )
+            uint16_t interruptab = fusb_get_interruptab( &usb_in.fusb );
+            uint8_t interrupt = fusb_get_interrupt( &usb_in.fusb );
+            fusb_get_status( &usb_in.fusb );
+            fusb_get_statusa( &usb_in.fusb );
+            if( interruptab & FUSB_TOGGLE_I_MASK ) 
             {
-                const event_t event = DEVICE_GOODCRCSENT;
+                const event_t event = DEVICE_TOGGLE;
                 xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
             }
-            if ( interruptab & FUSB_TXSENT_I_MASK )
+            if( ( interrupt & FUSB_VBUSOK_I_MASK ) && ( usb_in.fusb.status & FUSB_STATUS_VBUSOK_MASK ) )
             {
-                usb_in.pd.msg_id++;
-            }
-        } 
-        else if ( interrupt & FUSB_BC_LVL_I_MASK )
-        {
-            const event_t event = DEVICE_BC_LEVEL;
-            xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );  
-        }
-    }
-    
-    if ( gpio_get_level( GPIO_NUM_10 ) == 0 )
-    {
-        uint16_t interruptab = fusb_get_interruptab( &usb_out.fusb );
-        uint8_t interrupt = fusb_get_interrupt( &usb_out.fusb );
-        fusb_get_status( &usb_out.fusb );
-        fusb_get_statusa( &usb_out.fusb );
-
-        if ( interruptab & FUSB_TOGGLE_I_MASK )
-        { 
-            const event_t event = HOST_TOGGLE;
-            xQueueSendToBack(event_queue, (void*)&event, (TickType_t)0 );
-        }
-        if ( ( ( ( usb_out.fusb.status & FUSB_STATUS_COMP_MASK ) == 0U ) && ( interrupt & FUSB_CMPCHG_I_MASK ) ) 
-        || ( ( interrupt & FUSB_BC_LVL_I_MASK ) && ( ( usb_out.fusb.status & FUSB_STATUS_BCLVL_MASK ) < 3 ) ) )
-        {
-            const event_t event = HOST_ATTACH;
-            xQueueSendToBack(event_queue, (void*)&event, (TickType_t)0 );
-        }
-        else if ( ( usb_out.fusb.status & FUSB_STATUS_COMP_MASK ) && ( interrupt & FUSB_CMPCHG_I_MASK ) )
-        {
-            const event_t event = HOST_DETACH;
-            xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );  
-        }
-        if( host_pd_state > NOT_STARTED )
-        {
-            if ( interruptab & FUSB_GD_CRC_I_MASK )
-            {
-                const event_t event = HOST_GOODCRCSENT;
+                const event_t event = DEVICE_ATTACH;
                 xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
+            }
+            else if ( ( interrupt & FUSB_VBUSOK_I_MASK ) && ( ( usb_in.fusb.status & FUSB_STATUS_VBUSOK_MASK ) == 0 ) )
+            {
+                const event_t event = DEVICE_DETACH;
+                xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );  
+            }
+            if ( device_pd_state > NOT_STARTED )
+            {
+                if ( interruptab & FUSB_GD_CRC_I_MASK )
+                {
+                    const event_t event = DEVICE_GOODCRCSENT;
+                    xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
+                }
+                if ( interruptab & FUSB_TXSENT_I_MASK )
+                {
+                    usb_in.pd.msg_id++;
+                }
             } 
-            if ( interruptab & FUSB_TXSENT_I_MASK )
+            else if ( interrupt & FUSB_BC_LVL_I_MASK )
             {
-                usb_out.pd.msg_id++;
+                const event_t event = DEVICE_BC_LEVEL;
+                xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );  
+            }
+        }
+    
+        if ( gpio_get_level( GPIO_NUM_10 ) == 0 )
+        {
+            uint16_t interruptab = fusb_get_interruptab( &usb_out.fusb );
+            uint8_t interrupt = fusb_get_interrupt( &usb_out.fusb );
+            fusb_get_status( &usb_out.fusb );
+            fusb_get_statusa( &usb_out.fusb );
+
+            if ( interruptab & FUSB_TOGGLE_I_MASK )
+            { 
+                const event_t event = HOST_TOGGLE;
+                xQueueSendToBack(event_queue, (void*)&event, (TickType_t)0 );
+            }
+            if ( ( ( ( usb_out.fusb.status & FUSB_STATUS_COMP_MASK ) == 0U ) && ( interrupt & FUSB_CMPCHG_I_MASK ) ) 
+            || ( ( interrupt & FUSB_BC_LVL_I_MASK ) && ( ( usb_out.fusb.status & FUSB_STATUS_BCLVL_MASK ) < 3 ) ) )
+            {
+                const event_t event = HOST_ATTACH;
+                xQueueSendToBack(event_queue, (void*)&event, (TickType_t)0 );
+            }
+            else if ( ( usb_out.fusb.status & FUSB_STATUS_COMP_MASK ) && ( interrupt & FUSB_CMPCHG_I_MASK ) )
+            {
+                const event_t event = HOST_DETACH;
+                xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );  
+            }
+            if( host_pd_state > NOT_STARTED )
+            {
+                if ( interruptab & FUSB_GD_CRC_I_MASK )
+                {
+                    const event_t event = HOST_GOODCRCSENT;
+                    xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
+                } 
+                if ( interruptab & FUSB_TXSENT_I_MASK )
+                {
+                    usb_out.pd.msg_id++;
+                }
             }
         }
     }
