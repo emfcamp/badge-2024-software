@@ -29,7 +29,7 @@ class PatternDisplay(App):
 
     async def background_task(self):
         while True:
-            brightness = settings.get("pattern_brightness", 1.0)
+            brightness = settings.get("pattern_brightness", 0.1)
             next_frame = self._p.next()
             if self.enabled:
                 for l in range(12):

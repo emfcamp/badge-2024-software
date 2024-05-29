@@ -180,13 +180,13 @@ class _Scheduler:
             try:
                 await app.run(mark_update_finished)
             except Exception as e:
+                sys.print_exception(e, sys.stderr)
                 eventbus.emit(RequestStopAppEvent(app=app))
                 eventbus.emit(
                     ShowNotificationEvent(
                         message=f"{app.__class__.__name__} has crashed"
                     )
                 )
-                sys.print_exception(e, sys.stderr)
 
         self.update_tasks[app] = asyncio.create_task(app_wrapper())
 
