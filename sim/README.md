@@ -42,7 +42,7 @@ Try using Python 3.9 as suggested [in this issue](https://github.com/wasmerio/wa
 
 ```sh
 pipenv shell
-pip3.9 install wasmer wasmer_compiler_cranelift
+pip3.9 install wasmer wasmer_compiler_cranelift pygame
 python3.9 run.py
 ```
 
