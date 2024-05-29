@@ -66,7 +66,7 @@ class Launcher(App):
                 if not path_isfile(f"{app_dir}/{name}/__init__.py"):
                     continue
                 app = {
-                    "path": name,
+                    "path": "apps."+name,
                     "callable": "main",
                     "name": name,
                     "icon": None,
