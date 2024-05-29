@@ -91,7 +91,7 @@ jobs:
           cp merged-firmware.bin $GITHUB_WORKSPACE/flasher/
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4 # or specific "vX.X.X" version tag for this action
+        uses: actions/upload-pages-artifact@v4 # or specific "vX.X.X" version tag for this action
         with:
           path: ./flasher
   deploy:
