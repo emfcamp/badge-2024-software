@@ -1,5 +1,5 @@
 from machine import Pin, I2C
-from tildagonos import ExtendedPin
+from tildagon import Pin as ePin
 
 _pin_mapping = {
     1: {
@@ -34,5 +34,5 @@ class HexpansionConfig:
     def __init__(self, port):
         self.port = port
         self.pin = [Pin(x) for x in _pin_mapping[port]["hs"]]
-        self.ls_pin = [ExtendedPin(x) for x in _pin_mapping[port]["ls"]]
+        self.ls_pin = [ePin(x) for x in _pin_mapping[port]["ls"]]
         self.i2c = I2C(port)
