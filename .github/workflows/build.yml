@@ -83,3 +83,32 @@ jobs:
           files: |
             micropython/ports/esp32/build-tildagon/micropython.bin
             micropython/ports/esp32/build-tildagon/tildagon.txt
+      - name: Build merged image
+        run: |
+          source esp-idf/export.sh
+          cd micropython/ports/esp32
+          python -m esptool --chip esp32s3 -b 460800 merge_bin -o merged-firmware.bin --flash_mode dio --flash_size 8MB --flash_freq 80m 0x0 build-tildagon/bootloader/bootloader.bin 0x8000 build-tildagon/partition_table/partition-table.bin 0xd000 build-tildagon/ota_data_initial.bin 0x10000 build-tildagon/micropython.bin
+          cp merged-firmware.bin $GITHUB_WORKSPACE/flasher/
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 # or specific "vX.X.X" version tag for this action
+        with:
+          path: ./flasher
+  deploy:
+    needs: build
+
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    # Specify runner + deployment step
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 # or specific "vX.X.X" version tag for this action
