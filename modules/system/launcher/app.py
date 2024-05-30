@@ -159,6 +159,7 @@ class Launcher(App):
                 break
 
     def back_handler(self):
+        self.menu._cleanup()
         self.update_menu()
         return
         # if self.current_menu == "main":
