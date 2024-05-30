@@ -13,5 +13,8 @@ include(${CMAKE_CURRENT_LIST_DIR}/tildagon_usb/tildagon_usb.cmake)
 # Add TCA9548A I2C MUX and micropython machine.I2C bindings
 include(${CMAKE_CURRENT_LIST_DIR}/tildagon_i2c/tildagon_i2c.cmake)
 
+# Add PMIC and usb PD and micropython power bindings
+include(${CMAKE_CURRENT_LIST_DIR}/tildagon_power/tildagon_power.cmake)
+
 # Add OTA helpers
 include(${CMAKE_CURRENT_LIST_DIR}/ota/micropython.cmake)

@@ -10,6 +10,8 @@ ppi = display_x / display_height_inches
 one_pt = ppi / 72
 ten_pt = 10 * one_pt
 twelve_pt = 12 * one_pt
+fourteen_pt = 14 * one_pt
+sixteen_pt = 16 * one_pt
 eighteen_pt = 18 * one_pt
 twentyfour_pt = 24 * one_pt
 label_font_size = ten_pt
@@ -26,13 +28,22 @@ colors = {
     "orange": (246, 127, 2),
     "pink": (245, 80, 137),
     "blue": (46, 173, 217),
+    "black": (0, 0, 0),
+    "white": (255, 255, 255),
 }
 
 colors = {
     name: (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0) for (name, c) in colors.items()
 }
 
-ui_colors = {"background": colors["dark_green"], "label": (232, 230, 227)}
+ui_colors = {
+    "background": colors["dark_green"],
+    "label": colors["white"],
+    "button_background": colors["pale_green"],
+    "button_text": colors["black"],
+    "active_button_background": colors["yellow"],
+    "active_button_text": colors["black"],
+}
 
 
 def clear_background(ctx):

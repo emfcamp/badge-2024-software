@@ -1,6 +1,7 @@
 import asyncio
-import time
 import display
+import sys
+import time
 
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
@@ -10,6 +11,7 @@ from system.scheduler.events import (
     RequestStartAppEvent,
     RequestStopAppEvent,
 )
+from system.notification.events import ShowNotificationEvent
 
 
 class _Scheduler:
@@ -90,8 +92,15 @@ class _Scheduler:
 
         try:
             self.background_tasks[app].cancel()
-            print("Stopping ", app)
+            print("Stopping background", app)
             del self.background_tasks[app]
+        except KeyError:
+            pass
+
+        try:
+            self.update_tasks[app].cancel()
+            print("Stopping ", app)
+            del self.update_tasks[app]
         except KeyError:
             pass
 
@@ -99,6 +108,7 @@ class _Scheduler:
         del self.last_update_times[app_idx]
 
         eventbus.deregister(app)
+        self.mark_focused()
 
     def app_is_foregrounded(self, app):
         return self.app_is_focused(app) or app in self.on_top_stack
@@ -170,8 +180,13 @@ class _Scheduler:
             try:
                 await app.run(mark_update_finished)
             except Exception as e:
-                print(e)
-                app.minimise()
+                sys.print_exception(e, sys.stderr)
+                eventbus.emit(RequestStopAppEvent(app=app))
+                eventbus.emit(
+                    ShowNotificationEvent(
+                        message=f"{app.__class__.__name__} has crashed"
+                    )
+                )
 
         self.update_tasks[app] = asyncio.create_task(app_wrapper())
 
@@ -201,7 +216,16 @@ class _Scheduler:
                 for app in self.foreground_stack:
                     with PerfTimer(f"rendering {app}"):
                         ctx.save()
-                        app.draw(ctx)
+                        try:
+                            app.draw(ctx)
+                        except Exception as e:
+                            eventbus.emit(RequestStopAppEvent(app=app))
+                            sys.print_exception(e, sys.stderr)
+                            eventbus.emit(
+                                ShowNotificationEvent(
+                                    message=f"{app.__class__.__name__} has crashed"
+                                )
+                            )
                         ctx.restore()
                 for app in self.on_top_stack:
                     with PerfTimer(f"rendering {app}"):

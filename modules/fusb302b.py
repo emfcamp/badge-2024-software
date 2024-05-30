@@ -109,17 +109,17 @@ class fusb302:
     # reg 0E mask a
     mask_hardreset_int = Register(0x0E, 0x01, 0)
     mask_softreset_int = Register(0x0E, 0x02, 1)
-    mask_tx_snet_int = Register(0x0E, 0x04, 2)
+    mask_tx_sent_int = Register(0x0E, 0x04, 2)
     mask_hard_sent_int = Register(0x0E, 0x08, 3)
-    mask_retry_fail_int = Register(0x0E, 0x01, 4)
-    mask_soft_fail_int = Register(0x0E, 0x02, 5)
-    mask_toggle_done_int = Register(0x0E, 0x04, 6)
-    mask_ocp_temp_int = Register(0x0E, 0x08, 7)
+    mask_retry_fail_int = Register(0x0E, 0x10, 4)
+    mask_soft_fail_int = Register(0x0E, 0x20, 5)
+    mask_toggle_done_int = Register(0x0E, 0x40, 6)
+    mask_ocp_temp_int = Register(0x0E, 0x80, 7)
     # reg 0F mask b
     mask_good_crc_sent_int = Register(0x0F, 0x01, 0)
     # reg 10 Control4
     toggle_unattahce_exit = Register(0x10, 0x01, 0)
-    # reg 3C status a read only
+    # reg 3C status 0a read only
     hard_reset_order = Register(0x3C, 0x01, 0)
     soft_reset_order = Register(0x3C, 0x02, 1)
     power_state = Register(0x3C, 0x0C, 2)
@@ -144,7 +144,7 @@ class fusb302:
     # reg 40 status0
     bc_level = Register(0x40, 0x03, 0)
     wake = Register(0x40, 0x04, 2)
-    alert = Register(0x40, 0x80, 3)
+    alert = Register(0x40, 0x08, 3)
     crc_check = Register(0x40, 0x10, 4)
     comparator = Register(0x40, 0x20, 5)
     activity = Register(0x40, 0x40, 6)
@@ -323,7 +323,7 @@ class fusb302:
             self.ADDRESS, self.enable_oscillator.register, bytes([0x0F])
         )
 
-    def get_Status0(self):
+    def get_status0(self):
         """
         Returns the decoded status0 read from the device
         Do not use from an ISR
@@ -434,7 +434,7 @@ class fusb302:
                 ("RXSOP", 0),
                 ("RXSOP1DB", 0),
                 ("RXSOP2DB", 0),
-                # ( 'TOGSS', 0 )
+                ("TOGSS", 0 ),
             ]
         )
         status["RXSOP"] = (read & self.rx_sop.mask) >> self.ocp.position
@@ -444,7 +444,9 @@ class fusb302:
         status["RXSOP2DB"] = (
             read & self.rx_sop_double_debug.mask
         ) >> self.rx_sop_double_debug.position
-        # status['TOGSS'] = ( read & self.toggle_status.mask ) >> self.toggle_status.position
+        status["TOGSS"] = ( 
+            read & self.toggle_status.mask 
+        ) >> self.toggle_status.position
         return status
 
     def get_interrupts(self):
@@ -460,9 +462,9 @@ class fusb302:
         Interruptb = self.i2c.readfrom_mem(
             self.ADDRESS, self.good_crc_sent_int.register, 1
         )[0]
-        Interrupt = self.i2c.readfrom_mem(self.ADDRESS, self.bc_level_int.register, 1)[
-            0
-        ]
+        Interrupt = self.i2c.readfrom_mem(
+            self.ADDRESS, self.bc_level_int.register, 1
+        )[0]
         current_interrupts = dict(
             [
                 ("I_HARDRST", 0),
@@ -471,6 +473,7 @@ class fusb302:
                 ("I_HARDSENT", 0),
                 ("I_RETRYFAIL", 0),
                 ("I_SOFTFAIL", 0),
+                ("I_TOGDONE", 0 ),
                 ("I_OCP_TEMP", 0),
                 ("I_GCRCSENT", 0),
                 ("I_BC_LVL", 0),
@@ -504,6 +507,9 @@ class fusb302:
         current_interrupts["I_OCP_TEMP"] = (
             Interrupta & self.ocp_temp_int.mask
         ) >> self.ocp_temp_int.position
+        current_interrupts['I_TOGDONE '] = (
+            Interrupta & self.toggle_done_int.mask 
+        ) >> self.toggle_done_int.position
         current_interrupts["I_GCRCSENT"] = (
             Interruptb & self.good_crc_sent_int.mask
         ) >> self.good_crc_sent_int.position
@@ -549,14 +555,14 @@ class fusb302:
         self.write_bits(self.measure_cc, 1)
         self.cc_select = 1
         sleep(0.001)
-        status = self.get_Status0()
+        status = self.get_status0()
         if status["BC_LVL"] == 0:
             # Ra connected to this CC, change to other CC connection
             self.cc_select = 2
             self.write_bits(self.measure_cc, 2)
             sleep(0.001)
             # re-read status
-            status = self.get_Status0()
+            status = self.get_status0()
         # determine current level.
         self.input_current_limit = 500
         if status["BC_LVL"] > 0:
@@ -622,12 +628,12 @@ class fusb302:
         self.i2c.writeto_mem(self.ADDRESS, 0x07, bytes([0x04]))
 
         # set bits for good crc and auto response last as we need to respond within a timeout.
-        self.i2c.writeto_mem(self.ADDRESS, 0x03, bytes([0xA4]))
+        self.i2c.writeto_mem(self.ADDRESS, 0x03, bytes([0x24]))
         self.host = False
 
     def setup_host(self):
         """
-        Initialise the fusb302 to a device
+        Initialise the fusb302 to a host
         """
         # put device into a known state
         self.reset()
@@ -635,7 +641,7 @@ class fusb302:
         # set power and data roles
         self.i2c.writeto_mem(self.ADDRESS, 0x03, bytes([0xB0]))
         # setup pull ups and measure on cc1
-        self.i2c.writeto_mem(self.ADDRESS, 0x02, bytes([0xC4]))
+        self.i2c.writeto_mem(self.ADDRESS, 0x02, bytes([0xC0]))
         self.cc_select = 1
         # set measurement level
         self.i2c.writeto_mem(self.ADDRESS, 0x04, bytes([0x25]))
@@ -689,7 +695,7 @@ class fusb302:
 
     def get_rxb(self, length=80):
         # read the FIFO contents
-        return self.i2c.readfrom_mem(0x22, 0x43, length)
+        return self.i2c.readfrom_mem(self.ADDRESS, 0x43, length)
 
     def request_pdo(self, num, current, max_current, msg_id=0):
         sop_seq = [
@@ -729,9 +735,9 @@ class fusb302:
 
         sop_seq[4] |= pdo_len
 
-        self.i2c.writeto_mem(0x22, 0x43, bytes(sop_seq))
-        self.i2c.writeto_mem(0x22, 0x43, bytes(pdo))
-        self.i2c.writeto_mem(0x22, 0x43, bytes(eop_seq))
+        self.i2c.writeto_mem(self.ADDRESS, self.rxtx_fifo.register, bytes(sop_seq))
+        self.i2c.writeto_mem(self.ADDRESS, self.rxtx_fifo.register, bytes(pdo))
+        self.i2c.writeto_mem(self.ADDRESS, self.rxtx_fifo.register, bytes(eop_seq))
 
     pdo_types = ["fixed", "batt", "var", "pps"]
     pps_types = ["spr", "epr", "res", "res"]
@@ -739,17 +745,14 @@ class fusb302:
     def read_pdos(self):
         pdo_list = []
         header = self.get_rxb(1)[0]
-        print(header)
         if header == 0xE0:
             b1, b0 = self.get_rxb(2)
             pdo_count = (b0 >> 4) & 0b111
             read_len = pdo_count * 4
             pdos = self.get_rxb(read_len)
-            print(pdos.hex())
             _ = self.get_rxb(4)  # crc
             for pdo_i in range(pdo_count):
                 pdo_bytes = pdos[(pdo_i * 4) :][:4]
-                print(pdo_bytes.hex())
                 parsed_pdo = self.parse_pdo(pdo_bytes)
                 pdo_list.append(parsed_pdo)
         return pdo_list
@@ -795,7 +798,7 @@ class fusb302:
                 limited,
             )
 
-    def request_capability(self):
+    def request_capability(self, msg_id = 0):
         """
         ask for the power supply options
         """
@@ -804,31 +807,30 @@ class fusb302:
             self.TX_SOP1,
             self.TX_SOP1,
             self.TX_SOP2,
-            self.TX_PACKSYM,
+            self.TX_PACKSYM | 0x02,
             0x47,
-            0xE0,
+            ( 0x00 | ( ( msg_id & 0x07 ) << 1 ) ),
             self.TX_JAM_CRC,
             self.TX_EOP,
             self.TX_OFF,
             self.TX_ON,
         ]
 
-        self.i2c.writeto_mem(0x22, 0x43, bytes(seq))
+        self.i2c.writeto_mem(self.ADDRESS, self.rxtx_fifo.register, bytes(seq))
 
     def soft_reset(self):
         """
         reset the protocol layer on other port
         """
-        self.i2c.writeto_mem(0x22, 0x43, bytes(self.TX_RESET1))
+        self.i2c.writeto_mem(self.ADDRESS, self.rxtx_fifo.register, bytes(self.TX_RESET1))
 
 
 if __name__ == "__main__":
     from machine import Pin, I2C
 
-    i2c = I2C(0, scl=Pin(46), sda=Pin(45), freq=400000)
+    i2c = I2C(0)
     pin_reset_i2c = Pin(9, Pin.OUT)
     pin_reset_i2c.on()
-    i2c.writeto(0x77, bytes([(0x1 << 7)]))
     usb_in = fusb302(i2c)
     usb_in.setup_device()
     usb_in.determine_input_current_limit()

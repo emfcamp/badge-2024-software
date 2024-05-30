@@ -12,6 +12,10 @@ Pull the firmware build image:
 
     docker build . -t matthewwilkes/esp_idf:5.2.1
 
+Initialize submodules:
+
+    git submodule update --init --recursive
+
 To make the docker container with the right version of the ESP-IDF for the latest micropython.
 
 Before you build the first time, apply any patches to vendored content:

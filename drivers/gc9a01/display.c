@@ -4,6 +4,7 @@
 #include "mp_uctx.h"
 #include <math.h>
 
+bool gfx_inited = false;
 
 static mp_obj_t bsp_init() {
     flow3r_bsp_display_init();
@@ -12,8 +13,11 @@ static mp_obj_t bsp_init() {
 static MP_DEFINE_CONST_FUN_OBJ_0(bsp_init_obj, bsp_init);
 
 static mp_obj_t gfx_init() {
-    st3m_gfx_init();
-    return MP_ROM_QSTR(MP_QSTR_sample);
+    if (!gfx_inited) {
+        st3m_gfx_init();
+        gfx_inited = true;
+    }
+    return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(gfx_init_obj, gfx_init);
 
