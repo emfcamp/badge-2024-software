@@ -39,7 +39,7 @@ def burn_hmac_key(key_to_use=1, port=None, do_not_confirm=False):
     args.name_value_pairs[f"KEY_PURPOSE_{key_to_use}"] = 8
     args.name_value_pairs[f"BLOCK_KEY{key_to_use}"] = HMAC_KEY
     print(operations.burn_efuse)
-    # operations.burn_efuse(esp, efuses, args)
+    operations.burn_efuse(esp, efuses, args)
 
 
 if __name__ == "__main__":
