@@ -88,13 +88,25 @@
 #define STBI_ONLY_JPEG
 
 #else
-#define CTX_ENABLE_CLIP                 0
-#define CTX_FRAGMENT_SPECIALIZE         0
-#define CTX_FAST_FILL_RECT              0
-#define CTX_BLENDING_AND_COMPOSITING    0
-#define CTX_INLINED_GRADIENTS           0
-#define CTX_FORMATTER                   0
-#define CTX_PARSER                      0
+#define CTX_COMPOSITE_O3                1
+#define CTX_RASTERIZER_O2               0
+#define CTX_GSTATE_PROTECT              1
+#define CTX_FORCE_INLINES               1
+#define CTX_FRAGMENT_SPECIALIZE         1
+#define CTX_ENABLE_YUV420               1
+#define CTX_ENABLE_RGBA8                1
+#define CTX_ENABLE_RGB332               1
+#define CTX_ENABLE_RGB8                 1
+#define CTX_ENABLE_GRAY8                1
+#define CTX_ENABLE_GRAYA8               1
+#define CTX_ENABLE_GRAY1                1
+#define CTX_ENABLE_GRAY2                1
+#define CTX_ENABLE_GRAY4                1
+#define CTX_STB_IMAGE                   1
+#define STBI_ONLY_PNG
+#define STBI_ONLY_GIF
+#define STBI_ONLY_JPEG
+
 #endif
 
 
