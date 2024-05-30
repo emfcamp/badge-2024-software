@@ -2,10 +2,10 @@
 
 import hashlib
 import esptool, espefuse
-import os, hmac
+import os, hmac, time
 
 
-def burn_hmac_key(key_to_use=1, port=None):
+def burn_hmac_key(key_to_use=1, port=None, do_not_confirm=False):
     # This is the master secret and should be kept secret
     # Initialise it from the environment variable
     MASTER_SECRET = os.environ["MASTER_SECRET"]
@@ -32,15 +32,30 @@ def burn_hmac_key(key_to_use=1, port=None):
     test_mac = hmac.digest(HMAC_KEY, b"test", "sha256")
     print(test_mac.hex())
 
-    efuses, operations = espefuse.get_efuses(esp)
+    efuses, operations = espefuse.get_efuses(esp, do_not_confirm=do_not_confirm)
     class Args:
         name_value_pairs = {}
     args = Args()
     args.name_value_pairs[f"KEY_PURPOSE_{key_to_use}"] = 8
     args.name_value_pairs[f"BLOCK_KEY{key_to_use}"] = HMAC_KEY
     print(operations.burn_efuse)
-    operations.burn_efuse(esp, efuses, args)
+    # operations.burn_efuse(esp, efuses, args)
 
 
 if __name__ == "__main__":
-    burn_hmac_key()
+    _in = input("Burn in a loop? (y/N): ")
+    if _in.lower() == "y":
+        loop = True
+        print("Burning fuses on loop. Press Ctrl+C to stop")
+    else:
+        print("Burning single fuse, waiting for device.")
+    while(True):
+        ports = esptool.get_port_list()
+        if not ports:
+            time.sleep(1)
+            continue
+        burn_hmac_key(do_not_confirm=loop)
+        while esptool.get_port_list():
+            time.sleep(1)
+        if not loop:
+            break
