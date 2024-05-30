@@ -45,7 +45,7 @@ static BMI2_INTF_RETURN_TYPE bmi2_i2c_read(uint8_t reg_addr, uint8_t *reg_data,
                                        { .len = len, .buf = reg_data } };
     esp_err_t ret = tildagon_mux_i2c_transaction (mux, imu->bmi_dev_addr, 2, buffer, READ);
     
-    if (ret != ESP_OK) {
+    if (ret < 0) {
         ESP_LOGE(TAG, "i2c read/write fail: %s", esp_err_to_name(ret));
         return BMI2_E_COM_FAIL;
     }
@@ -69,7 +69,7 @@ static BMI2_INTF_RETURN_TYPE bmi2_i2c_write(uint8_t reg_addr,
     mp_machine_i2c_buf_t buffer[1] = { { .len = sizeof(tx), .buf = tx } };
     esp_err_t ret = tildagon_mux_i2c_transaction (mux, imu->bmi_dev_addr, 1, buffer, WRITE);
 
-    if (ret != ESP_OK) {
+    if (ret < 0) {
         ESP_LOGE(TAG, "i2c write fail: %s", esp_err_to_name(ret));
         return BMI2_E_COM_FAIL;
     }
