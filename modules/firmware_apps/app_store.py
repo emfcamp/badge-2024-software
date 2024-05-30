@@ -318,6 +318,7 @@ def install_app(app):
         prefix = validate_app_files(t)
 
         # TODO: Check we have enough storage in advance
+        # TODO: Does the app already exist? Delete it
 
         for i in t:
             if i:
@@ -334,7 +335,7 @@ def install_app(app):
                                 file.write(data)
 
         internal_manifest = {
-            "path": prefix,
+            "path": prefix + ".app",
             "callable": "__app_export__",
             "name": app["manifest"]["app"]["name"],
             "hidden": False,
