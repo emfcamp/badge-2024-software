@@ -41,9 +41,12 @@ def recursive_delete(path):
     os.rmdir(path)
 
 
-def load_info(folder, name):
+def load_info(folder, name, sim):
     try:
-        info_file = "{}/{}/__internal__metadata.json".format(folder, name)
+        if sim:
+            info_file = "{}/{}/metadata.json".format(folder, name)
+        else:
+            info_file = "{}/{}/__internal__metadata.json".format(folder, name)
         with open(info_file) as f:
             information = f.read()
         return json.loads(information)
@@ -61,15 +64,18 @@ def list_user_apps():
             return []
 
         for name in contents:
-            if not path_isfile(f"{APP_DIR}/{name}/app.py"):
+            sim = path_isfile(f"{APP_DIR}/{name}/__init__.py")
+            store = path_isfile(f"{APP_DIR}/{name}/app.py")
+            if not sim and not store:
                 continue
+
             app = {
                 "path": name,
                 "callable": "main",
                 "name": name,
                 "hidden": False,
             }
-            metadata = load_info(APP_DIR, name)
+            metadata = load_info(APP_DIR, name, sim)
             app.update(metadata)
             if not app["hidden"]:
                 apps.append(app)
