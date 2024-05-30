@@ -23,7 +23,7 @@ class MenuDemo(App):
         )
         self.notification = None
 
-    def select_handler(self, item):
+    def select_handler(self, item, idx):
         if item in ["numbers", "letters", "words", "main"]:
             self.set_menu(item)
         else:

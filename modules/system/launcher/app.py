@@ -1,16 +1,18 @@
-import os
 import json
+import os
 
 from app import App
-from app_components.menu import Menu
 from app_components import clear_background
+from app_components.menu import Menu
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
 from system.scheduler.events import (
-    RequestStartAppEvent,
     RequestForegroundPushEvent,
+    RequestStartAppEvent,
     RequestStopAppEvent,
 )
+
+APP_DIR = "/apps"
 
 
 def path_isfile(path):
@@ -39,6 +41,41 @@ def recursive_delete(path):
     os.rmdir(path)
 
 
+def load_info(folder, name):
+    try:
+        info_file = "{}/{}/__internal__metadata.json".format(folder, name)
+        with open(info_file) as f:
+            information = f.read()
+        return json.loads(information)
+    except BaseException:
+        return {}
+
+
+def list_user_apps():
+    with PerfTimer("List user apps"):
+        apps = []
+        try:
+            contents = os.listdir(APP_DIR)
+        except OSError:
+            # No apps dir full stop
+            return []
+
+        for name in contents:
+            if not path_isfile(f"{APP_DIR}/{name}/app.py"):
+                continue
+            app = {
+                "path": name,
+                "callable": "main",
+                "name": name,
+                "hidden": False,
+            }
+            metadata = load_info(APP_DIR, name)
+            app.update(metadata)
+            if not app["hidden"]:
+                apps.append(app)
+        return apps
+
+
 class Launcher(App):
     def __init__(self):
         self.update_menu()
@@ -52,45 +89,9 @@ class Launcher(App):
                 self._apps[key] = None
                 print(f"Removing launcher cache for {key}")
 
-    def list_user_apps(self):
-        with PerfTimer("List user apps"):
-            apps = []
-            app_dir = "/apps"
-            try:
-                contents = os.listdir(app_dir)
-            except OSError:
-                # No apps dir full stop
-                return []
-
-            for name in contents:
-                if not path_isfile(f"{app_dir}/{name}/__init__.py"):
-                    continue
-                app = {
-                    "path": "apps."+name,
-                    "callable": "main",
-                    "name": name,
-                    "icon": None,
-                    "category": "unknown",
-                    "hidden": False,
-                }
-                metadata = self.loadInfo(app_dir, name)
-                app.update(metadata)
-                if not app["hidden"]:
-                    apps.append(app)
-            return apps
-
-    def loadInfo(self, folder, name):
-        try:
-            info_file = "{}/{}/metadata.json".format(folder, name)
-            with open(info_file) as f:
-                information = f.read()
-            return json.loads(information)
-        except BaseException:
-            return {}
-
     def list_core_apps(self):
         core_app_info = [
-            # ("App store", "app_store", "Store"),
+            ("App store", "firmware_apps.app_store", "AppStoreApp"),
             # ("Name Badge", "hello", "Hello"),
             ("Logo", "firmware_apps.intro_app", "IntroApp"),
             ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
@@ -114,14 +115,12 @@ class Launcher(App):
                     "path": core_app[1],
                     "callable": core_app[2],
                     "name": core_app[0],
-                    "icon": None,
-                    "category": "unknown",
                 }
             )
         return core_apps
 
     def update_menu(self):
-        self.menu_items = self.list_core_apps() + self.list_user_apps()
+        self.menu_items = self.list_core_apps() + list_user_apps()
         self.menu = Menu(
             self,
             [app["name"] for app in self.menu_items],
@@ -147,7 +146,7 @@ class Launcher(App):
         #    f.write(str(self.window.focus_idx()))
         # eventbus.emit(RequestForegroundPopEvent(self))
 
-    def select_handler(self, item):
+    def select_handler(self, item, idx):
         for app in self.menu_items:
             if item == app["name"]:
                 self.launch(app)
