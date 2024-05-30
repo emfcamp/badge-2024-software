@@ -11,9 +11,7 @@ env:
 jobs:
   Build-Firmware:
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
+    permissions: write-all
     steps:
       - name: Install dependencies
         run: |
