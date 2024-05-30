@@ -26,7 +26,8 @@ Then to build the images run:
 
     docker run -it --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware matthewwilkes/esp_idf:5.2.1
 
-Alternatively, to flash a badge, ensure it's plugged in and in bootloader mode, then run:
+Alternatively, to flash a badge:
+    put the badge into bootloader by disconnecting the usb in, press and hold bat and boop buttons for 20 seconds  then reconnect the usb in and run:
 
     docker run -it --device /dev/ttyACM0:/dev/ttyUSB0 --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware matthewwilkes/esp_idf:5.2.1 deploy
 
