@@ -38,8 +38,8 @@ def burn_hmac_key(key_to_use=1, port=None, do_not_confirm=False):
     args = Args()
     args.name_value_pairs[f"KEY_PURPOSE_{key_to_use}"] = 8
     args.name_value_pairs[f"BLOCK_KEY{key_to_use}"] = HMAC_KEY
-    args.name_value_pairs[f"RD_DIS"] = (1<<(6-key_to_use))
-    args.name_value_pairs[f"WR_DIS"] = (1<<(6-key_to_use))
+    args.name_value_pairs[f"RD_DIS"] = (1<<(key_to_use))
+    args.name_value_pairs[f"WR_DIS"] = (1<<(23+key_to_use))
     print(operations.burn_efuse)
     operations.burn_efuse(esp, efuses, args)
 
