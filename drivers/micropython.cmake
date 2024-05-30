@@ -18,3 +18,9 @@ include(${CMAKE_CURRENT_LIST_DIR}/tildagon_power/tildagon_power.cmake)
 
 # Add OTA helpers
 include(${CMAKE_CURRENT_LIST_DIR}/ota/micropython.cmake)
+
+# Add Tildagon module
+include(${CMAKE_CURRENT_LIST_DIR}/tildagon/micropython.cmake)
+
+# Add HMAC driver
+include(${CMAKE_CURRENT_LIST_DIR}/tildagon_hmac/micropython.cmake)
