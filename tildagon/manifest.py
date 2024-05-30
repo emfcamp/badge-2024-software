@@ -53,3 +53,5 @@ require("mip")
 
 require("aioble")
 require("aiorepl")
+require("gzip")
+require("tarball")
