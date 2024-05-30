@@ -35,6 +35,7 @@
 
 #include "driver/i2c.h"
 #include "hal/i2c_ll.h"
+#include "driver/gpio.h"
 
 #include "tildagon_i2c.h"
 
@@ -85,6 +86,9 @@ void tildagon_i2c_init() {
     int timeout = I2C_SCLK_FREQ / 1000000 * TILDAGON_HOST_I2C_TIMEOUT;
     i2c_set_timeout(TILDAGON_HOST_I2C_PORT, (timeout > I2C_LL_MAX_TIMEOUT) ? I2C_LL_MAX_TIMEOUT : timeout);
     i2c_driver_install(TILDAGON_HOST_I2C_PORT, I2C_MODE_MASTER, 0, 0, 0);
+    // reset I2C
+    gpio_set_direction(GPIO_NUM_9, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_NUM_9, 1);
 }
 
 
