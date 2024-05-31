@@ -11,9 +11,7 @@ env:
 jobs:
   Build-Firmware:
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
+    permissions: write-all
     steps:
       - name: Install dependencies
         run: |
@@ -22,14 +20,19 @@ jobs:
       - name: Check out driver code
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: true
       - name: Check out ESP IDF
         uses: actions/checkout@v4
         with:
           repository: espressif/esp-idf
           ref: v5.2.1
           path: esp-idf
-          submodules: 'recursive'
+          submodules: true
+      - name: Submodules
+        run: |
+          cd micropython/lib
+          git submodule init
+          git submodule update micropython-lib
       - name: Install SDK
         run: |
           cd esp-idf

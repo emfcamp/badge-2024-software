@@ -41,9 +41,12 @@ def recursive_delete(path):
     os.rmdir(path)
 
 
-def load_info(folder, name):
+def load_info(folder, name, sim):
     try:
-        info_file = "{}/{}/__internal__metadata.json".format(folder, name)
+        if sim:
+            info_file = "{}/{}/metadata.json".format(folder, name)
+        else:
+            info_file = "{}/{}/__internal__metadata.json".format(folder, name)
         with open(info_file) as f:
             information = f.read()
         return json.loads(information)
@@ -61,15 +64,18 @@ def list_user_apps():
             return []
 
         for name in contents:
-            if not path_isfile(f"{APP_DIR}/{name}/app.py"):
+            sim = path_isfile(f"{APP_DIR}/{name}/__init__.py")
+            store = path_isfile(f"{APP_DIR}/{name}/app.py")
+            if not sim and not store:
                 continue
+
             app = {
                 "path": name,
                 "callable": "main",
                 "name": name,
                 "hidden": False,
             }
-            metadata = load_info(APP_DIR, name)
+            metadata = load_info(APP_DIR, name, sim)
             app.update(metadata)
             if not app["hidden"]:
                 apps.append(app)
@@ -92,10 +98,11 @@ class Launcher(App):
     def list_core_apps(self):
         core_app_info = [
             ("App store", "firmware_apps.app_store", "AppStoreApp"),
+            ("Sponsors", "firmware_apps.sponsors", "Sponsors"),
             # ("Name Badge", "hello", "Hello"),
-            ("Logo", "firmware_apps.intro_app", "IntroApp"),
-            ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
-            ("Kbd demo", "firmware_apps.text_demo", "TextDemo"),
+            # ("Logo", "firmware_apps.intro_app", "IntroApp"),
+            # ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
+            # ("Kbd demo", "firmware_apps.text_demo", "TextDemo"),
             # ("Update Firmware", "otaupdate", "OtaUpdate"),
             # ("Inhibit LEDs", "firmware_apps.patterninhibit", "PatternInhibit"),
             # ("Wi-Fi Connect", "wifi_client", "WifiClient"),
@@ -131,12 +138,12 @@ class Launcher(App):
     def launch(self, item):
         module_name = item["path"]
         fn = item["callable"]
-        app_id = f"{module_name}.{fn}"
+        app_id = f"apps.{module_name}.app"
         app = self._apps.get(app_id)
         print(self._apps)
         if app is None:
             print(f"Creating app {app_id}...")
-            module = __import__(module_name, None, None, (fn,))
+            module = __import__(app_id, None, None, (fn,))
             app = getattr(module, fn)()
             self._apps[app_id] = app
             eventbus.emit(RequestStartAppEvent(app, foreground=True))
@@ -153,6 +160,7 @@ class Launcher(App):
                 break
 
     def back_handler(self):
+        self.menu._cleanup()
         self.update_menu()
         return
         # if self.current_menu == "main":

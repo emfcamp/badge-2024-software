@@ -50,3 +50,8 @@ require("neopixel")
 require("ntptime")
 require("requests")
 require("mip")
+
+require("aioble")
+require("aiorepl")
+require("gzip")
+require("tarfile")
