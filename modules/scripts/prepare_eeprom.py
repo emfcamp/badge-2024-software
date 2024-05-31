@@ -14,7 +14,7 @@ port = 2  # <<-- Customize!!
 i2c = I2C(port)
 
 # autodetect eeprom address
-addr = detect_eeprom_addr(i2c)
+addr, addr_len = detect_eeprom_addr(i2c)
 print(f"Detected eeprom at {hex(addr)}")
 
 # Fill in your desired header info here:
@@ -22,16 +22,16 @@ header = HexpansionHeader(
     manifest_version="2024",
     fs_offset=32,
     eeprom_page_size=16,
-    eeprom_total_size=1024 * (16 // 8) // 8,
-    vid=0xCA75,
-    pid=0x1337,
+    eeprom_total_size=2048,
+    vid=0xCAFE,
+    pid=0xD15C,
     unique_id=0x0,
     friendly_name="Flopagon",
 )
 
 # Determine amount of bytes in internal address
-addr_len = 2 if header.eeprom_total_size > 256 else 1
-print(f"Using {addr_len} bytes for eeprom internal address")
+#addr_len = 2 if header.eeprom_total_size > 256 else 1
+#print(f"Using {addr_len} bytes for eeprom internal address")
 
 # Write and read back header
 write_header(
@@ -43,7 +43,7 @@ if header is None:
     raise RuntimeError("Failed to read back hexpansion header")
 
 # Get block devices
-eep, partition = get_hexpansion_block_devices(i2c, header, addr)
+eep, partition = get_hexpansion_block_devices(i2c, header, addr, addr_len=addr_len)
 
 # Format
 vfs.VfsLfs2.mkfs(partition)

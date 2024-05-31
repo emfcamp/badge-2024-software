@@ -169,13 +169,13 @@ class HexpansionManagerApp(app.App):
         i2c = I2C(event.port)
 
         # Autodetect eeprom addr
-        addr = detect_eeprom_addr(i2c)
+        addr, addr_len = detect_eeprom_addr(i2c)
         if addr is None:
             print("Scan found no eeproms")
             return
 
         # Do we have a header?
-        header = read_hexpansion_header(i2c, addr)
+        header = read_hexpansion_header(i2c, addr, addr_len=addr_len)
         if header is None:
             return
 
@@ -190,7 +190,7 @@ class HexpansionManagerApp(app.App):
         # Try creating block devices, one for the whole eeprom,
         # one for the partition with the filesystem on it
         try:
-            eep, partition = get_hexpansion_block_devices(i2c, header, addr)
+            eep, partition = get_hexpansion_block_devices(i2c, header, addr, addr_len=addr_len)
         except RuntimeError as e:
             print(f"Could not initialize eeprom: {e}")
             eep = None
