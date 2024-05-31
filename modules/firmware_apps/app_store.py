@@ -337,13 +337,11 @@ def install_app(app):
                                 file.write(data)
 
         internal_manifest = {
-            "path": prefix + ".app",
-            "callable": "__app_export__",
             "name": app["manifest"]["app"]["name"],
             "hidden": False,
         }
         with open(
-            os.path.join(APP_DIR, prefix, "__internal__metadata.json"), "w+"
+            os.path.join(APP_DIR, prefix, "app_data.json"), "w+"
         ) as internal_manifest_file_handler:
             json.dump(internal_manifest, internal_manifest_file_handler)
 
@@ -385,5 +383,6 @@ def connect_wifi():
         while True:
             print("Connecting to")
             print(f"{ssid}...")
-            if wifi.wait():
-                break
+
+            # if wifi.wait():
+            #    break

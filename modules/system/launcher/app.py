@@ -45,15 +45,11 @@ def recursive_delete(path):
 
 
 def load_info(folder, name):
-    deprecated_metadata_path = "{}/{}/metadata.json".format(folder, name)
-    user_app_format_metadata_path = info_file = "{}/{}/__internal__metadata.json".format(folder, name)
-    
     try:
-        with open(user_app_format_metadata_path, 'rb') as f:
-            return json.loads(f.read())
-    except FileNotFoundError:
-        with open(deprecated_metadata_path, 'rb') as f:
-            return json.loads(f.read())
+        info_file = "{}/{}/metadata.json".format(folder, name)
+        with open(info_file) as f:
+            information = f.read()
+        return json.loads(information)
     except BaseException:
         return {}
 
@@ -65,12 +61,16 @@ def list_user_apps():
             contents = os.listdir(APP_DIR)
         except OSError:
             # No apps dir full stop
+            try:
+                os.mkdir(APP_DIR)
+            except OSError:
+                pass
             return []
 
         for name in contents:
             app = {
-                "path": name,
-                "callable": "main",
+                "path": f"apps.{name}.app",
+                "callable": "__app_export__",
                 "name": name,
                 "hidden": False,
             }
@@ -141,9 +141,11 @@ class Launcher(App):
     def launch(self, item):
         module_name = item["path"]
         fn = item["callable"]
-        app = self._apps.get(module_name)
+        app_id = f"{module_name}.{fn}"
+        app = self._apps.get(app_id)
+        print(self._apps)
         if app is None:
-            print(f"Creating app {module_name}...")
+            print(f"Creating app {app_id}...")
             module = __import__(module_name, None, None, (fn,))
             app = getattr(module, fn)()
             self._apps[module_name] = app
