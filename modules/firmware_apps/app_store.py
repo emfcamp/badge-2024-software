@@ -9,11 +9,12 @@ from typing import Any, Callable
 import app
 import wifi
 from app_components import Menu, clear_background, fourteen_pt, sixteen_pt, ten_pt
-from events import Event
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from requests import get
 from system.eventbus import eventbus
 from system.launcher.app import APP_DIR, list_user_apps, InstallNotificationEvent
+from system.notification.events import ShowNotificationEvent
+
 
 APP_STORE_LISTING_LIVE_URL = "https://api.badge.emf.camp/v1/apps"
 APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
@@ -306,17 +307,21 @@ class CodeInstall:
 def install_app(app):
     try:
         ## This is fine to block because we only call it from background_update
+        print("GC")
         gc.collect()
 
+        print(f"Getting {app["tarballUrl"]}")
         tarball = get(app["tarballUrl"])
         # tarballGenerator = self.download_file(app["tarballUrl"])
 
         # TODO: Investigate using deflate.DeflateIO instead. Can't do it now
         # because it's not available in the simulator.
+        print("Decompressing")
         tar = gzip.decompress(tarball.content)
         gc.collect()
         t = TarFile(fileobj=io.BytesIO(tar))
 
+        print("Validating")
         prefix = validate_app_files(t)
 
         # TODO: Check we have enough storage in advance
@@ -379,10 +384,13 @@ def connect_wifi():
         return
 
     if not wifi.status():
-        wifi.connect()
+        try:
+            wifi.connect()
+        except Exception:
+            pass
         while True:
             print("Connecting to")
             print(f"{ssid}...")
 
-            # if wifi.wait():
-            #    break
+            if wifi.wait():
+                break
