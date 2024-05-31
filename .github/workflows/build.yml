@@ -71,6 +71,8 @@ jobs:
             micropython/ports/esp32/build-tildagon/partition_table/partition-table.bin
             micropython/ports/esp32/build-tildagon/ota_data_initial.bin
             micropython/ports/esp32/build-tildagon/tildagon.txt
+            micropython/ports/esp32/build-tildagon/frozen_mpy/frontboards/TwentyFour/app.mpy
+            micropython/ports/esp32/build-tildagon/frozen_mpy/frontboards/TwentyFour/tokens.mpy
       - name: Create latest release for tags
         uses: "marvinpinto/action-automatic-releases@latest"
         if: github.event_name == 'push'
