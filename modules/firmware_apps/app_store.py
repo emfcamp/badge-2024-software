@@ -9,6 +9,8 @@ from typing import Any, Callable
 
 import app
 import wifi
+import shutil
+import machine
 from app_components import Menu, clear_background, fourteen_pt, sixteen_pt, ten_pt
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from requests import get
@@ -145,6 +147,7 @@ class AppStoreApp(app.App):
             item_font_size=ten_pt,
         )
 
+
     def prepare_main_menu(self):
         def on_cancel():
             self.minimise()
@@ -182,9 +185,10 @@ class AppStoreApp(app.App):
             self.cleanup_ui_widgets()
             self.update_state("main_menu")
 
-        def on_select(_, __):
-            # TODO maybe implement uninstalling apps
-            pass
+        def on_select(value, idx):
+            self.uninstall_app(value)
+            self.cleanup_ui_widgets()
+            self.update_state("main_menu")
 
         installed_apps = list_user_apps()
 
@@ -196,6 +200,24 @@ class AppStoreApp(app.App):
             focused_item_font_size=fourteen_pt,
             item_font_size=ten_pt,
         )
+
+    def uninstall_app(self, app):
+        user_apps = list_user_apps()
+        selected_app = list(filter(lambda x: x['name'] == app, user_apps))
+        if len(selected_app) == 0:
+            raise RuntimeError(f"app not found: {app}")
+        if len(selected_app) > 1:
+            raise RuntimeError(f"duplicate app found: {app}")
+        else:
+            selected_app = selected_app[0]
+        selected_app_module = selected_app['path']
+        selected_app_fs_path = "/" + "/".join(selected_app_module.split(".")[0:-1])
+        print(f"Selected app fs path: {selected_app_fs_path}")
+        shutil.rmtree(selected_app_fs_path)
+        eventbus.emit(InstallNotificationEvent())
+        machine.reset()
+
+
 
     def error_screen(self, ctx, message):
         ctx.save()
