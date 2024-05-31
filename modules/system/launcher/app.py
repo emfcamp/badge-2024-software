@@ -6,6 +6,7 @@ from app_components import clear_background
 from app_components.menu import Menu
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
+from events import Event
 from system.scheduler.events import (
     RequestForegroundPushEvent,
     RequestStartAppEvent,
@@ -14,6 +15,8 @@ from system.scheduler.events import (
 
 APP_DIR = "/apps"
 
+class InstallNotificationEvent(Event):
+    pass
 
 def path_isfile(path):
     # Wow totally an elegant way to do os.path.isfile...
@@ -41,16 +44,16 @@ def recursive_delete(path):
     os.rmdir(path)
 
 
-def load_info(folder, name, sim):
-    info_file = "{}/{}/metadata.json".format(folder, name)
+def load_info(folder, name):
+    deprecated_metadata_path = "{}/{}/metadata.json".format(folder, name)
     user_app_format_metadata_path = info_file = "{}/{}/__internal__metadata.json".format(folder, name)
-        with open(info_file) as f:
+    
     try:
-        if sim:
-        else:
-            
-            information = f.read()
-        return json.loads(information)
+        with open(user_app_format_metadata_path, 'rb') as f:
+            return json.loads(f.read())
+    except FileNotFoundError:
+        with open(deprecated_metadata_path, 'rb') as f:
+            return json.loads(f.read())
     except BaseException:
         return {}
 
@@ -83,6 +86,10 @@ class Launcher(App):
         self.update_menu()
         self._apps = {}
         eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)
+        eventbus.on_async(InstallNotificationEvent, self._handle_refresh_notifications, self)
+    
+    async def _handle_refresh_notifications(self, _):
+        self.update_menu()
 
     async def _handle_stop_app(self, event: RequestStopAppEvent):
         # If an app is stopped, remove our cache of it as it needs restarting
@@ -134,12 +141,12 @@ class Launcher(App):
     def launch(self, item):
         module_name = item["path"]
         fn = item["callable"]
-        app = self._apps.get(app_id)
+        app = self._apps.get(module_name)
         if app is None:
             print(f"Creating app {module_name}...")
             module = __import__(module_name, None, None, (fn,))
             app = getattr(module, fn)()
-            self._apps[app_id] = app
+            self._apps[module_name] = app
             eventbus.emit(RequestStartAppEvent(app, foreground=True))
         else:
             eventbus.emit(RequestForegroundPushEvent(app))

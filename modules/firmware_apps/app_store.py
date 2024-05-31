@@ -9,10 +9,11 @@ from typing import Any, Callable
 import app
 import wifi
 from app_components import Menu, clear_background, fourteen_pt, sixteen_pt, ten_pt
+from events import Event
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from requests import get
 from system.eventbus import eventbus
-from system.launcher.app import APP_DIR, list_user_apps
+from system.launcher.app import APP_DIR, list_user_apps, InstallNotificationEvent
 
 APP_STORE_LISTING_LIVE_URL = "https://api.badge.emf.camp/v1/apps"
 APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
@@ -95,12 +96,13 @@ class AppStoreApp(app.App):
         try:
             install_app(app)
             self.update_state("main_menu")
-            # TODO Notify success
+            eventbus.emit(InstallNotificationEvent())
+            eventbus.emit(ShowNotificationEvent("Installed the app!"))
         except MemoryError:
             self.update_state("install_oom")
         except Exception as e:
             print(e)
-            # TODO Notify user of failure
+            eventbus.emit(ShowNotificationEvent("Couldn't install app"))
             self.update_state("main_menu")
 
     def update_state(self, state):
