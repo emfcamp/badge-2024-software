@@ -1,5 +1,7 @@
 # Tildagon Firmware
 
+Web flasher is available @ https://emfcamp.github.io/badge-2024-software/
+
 ## Building
 
 To build with a consistent toolchain, use docker.
