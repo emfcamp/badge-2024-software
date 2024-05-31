@@ -1,2 +1,1 @@
-from .tildagon import *
-from _tildagon import HMAC
+from .pins import *  # noqa: F403

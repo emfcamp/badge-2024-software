@@ -2,8 +2,6 @@ import machine
 from tildagonos import tildagonos
 
 
-
-
 HEXPANSION_GPIOS = {
     "1_LS_A": (0x5A, 0, 1 << 3),
     "1_LS_B": (0x5A, 1, 1 << 0),
