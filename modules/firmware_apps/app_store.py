@@ -3,6 +3,7 @@ import gzip
 import io
 import json
 import os
+import tarfile
 from tarfile import DIRTYPE, TarFile
 from typing import Any, Callable
 
@@ -12,7 +13,23 @@ from app_components import Menu, clear_background, fourteen_pt, sixteen_pt, ten_
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from requests import get
 from system.eventbus import eventbus
-from system.launcher.app import APP_DIR, list_user_apps
+from system.launcher.app import APP_DIR, list_user_apps, InstallNotificationEvent
+from system.notification.events import ShowNotificationEvent
+
+
+def dir_exists(filename):
+    try:
+        return (os.stat(filename)[0] & 0x4000) != 0
+    except OSError:
+        return False
+
+
+def file_exists(filename):
+    try:
+        return (os.stat(filename)[0] & 0x4000) == 0
+    except OSError:
+        return False
+
 
 APP_STORE_LISTING_LIVE_URL = "https://api.badge.emf.camp/v1/apps"
 APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
@@ -53,20 +70,10 @@ class AppStoreApp(app.App):
                 widget._cleanup()
                 widget = None
 
-    def check_wifi(self):
-        self.update_state("checking_wifi")
-        connect_wifi()
-
-        if self.state != "checking_wifi":
-            self.update_state("checking_wifi")
-        connected = wifi.status()
-        if not connected:
-            self.update_state("no_wifi")
-        return connected
-
     def get_index(self):
-        if not self.check_wifi():
+        if not wifi.status():
             self.update_state("no_wifi")
+            return
         self.update_state("refreshing_index")
 
     def background_update(self, delta):
@@ -95,12 +102,13 @@ class AppStoreApp(app.App):
         try:
             install_app(app)
             self.update_state("main_menu")
-            # TODO Notify success
+            eventbus.emit(InstallNotificationEvent())
+            eventbus.emit(ShowNotificationEvent("Installed the app!"))
         except MemoryError:
             self.update_state("install_oom")
         except Exception as e:
             print(e)
-            # TODO Notify user of failure
+            eventbus.emit(ShowNotificationEvent("Couldn't install app"))
             self.update_state("main_menu")
 
     def update_state(self, state):
@@ -121,6 +129,8 @@ class AppStoreApp(app.App):
         def on_select(_, i):
             self.to_install_app = self.app_store_index[i]
             self.update_state("installing_app")
+            if self.available_menu:
+                self.available_menu._cleanup()
 
         def exit_available_menu():
             self.cleanup_ui_widgets()
@@ -201,8 +211,20 @@ class AppStoreApp(app.App):
 
     def update(self, delta):
         if self.state == "init":
+            if not wifi.status():
+                self.update_state("wifi_init")
+                return
             print("calling get index")
             self.get_index()
+        elif self.state == "wifi_init":
+            try:
+                wifi.connect()
+            except Exception:
+                pass
+            self.update_state("wifi_connecting")
+        elif self.state == "wifi_connecting":
+            if wifi.status():
+                self.update_state("init")
         elif self.state == "index_received":
             self.handle_index()
         elif self.state == "main_menu" and not self.menu:
@@ -240,6 +262,8 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Couldn't\nconnect to\napp store")
         elif self.state == "checking_wifi":
             self.error_screen(ctx, "Checking\nWi-Fi connection")
+        elif self.state in ("wifi_init", "wifi_connecting"):
+            self.error_screen(ctx, "Connecting\nWi-Fi...\n")
         elif self.state == "refreshing_index":
             self.error_screen(ctx, "Refreshing\napp store\nindex")
         elif self.state == "install_oom":
@@ -304,30 +328,54 @@ class CodeInstall:
 def install_app(app):
     try:
         ## This is fine to block because we only call it from background_update
+        print("GC")
         gc.collect()
 
+        print(f"Getting {app["tarballUrl"]}")
         tarball = get(app["tarballUrl"])
         # tarballGenerator = self.download_file(app["tarballUrl"])
 
         # TODO: Investigate using deflate.DeflateIO instead. Can't do it now
         # because it's not available in the simulator.
+        print("Decompressing")
         tar = gzip.decompress(tarball.content)
         gc.collect()
-        t = TarFile(fileobj=io.BytesIO(tar))
+        tar_bytesio = io.BytesIO(tar)
 
-        prefix = validate_app_files(t)
+        print("Validating")
+        prefix = find_app_root_dir(TarFile(fileobj=tar_bytesio))
+        tar_bytesio.seek(0)
+        app_py_info = find_app_py_file(prefix, TarFile(fileobj=tar_bytesio))
+        print(f"Found app.py at: {app_py_info.name}")
+        tar_bytesio.seek(0)
 
         # TODO: Check we have enough storage in advance
         # TODO: Does the app already exist? Delete it
 
+        # Make sure apps dir exists
+        try:
+            os.mkdir(APP_DIR)
+        except OSError:
+            pass
+
+        t = TarFile(fileobj=tar_bytesio)
         for i in t:
             if i:
+                if not i.name.startswith(prefix):
+                    continue
                 if i.type == DIRTYPE:
-                    dirname = os.path.join(APP_DIR, i.name)
-                    if not os.path.exists(dirname):
-                        os.makedirs(dirname)
+                    dirname = f"{APP_DIR}/{i.name}"
+                    print(f"Dirname: {dirname}")
+                    if not dir_exists(dirname):
+                        try:
+                            print(f"Creating {dirname}")
+                            os.mkdir(dirname.rstrip("/"))
+                        except OSError:
+                            print(f"Failed to create {dirname}")
+                            pass
                 else:
-                    filename = os.path.join(APP_DIR, i.name)
+                    filename = f"{APP_DIR}/{i.name}"
+                    print(f"Filename: {filename}")
                     f = t.extractfile(i)
                     if f:
                         with open(filename, "wb") as file:
@@ -338,9 +386,9 @@ def install_app(app):
             "name": app["manifest"]["app"]["name"],
             "hidden": False,
         }
-        with open(
-            os.path.join(APP_DIR, prefix, "app_data.json"), "w+"
-        ) as internal_manifest_file_handler:
+        json_path = f"{APP_DIR}/{prefix}/metadata.json"
+        print(f"Json path: {json_path}")
+        with open(json_path, "w+") as internal_manifest_file_handler:
             json.dump(internal_manifest, internal_manifest_file_handler)
 
     except MemoryError as e:
@@ -352,35 +400,41 @@ def install_app(app):
 
 
 def validate_app_files(tar):
-    prefix = None
-    seen_app_py = False
-    for i, f in enumerate(tar):
-        print(f.name)
-        if i == 0 and f.isdir():
-            prefix = f.name
-            continue
-        if prefix and not f.name.startswith(prefix):
-            raise ValueError(f"Invalid file {f.name}")
-        if not seen_app_py and prefix and f.name == prefix + "/app.py":
-            seen_app_py = True
-    if not prefix:
-        raise ValueError("No root dir in tarball")
-    if not seen_app_py:
-        raise ValueError("No app.py found in tarball")
+    prefix = find_app_root_dir(tar)
+    app_py_path = find_app_py_file(prefix, tar)
+    print(f"Found app.py at: {app_py_path}")
     return prefix
 
 
-def connect_wifi():
-    ssid = wifi.get_ssid()
-    if not ssid:
-        print("No WIFI config!")
-        return
+def find_app_root_dir(tar):
+    print("Finding root dir...")
+    root_dir = None
+    for i, f in enumerate(tar):
+        print(f"prefix: {i}, name: {f.name}")
+        slash_count = len(f.name.split("/")) - 1
+        if slash_count == 1 and f.isdir():
+            if root_dir is None:
+                root_dir = f.name
+            else:
+                raise ValueError("More than one root directory found in app tarball")
+    if root_dir is None:
+        raise ValueError("No root dir in tarball")
+    return root_dir
 
-    if not wifi.status():
-        wifi.connect()
-        while True:
-            print("Connecting to")
-            print(f"{ssid}...")
 
-            # if wifi.wait():
-            #    break
+def find_app_py_file(prefix, tar) -> tarfile.TarInfo:
+    print("Finding app.py...")
+    found_app_py = False
+    expected_path = f"{prefix}app.py"
+    app_py_info = None
+
+    for i, f in enumerate(tar):
+        print(f"prefix: {i}, name: {f.name}")
+        if f.name == expected_path:
+            found_app_py = True
+            app_py_info = f
+    if not found_app_py:
+        raise ValueError(
+            f"No app.py found in tarball, expected location: {expected_path}"
+        )
+    return app_py_info

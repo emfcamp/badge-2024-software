@@ -6,6 +6,7 @@ from app_components import clear_background
 from app_components.menu import Menu
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
+from events import Event
 from system.scheduler.events import (
     RequestForegroundPushEvent,
     RequestStartAppEvent,
@@ -14,6 +15,8 @@ from system.scheduler.events import (
 
 APP_DIR = "/apps"
 
+class InstallNotificationEvent(Event):
+    pass
 
 def path_isfile(path):
     # Wow totally an elegant way to do os.path.isfile...
@@ -83,6 +86,10 @@ class Launcher(App):
         self.update_menu()
         self._apps = {}
         eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)
+        eventbus.on_async(InstallNotificationEvent, self._handle_refresh_notifications, self)
+    
+    async def _handle_refresh_notifications(self, _):
+        self.update_menu()
 
     async def _handle_stop_app(self, event: RequestStopAppEvent):
         # If an app is stopped, remove our cache of it as it needs restarting

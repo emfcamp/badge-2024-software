@@ -1,5 +1,6 @@
 # main.py -- put your code here!
 from esp32 import Partition
+import wifi
 
 from system.scheduler import scheduler
 from system.hexpansion.app import HexpansionManagerApp
@@ -25,6 +26,11 @@ scheduler.start_app(Launcher(), foreground=True)
 
 # Start notification handler
 scheduler.start_app(NotificationService(), always_on_top=True)
+
+try:
+    wifi.connect()
+except Exception:
+    pass
 
 PowerEventHandler.RegisterDefaultCallbacks(PowerEventHandler)
 
