@@ -382,7 +382,7 @@ def install_app(app):
             "name": app["manifest"]["app"]["name"],
             "hidden": False,
         }
-        json_path = f"{APP_DIR}/{prefix}/memtadata.json"
+        json_path = f"{APP_DIR}/{prefix}/metadata.json"
         print(f"Json path: {json_path}")
         with open(json_path, "w+") as internal_manifest_file_handler:
             json.dump(internal_manifest, internal_manifest_file_handler)
