@@ -343,8 +343,9 @@ def install_app(app):
         tar_bytesio = io.BytesIO(tar)
 
         print("Validating")
-        prefix = find_app_root_dir(TarFile(fileobj=tar_bytesio))
+        prefix = find_app_root_dir(TarFile(fileobj=tar_bytesio)).rstrip('/')
         tar_bytesio.seek(0)
+        print(f"Found app prefix: {prefix}")
         app_py_info = find_app_py_file(prefix, TarFile(fileobj=tar_bytesio))
         print(f"Found app.py at: {app_py_info.name}")
         tar_bytesio.seek(0)
@@ -358,6 +359,8 @@ def install_app(app):
         except OSError:
             pass
 
+        app_module_name = '_'.join(prefix.split('-')[0:-1])
+
         t = TarFile(fileobj=tar_bytesio)
         for i in t:
             if i:
@@ -365,6 +368,7 @@ def install_app(app):
                     continue
                 if i.type == DIRTYPE:
                     dirname = f"{APP_DIR}/{i.name}"
+                    dirname = dirname.replace(prefix, app_module_name, 1)
                     print(f"Dirname: {dirname}")
                     if not dir_exists(dirname):
                         try:
@@ -375,6 +379,7 @@ def install_app(app):
                             pass
                 else:
                     filename = f"{APP_DIR}/{i.name}"
+                    filename = filename.replace(prefix, app_module_name, 1)
                     print(f"Filename: {filename}")
                     f = t.extractfile(i)
                     if f:
@@ -386,7 +391,7 @@ def install_app(app):
             "name": app["manifest"]["app"]["name"],
             "hidden": False,
         }
-        json_path = f"{APP_DIR}/{prefix}/metadata.json"
+        json_path = f"{APP_DIR}/{app_module_name}/metadata.json"
         print(f"Json path: {json_path}")
         with open(json_path, "w+") as internal_manifest_file_handler:
             json.dump(internal_manifest, internal_manifest_file_handler)
@@ -425,7 +430,7 @@ def find_app_root_dir(tar):
 def find_app_py_file(prefix, tar) -> tarfile.TarInfo:
     print("Finding app.py...")
     found_app_py = False
-    expected_path = f"{prefix}app.py"
+    expected_path = f"{prefix}/app.py"
     app_py_info = None
 
     for i, f in enumerate(tar):
