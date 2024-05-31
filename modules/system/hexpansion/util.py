@@ -39,12 +39,8 @@ def read_hexpansion_header(
 
     if set_read_addr:
         addr_bytes = [0] * addr_len
-        # try:
-            # i2c.writeto(eeprom_addr, bytes(addr_bytes))
-        # except OSError:
-            # Potentially write protected, and only one address byte
-        i2c.writeto(eeprom_addr, bytes([0]))
-
+        i2c.writeto(eeprom_addr, bytes(addr_bytes))
+        
     header_bytes = i2c.readfrom(eeprom_addr, 32)
 
     try:
