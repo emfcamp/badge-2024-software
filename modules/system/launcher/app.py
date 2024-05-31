@@ -154,7 +154,8 @@ class Launcher(App):
             try:
                 module = __import__(module_name, None, None, (fn,))
                 app = getattr(module, fn)()
-            except Exception:
+            except Exception as e:
+                print(f"Error creating app: {e}")
                 eventbus.emit(
                     ShowNotificationEvent(message=f"{item["name"]} has crashed")
                 )
