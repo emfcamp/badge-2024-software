@@ -42,12 +42,13 @@ def recursive_delete(path):
 
 
 def load_info(folder, name, sim):
+    info_file = "{}/{}/metadata.json".format(folder, name)
+    user_app_format_metadata_path = info_file = "{}/{}/__internal__metadata.json".format(folder, name)
+        with open(info_file) as f:
     try:
         if sim:
-            info_file = "{}/{}/metadata.json".format(folder, name)
         else:
-            info_file = "{}/{}/__internal__metadata.json".format(folder, name)
-        with open(info_file) as f:
+            
             information = f.read()
         return json.loads(information)
     except BaseException:
@@ -64,18 +65,13 @@ def list_user_apps():
             return []
 
         for name in contents:
-            sim = path_isfile(f"{APP_DIR}/{name}/__init__.py")
-            store = path_isfile(f"{APP_DIR}/{name}/app.py")
-            if not sim and not store:
-                continue
-
             app = {
                 "path": name,
                 "callable": "main",
                 "name": name,
                 "hidden": False,
             }
-            metadata = load_info(APP_DIR, name, sim)
+            metadata = load_info(APP_DIR, name)
             app.update(metadata)
             if not app["hidden"]:
                 apps.append(app)
@@ -138,12 +134,10 @@ class Launcher(App):
     def launch(self, item):
         module_name = item["path"]
         fn = item["callable"]
-        app_id = f"apps.{module_name}.app"
         app = self._apps.get(app_id)
-        print(self._apps)
         if app is None:
-            print(f"Creating app {app_id}...")
-            module = __import__(app_id, None, None, (fn,))
+            print(f"Creating app {module_name}...")
+            module = __import__(module_name, None, None, (fn,))
             app = getattr(module, fn)()
             self._apps[app_id] = app
             eventbus.emit(RequestStartAppEvent(app, foreground=True))
