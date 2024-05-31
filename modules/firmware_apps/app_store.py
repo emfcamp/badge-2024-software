@@ -240,7 +240,7 @@ class AppStoreApp(app.App):
             self.get_index()
         elif self.state == "wifi_init":
             try:
-                wifi.connect(ssid="Henk", password="espespesp")
+                wifi.connect()
             except Exception:
                 pass
             self.update_state("wifi_connecting")
