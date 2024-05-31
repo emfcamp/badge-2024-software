@@ -10,6 +10,8 @@ def detect_eeprom_addr(i2c):
     devices = i2c.scan()
     if 0x57 in devices and 0x50 not in devices:
         return 0x57
+    if 0xA0 in devices and 0x50 not in devices:
+        return 0xA0
     if 0x50 in devices:
         return 0x50
     return None
