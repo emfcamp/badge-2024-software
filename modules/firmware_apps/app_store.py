@@ -377,7 +377,7 @@ def install_app(app):
             "name": app["manifest"]["app"]["name"],
             "hidden": False,
         }
-        json_path = f"{APP_DIR}/{prefix}/app_data.json"
+        json_path = f"{APP_DIR}/{prefix}/metadata.json"
         print(f"Json path: {json_path}")
         with open(
                 json_path, "w+"
