@@ -2,7 +2,7 @@
 #include "ctx_config.h"
 
 
-#define FLOW3R_CTX_FLAVOUR_SMOL 1
+#define FLOW3R_CTX_FLAVOUR_FULL 1
 
 
 #define STB_IMAGE_IMPLEMENTATION

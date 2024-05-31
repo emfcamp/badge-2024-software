@@ -127,23 +127,6 @@
 #if defined(CONFIG_FLOW3R_CTX_FLAVOUR_FULL)
 
 #include "Arimo-Bold.h"
-#include "Arimo-Italic.h"
-#include "Arimo-BoldItalic.h"
 #define CTX_FONT_1 CTX_STATIC_FONT(Arimo_Bold)
-#define CTX_FONT_2 CTX_STATIC_FONT(Arimo_Italic)
-#define CTX_FONT_3 CTX_STATIC_FONT(Arimo_BoldItalic)
-
-#include "CampFont1/CampFont1.h"
-#include "CampFont2/CampFont2.h"
-#include "CampFont3/CampFont3.h"
-#define CTX_FONT_4 CTX_STATIC_FONT(CampFont1)
-#define CTX_FONT_5 CTX_STATIC_FONT(CampFont2)
-#define CTX_FONT_6 CTX_STATIC_FONT(CampFont3)
-
-#include "MaterialIcons.h"
-#define CTX_FONT_7 CTX_STATIC_FONT(MaterialIcons)
-
-#include "Comic-Mono.h"
-#define CTX_FONT_8 CTX_STATIC_FONT(Comic_Mono)
 
 #endif
