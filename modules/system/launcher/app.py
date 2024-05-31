@@ -148,7 +148,7 @@ class Launcher(App):
             print(f"Creating app {app_id}...")
             module = __import__(module_name, None, None, (fn,))
             app = getattr(module, fn)()
-            self._apps[module_name] = app
+            self._apps[app_id] = app
             eventbus.emit(RequestStartAppEvent(app, foreground=True))
         else:
             eventbus.emit(RequestForegroundPushEvent(app))
