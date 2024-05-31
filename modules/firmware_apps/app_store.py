@@ -37,8 +37,8 @@ APP_STORE_LISTING_LIVE_URL = "https://api.badge.emf.camp/v1/apps"
 APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
 
 CODE_INSTALL = "CodeInstall"
-AVAILABLE = "Available"
-INSTALLED = "Installed"
+AVAILABLE = "StoreInstall"
+INSTALLED = "Uninstall"
 UPDATE = "Update"
 REFRESH = "Refresh Apps"
 
@@ -353,7 +353,7 @@ def install_app(app):
         print("GC")
         gc.collect()
 
-        print(f"Getting {app["tarballUrl"]}")
+        print(f"Getting {app['tarballUrl']}")
         tarball = get(app["tarballUrl"])
         # tarballGenerator = self.download_file(app["tarballUrl"])
 

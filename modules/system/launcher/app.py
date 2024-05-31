@@ -157,7 +157,7 @@ class Launcher(App):
             except Exception as e:
                 print(f"Error creating app: {e}")
                 eventbus.emit(
-                    ShowNotificationEvent(message=f"{item["name"]} has crashed")
+                    ShowNotificationEvent(message=f"{item['name']} has crashed")
                 )
                 return
             self._apps[app_id] = app
