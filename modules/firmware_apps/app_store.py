@@ -354,6 +354,8 @@ def install_app(app):
         t = TarFile(fileobj=tar_bytesio)
         for i in t:
             if i:
+                if not i.name.startswith(prefix):
+                    continue
                 if i.type == DIRTYPE:
                     dirname = f"{APP_DIR}/{i.name}"
                     print(f"Dirname: {dirname}")
