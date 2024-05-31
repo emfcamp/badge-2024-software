@@ -138,12 +138,12 @@ class Launcher(App):
     def launch(self, item):
         module_name = item["path"]
         fn = item["callable"]
-        app_id = f"apps.{module_name}.app"
+        app_id = f"{module_name}.{fn}"
         app = self._apps.get(app_id)
         print(self._apps)
         if app is None:
             print(f"Creating app {app_id}...")
-            module = __import__(app_id, None, None, (fn,))
+            module = __import__(module_name, None, None, (fn,))
             app = getattr(module, fn)()
             self._apps[app_id] = app
             eventbus.emit(RequestStartAppEvent(app, foreground=True))
