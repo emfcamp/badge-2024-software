@@ -9,6 +9,8 @@ from typing import Any, Callable
 
 import app
 import wifi
+import shutil
+import machine
 from app_components import Menu, clear_background, fourteen_pt, sixteen_pt, ten_pt
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from requests import get
@@ -184,10 +186,9 @@ class AppStoreApp(app.App):
             self.update_state("main_menu")
 
         def on_select(value, idx):
-            print(f"SELECTED: {value}, {idx}")
             self.uninstall_app(value)
-            # TODO maybe implement uninstalling apps
-            pass
+            self.cleanup_ui_widgets()
+            self.update_state("main_menu")
 
         installed_apps = list_user_apps()
 
@@ -212,6 +213,9 @@ class AppStoreApp(app.App):
         selected_app_module = selected_app['path']
         selected_app_fs_path = "/" + "/".join(selected_app_module.split(".")[0:-1])
         print(f"Selected app fs path: {selected_app_fs_path}")
+        shutil.rmtree(selected_app_fs_path)
+        eventbus.emit(InstallNotificationEvent())
+        machine.reset()
 
 
 
