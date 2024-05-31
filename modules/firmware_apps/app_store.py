@@ -131,6 +131,8 @@ class AppStoreApp(app.App):
         def on_select(_, i):
             self.to_install_app = self.app_store_index[i]
             self.update_state("installing_app")
+            if self.available_menu:
+                self.available_menu._cleanup()
 
         def exit_available_menu():
             self.cleanup_ui_widgets()
