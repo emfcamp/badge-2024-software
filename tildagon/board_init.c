@@ -1,3 +1,4 @@
+#include "st3m_imu.h"
 
 #include "tildagon_power.h"
 
@@ -20,5 +21,8 @@ void tildagon_startup(void) {
     tildagon_power_init();
 	
     tildagon_usb_init();
+
+    
+    st3m_imu_init();
 
 }

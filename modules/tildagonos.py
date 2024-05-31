@@ -23,8 +23,6 @@ led_colours = [
 
 class _tildagonos:
     def __init__(self):
-        self.pin_reset_i2c = Pin(9, Pin.OUT)
-        self.pin_reset_i2c.on()
         self.system_i2c = I2C(7)
         self.init_gpio()
         self.leds = neopixel.NeoPixel(Pin(21), 19)
