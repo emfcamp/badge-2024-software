@@ -70,7 +70,7 @@ def list_user_apps():
                 continue
 
             app = {
-                "path": name,
+                "path": "apps."+name,
                 "callable": "main",
                 "name": name,
                 "hidden": False,
