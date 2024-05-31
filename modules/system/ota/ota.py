@@ -122,6 +122,7 @@ class OtaUpdate(App):
             response = await self.task
             url = response.headers["Location"]
 
+            """
             self.task = async_helpers.unblock(
                 requests.get,
                 render_update,
@@ -138,7 +139,7 @@ class OtaUpdate(App):
                 release_notes = "\n".join(release_notes)
                 self.notes = layout.DefinitionDisplay("Release notes", release_notes)
                 self.layout.items.append(self.notes)
-
+            """
             try:
                 result = await async_helpers.unblock(
                     ota.update,

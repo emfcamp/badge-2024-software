@@ -41,12 +41,9 @@ def recursive_delete(path):
     os.rmdir(path)
 
 
-def load_info(folder, name, sim):
+def load_info(folder, name):
     try:
-        if sim:
-            info_file = "{}/{}/metadata.json".format(folder, name)
-        else:
-            info_file = "{}/{}/__internal__metadata.json".format(folder, name)
+        info_file = "{}/{}/metadata.json".format(folder, name)
         with open(info_file) as f:
             information = f.read()
         return json.loads(information)
@@ -61,21 +58,20 @@ def list_user_apps():
             contents = os.listdir(APP_DIR)
         except OSError:
             # No apps dir full stop
+            try:
+                os.mkdir(APP_DIR)
+            except OSError:
+                pass
             return []
 
         for name in contents:
-            sim = path_isfile(f"{APP_DIR}/{name}/__init__.py")
-            store = path_isfile(f"{APP_DIR}/{name}/app.py")
-            if not sim and not store:
-                continue
-
             app = {
-                "path": "apps."+name,
-                "callable": "main",
+                "path": f"apps.{name}.app",
+                "callable": "__app_export__",
                 "name": name,
                 "hidden": False,
             }
-            metadata = load_info(APP_DIR, name, sim)
+            metadata = load_info(APP_DIR, name)
             app.update(metadata)
             if not app["hidden"]:
                 apps.append(app)
@@ -98,10 +94,11 @@ class Launcher(App):
     def list_core_apps(self):
         core_app_info = [
             ("App store", "firmware_apps.app_store", "AppStoreApp"),
+            ("Sponsors", "firmware_apps.sponsors", "Sponsors"),
             # ("Name Badge", "hello", "Hello"),
-            ("Logo", "firmware_apps.intro_app", "IntroApp"),
-            ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
-            ("Kbd demo", "firmware_apps.text_demo", "TextDemo"),
+            # ("Logo", "firmware_apps.intro_app", "IntroApp"),
+            # ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
+            # ("Kbd demo", "firmware_apps.text_demo", "TextDemo"),
             # ("Update Firmware", "otaupdate", "OtaUpdate"),
             # ("Inhibit LEDs", "firmware_apps.patterninhibit", "PatternInhibit"),
             # ("Wi-Fi Connect", "wifi_client", "WifiClient"),
@@ -159,6 +156,7 @@ class Launcher(App):
                 break
 
     def back_handler(self):
+        self.menu._cleanup()
         self.update_menu()
         return
         # if self.current_menu == "main":
