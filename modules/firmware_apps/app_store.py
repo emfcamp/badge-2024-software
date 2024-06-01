@@ -95,8 +95,15 @@ class AppStoreApp(app.App):
 
     def handle_index(self):
         if not self.response:
+            print(self.response)
+            self.update_state("no_index")
             return
-        self.app_store_index = self.response.json()["items"]
+        try:
+            self.app_store_index = self.response.json()["items"]
+        except Exception:
+            print(self.response)
+            self.update_state("no_index")
+            return
 
         self.update_state("main_menu")
 
@@ -146,7 +153,6 @@ class AppStoreApp(app.App):
             focused_item_font_size=fourteen_pt,
             item_font_size=ten_pt,
         )
-
 
     def prepare_main_menu(self):
         def on_cancel():
@@ -203,21 +209,19 @@ class AppStoreApp(app.App):
 
     def uninstall_app(self, app):
         user_apps = list_user_apps()
-        selected_app = list(filter(lambda x: x['name'] == app, user_apps))
+        selected_app = list(filter(lambda x: x["name"] == app, user_apps))
         if len(selected_app) == 0:
             raise RuntimeError(f"app not found: {app}")
         if len(selected_app) > 1:
             raise RuntimeError(f"duplicate app found: {app}")
         else:
             selected_app = selected_app[0]
-        selected_app_module = selected_app['path']
+        selected_app_module = selected_app["path"]
         selected_app_fs_path = "/" + "/".join(selected_app_module.split(".")[0:-1])
         print(f"Selected app fs path: {selected_app_fs_path}")
         shutil.rmtree(selected_app_fs_path)
         eventbus.emit(InstallNotificationEvent())
         machine.reset()
-
-
 
     def error_screen(self, ctx, message):
         ctx.save()
@@ -288,6 +292,8 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Connecting\nWi-Fi...\n")
         elif self.state == "refreshing_index":
             self.error_screen(ctx, "Refreshing\napp store\nindex")
+        elif self.state == "no_index":
+            self.error_screen(ctx, "Index\nerror")
         elif self.state == "install_oom":
             self.error_screen(ctx, "Out of memory\n(app too big?)")
         elif self.state == "code_install_input" and self.codeinstall:
@@ -365,7 +371,7 @@ def install_app(app):
         tar_bytesio = io.BytesIO(tar)
 
         print("Validating")
-        prefix = find_app_root_dir(TarFile(fileobj=tar_bytesio)).rstrip('/')
+        prefix = find_app_root_dir(TarFile(fileobj=tar_bytesio)).rstrip("/")
         tar_bytesio.seek(0)
         print(f"Found app prefix: {prefix}")
         app_py_info = find_app_py_file(prefix, TarFile(fileobj=tar_bytesio))
@@ -381,7 +387,7 @@ def install_app(app):
         except OSError:
             pass
 
-        app_module_name = '_'.join(prefix.split('-')[0:-1])
+        app_module_name = "_".join(prefix.split("-")[0:-1])
 
         t = TarFile(fileobj=tar_bytesio)
         for i in t:
