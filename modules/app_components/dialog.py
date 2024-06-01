@@ -69,7 +69,7 @@ class YesNoDialog:
 
 
 class TextDialog:
-    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890-=!\"£$%^&*()_+[];'#,./{}:@~<>?"
 
     def __init__(self, message, app, masked=False, on_complete=None, on_cancel=None):
         self.open = True
