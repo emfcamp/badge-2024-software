@@ -20,7 +20,7 @@ class led():
         # TODO : Ideally shouldn't need to run _setup_leds each use of set_led
         led._setup_leds()
 
-        tildagonos.leds[led_number-1] = state
+        tildagonos.leds[led_number] = state
         tildagonos.leds.write()
 
 
