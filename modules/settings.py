@@ -25,7 +25,10 @@ def set(k, v):
     global _modified
     if _settings is None:
         load()
-    _settings[k] = v
+    if v is None:
+        del _settings[k]
+    else:
+        _settings[k] = v
     _modified = True
 
 
