@@ -14,13 +14,13 @@ class led():
 
     @staticmethod
     def set(led_number, state):
-        if not isinstance(led_number, int) or led_number < 0 or led_number > 7:
-            raise ValueError("led_number must be an integer between 0 and 7")
+        if not isinstance(led_number, int) or led_number < 1 or led_number > 12:
+            raise ValueError("led_number must be an integer between 1 and 12")
 
         # TODO : Ideally shouldn't need to run _setup_leds each use of set_led
         led._setup_leds()
 
-        tildagonos.leds[led_number] = state
+        tildagonos.leds[led_number-1] = state
         tildagonos.leds.write()
 
 
