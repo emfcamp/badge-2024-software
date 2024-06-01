@@ -444,10 +444,13 @@ def find_app_root_dir(tar):
     root_dir = None
     for i, f in enumerate(tar):
         print(f"prefix: {i}, name: {f.name}")
-        slash_count = len(f.name.split("/")) - 1
+        # Normalise directory names between MicroPython's tarfile which uses
+        # "dir/" and Python's tarfile which uses "dir"
+        name = f.name.rstrip("/")
+        slash_count = len(name.split("/"))
         if slash_count == 1 and f.isdir():
             if root_dir is None:
-                root_dir = f.name
+                root_dir = name + "/"
             else:
                 raise ValueError("More than one root directory found in app tarball")
     if root_dir is None:
