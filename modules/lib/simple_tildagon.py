@@ -78,21 +78,21 @@ class imu():
     @staticmethod
     def is_tilted_back():
         acc_read = tilda_imu.acc_read()
-        if acc_read[1] > 4:
+        if acc_read[0] > 4:
             return True
         return False
 
     @staticmethod
     def is_tilted_left():
         acc_read = tilda_imu.acc_read()
-        if acc_read[1] > 4:
+        if acc_read[1] < -4:
             return True
         return False
 
     @staticmethod
     def is_tilted_right():
         acc_read = tilda_imu.acc_read()
-        if acc_read[0] < -4:
+        if acc_read[1] > 4:
             return True
         return False
 
