@@ -38,7 +38,6 @@ class TwentyTwentyFour(FrontBoard):
         while True:
             booped = not machine.Pin(0, mode=machine.Pin.IN).value()
             tildagonos.read_egpios()
-            print(booped)
             if booped:
                 now = time.ticks_ms()
                 for i, gpio in enumerate(
@@ -48,12 +47,13 @@ class TwentyTwentyFour(FrontBoard):
                     button_down = not tildagonos.check_egpio_state(
                         gpio, readgpios=False
                     )
+                    # print(i, now, state)
                     if button_down and state is None:
-                        print(f"Down {i}")
                         hexpansion_states[i + 1] = now
                         await eventbus.emit_async(HexpansionInsertionEvent(port=i + 1))
-                    elif state and time.ticks_diff(now, state) > 5000:
+                    elif state and time.ticks_diff(now, state) > 4000:
                         hexpansion_states[i + 1] = None
+                        # print(f"Removing {i}")
                         await eventbus.emit_async(HexpansionRemovalEvent(port=i + 1))
             else:
                 for button, pin in self.BUTTON_PINS.items():

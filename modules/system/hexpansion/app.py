@@ -148,18 +148,19 @@ class HexpansionManagerApp(app.App):
     def _mount_eeprom(self, eep, port):
         mountpoint = f"/hexpansion_{port}"
 
-        print(mountpoint, os.listdir())
-        if mountpoint in os.listdir():
+        try:
             # This is mounted already, unmount first
             vfs.umount(mountpoint)
+        except OSError:
+            pass
 
         try:
             print(f"Attempting to mount i2c eeprom from hexpansion port {port}")
             vfs.mount(eep, mountpoint)
         except Exception as e:
             print(f"Failed to mount: {e}")
-            self.format_requests.append((eep, port))
-            eventbus.emit(RequestForegroundPushEvent(self))
+            # self.format_requests.append((eep, port))
+            # eventbus.emit(RequestForegroundPushEvent(self))
             return
 
         self.mountpoints[port] = mountpoint
