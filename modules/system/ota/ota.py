@@ -161,7 +161,7 @@ class OtaUpdate(App):
             # window.println("Press [A] to")
             # window.println("reboot and")
             # window.println("finish update.")
-            self.status.value = "Rebooting"
+            self.status.value = "Rebooping"
             await render_update()
             await asyncio.sleep(5)
             machine.reset()
