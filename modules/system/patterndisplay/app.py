@@ -17,7 +17,7 @@ class PatternDisplay(App):
             _pmodule = __import__(_patternpath, globals(), locals(), [_patternclass])
             _pclass = getattr(_pmodule, _patternclass)
             self._p = _pclass()
-            self.enabled = True
+            self.enabled = settings.get("pattern_generator_enabled", True)
         except:
             raise ImportError(f"Pattern {self.pattern} not found!")
 
