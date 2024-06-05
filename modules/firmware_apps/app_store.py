@@ -265,6 +265,8 @@ class AppStoreApp(app.App):
         clear_background(ctx)
         if self.state == "main_menu" and self.menu:
             self.menu.draw(ctx)
+        elif self.state == "main_menu" and not self.menu:
+            self.error_screen(ctx, "Loading...")
         elif self.state == "available_menu" and self.available_menu:
             self.available_menu.draw(ctx)
         elif self.state == "installed_menu" and self.installed_menu:
@@ -281,6 +283,8 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Connecting\nWi-Fi...\n")
         elif self.state == "refreshing_index":
             self.error_screen(ctx, "Refreshing\napp store\nindex")
+        elif self.state == "index_received":
+            self.error_screen(ctx, "App store\nindex\nreceived")
         elif self.state == "install_oom":
             self.error_screen(ctx, "Out of memory\n(app too big?)")
         elif self.state == "code_install_input" and self.codeinstall:
