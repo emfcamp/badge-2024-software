@@ -8,12 +8,14 @@ ppi = display_x / display_height_inches
 
 # Font size
 one_pt = ppi / 72
+seven_pt = 7 * one_pt
 ten_pt = 10 * one_pt
 twelve_pt = 12 * one_pt
 fourteen_pt = 14 * one_pt
 sixteen_pt = 16 * one_pt
 eighteen_pt = 18 * one_pt
 twentyfour_pt = 24 * one_pt
+small_font_size = seven_pt
 label_font_size = ten_pt
 heading_font_size = eighteen_pt
 
