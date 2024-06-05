@@ -4,7 +4,7 @@ import display
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
 
-from .tokens import label_font_size, set_color, small_font_size
+from .tokens import label_font_size, set_color, small_font_size, button_labels
 
 SPECIAL_KEY_META = "..."
 SPECIAL_KEY_DONE = "Done"
@@ -66,6 +66,7 @@ class YesNoDialog:
         display.hexagon(ctx, 0, 0, 120)
 
         self.draw_message(ctx)
+        button_labels(ctx, confirm_label="Yes", cancel_label="No")
         ctx.restore()
 
     def _handle_buttondown(self, event: ButtonDownEvent):
@@ -157,25 +158,6 @@ class TextDialog:
         ctx.move_to(0, -15).text(self.message)
         ctx.move_to(0, 15).text(self.text if not self.masked else ("*" * len(self.text)))
 
-    def draw_legend(self, ctx):
-        if len(self._keys) != 6:
-            return
-
-        set_color(ctx, "label")
-
-        ctx.font_size = small_font_size
-        ctx.text_align = ctx.CENTER
-        ctx.text_baseline = ctx.MIDDLE
-        ctx.move_to(0, -100).text(''.join(self._keys[0]))
-        ctx.move_to(0, 100).text(''.join(self._keys[3]))
-
-        ctx.text_align = ctx.RIGHT
-        ctx.move_to(75, -75).text(''.join(self._keys[1]))
-        ctx.move_to(75, 75).text(''.join(self._keys[2]))
-
-        ctx.text_align = ctx.LEFT
-        ctx.move_to(-75, -75).text(''.join(self._keys[5]))
-        ctx.move_to(-75, 75).text(''.join(self._keys[4]))
 
     def draw(self, ctx):
         ctx.save()
@@ -183,7 +165,15 @@ class TextDialog:
         display.hexagon(ctx, 0, 0, 120)
 
         self.draw_message(ctx)
-        self.draw_legend(ctx)
+        if len(self._keys) == 6:
+            button_labels(ctx,
+                          up_label=''.join(self._keys[0]),
+                          down_label=''.join(self._keys[3]),
+                          left_label=''.join(self._keys[4]),
+                          right_label=''.join(self._keys[1]),
+                          confirm_label=''.join(self._keys[2]),
+                          cancel_label=''.join(self._keys[5]))
+
         ctx.restore()
 
     def _handle_buttondown(self, event: ButtonDownEvent):
