@@ -68,11 +68,11 @@ class _tildagonos:
         portstates = list(map(int, self.system_i2c.readfrom_mem(pin[0], 0x02, 2)))
         if state:
             self.system_i2c.writeto_mem(
-                0x5A, 0x02 + pin[1], bytes([portstates[pin[1]] | pin[2]])
+                pin[0], 0x02 + pin[1], bytes([portstates[pin[1]] | pin[2]])
             )
         else:
             self.system_i2c.writeto_mem(
-                0x5A, 0x02 + pin[1], bytes([portstates[pin[1]] & (pin[2] ^ 0xFF)])
+                pin[0], 0x02 + pin[1], bytes([portstates[pin[1]] & (pin[2] ^ 0xFF)])
             )
 
     def read_egpios(self):
