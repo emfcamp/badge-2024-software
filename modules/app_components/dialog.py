@@ -4,7 +4,21 @@ import display
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
 
-from .tokens import label_font_size, set_color
+from .tokens import label_font_size, set_color, small_font_size
+
+SPECIAL_KEY_META = "..."
+SPECIAL_KEY_DONE = "Done"
+SPECIAL_KEY_BACK = "Back"
+SPECIAL_KEY_CANCEL = "Cancel"
+SPECIAL_KEY_BACKSPACE = "Bksp"
+SPECIAL_KEY_SYMBOL = "Sym"
+SPECIAL_KEY_SHIFT = "Shift"
+SPECIAL_KEY_CAPS = "Caps Lock"
+SPECIAL_KEY_SPACE = "Space"
+
+LOWERCASE_ALPHABET = list("abcdefghijklmnopqrstuvwxyz")
+UPPERCASE_ALPHABET = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890")
+SYMBOL_ALPHABET = list("-=!\"£$%^&*()_+[];'#,./{}:@~<>?") + [SPECIAL_KEY_SPACE]
 
 
 class YesNoDialog:
@@ -69,8 +83,6 @@ class YesNoDialog:
 
 
 class TextDialog:
-    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890-=!\"£$%^&*()_+[];'#,./{}:@~<>?"
-
     def __init__(self, message, app, masked=False, on_complete=None, on_cancel=None):
         self.open = True
         self.app = app
@@ -79,9 +91,46 @@ class TextDialog:
         self.complete_handler = on_complete
         self.masked = masked
         self.text = ""
-        self.current = 0
+        self._current_alphabet = LOWERCASE_ALPHABET
+        self._keys = []
+        self._caps = False
+        self._layer = 0
         self._result = None
         eventbus.on(ButtonDownEvent, self._handle_buttondown, self.app)
+        self._update_keys()
+
+
+    def _update_keys(self):
+        if self._layer == -1:
+            self._keys = [
+                [SPECIAL_KEY_CANCEL],
+                [SPECIAL_KEY_SYMBOL],
+                [SPECIAL_KEY_SHIFT],
+                [SPECIAL_KEY_CAPS],
+                [SPECIAL_KEY_BACKSPACE],
+                [SPECIAL_KEY_BACK],
+            ]
+            return
+
+        buttons = 4 if self._layer == 0 else 6
+        group_size = len(self._current_alphabet) // buttons
+
+        if group_size == 0:
+            group_size = 1
+
+        self._keys = []
+        for i in range(buttons):
+            start_index = group_size * i
+            end_index = (group_size * i) + group_size
+
+            if i + 1 == buttons:
+                end_index = len(self._current_alphabet)
+
+            self._keys.append(self._current_alphabet[start_index:end_index])
+
+        if self._layer == 0:
+            self._keys.insert(4, [SPECIAL_KEY_META])
+            self._keys.insert(2, [SPECIAL_KEY_DONE])
 
     def _cleanup(self):
         eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
@@ -106,12 +155,27 @@ class TextDialog:
         set_color(ctx, "label")
 
         ctx.move_to(0, -15).text(self.message)
-        ctx.move_to(0, 15).text(
-            (self.text if not self.masked else ("*" * len(self.text)))
-            + "["
-            + self.alphabet[self.current]
-            + "]"
-        )
+        ctx.move_to(0, 15).text(self.text if not self.masked else ("*" * len(self.text)))
+
+    def draw_legend(self, ctx):
+        if len(self._keys) != 6:
+            return
+
+        set_color(ctx, "label")
+
+        ctx.font_size = small_font_size
+        ctx.text_align = ctx.CENTER
+        ctx.text_baseline = ctx.MIDDLE
+        ctx.move_to(0, -100).text(''.join(self._keys[0]))
+        ctx.move_to(0, 100).text(''.join(self._keys[3]))
+
+        ctx.text_align = ctx.RIGHT
+        ctx.move_to(75, -75).text(''.join(self._keys[1]))
+        ctx.move_to(75, 75).text(''.join(self._keys[2]))
+
+        ctx.text_align = ctx.LEFT
+        ctx.move_to(-75, -75).text(''.join(self._keys[5]))
+        ctx.move_to(-75, 75).text(''.join(self._keys[4]))
 
     def draw(self, ctx):
         ctx.save()
@@ -119,30 +183,69 @@ class TextDialog:
         display.hexagon(ctx, 0, 0, 120)
 
         self.draw_message(ctx)
+        self.draw_legend(ctx)
         ctx.restore()
 
     def _handle_buttondown(self, event: ButtonDownEvent):
-        if BUTTON_TYPES["CANCEL"] in event.button:
-            self._cleanup()
-            self._result = False
-            if self.cancel_handler is not None:
-                self.cancel_handler()
-
-        if BUTTON_TYPES["CONFIRM"] in event.button:
-            self._cleanup()
-            self._result = self.text
-            if self.complete_handler is not None:
-                self.complete_handler()
+        key = -1
 
         if BUTTON_TYPES["UP"] in event.button:
-            self.current = (self.current - 1) % len(self.alphabet)
+            key = 0
+        elif BUTTON_TYPES["RIGHT"] in event.button:
+            key = 1
+        elif BUTTON_TYPES["DOWN"] in event.button:
+            key = 3
+        elif BUTTON_TYPES["LEFT"] in event.button:
+            key = 4
+        elif BUTTON_TYPES["CANCEL"] in event.button:
+            key = 5
+        elif BUTTON_TYPES["CONFIRM"] in event.button:
+            key = 2
 
-        if BUTTON_TYPES["DOWN"] in event.button:
-            self.current = (self.current + 1) % len(self.alphabet)
+        if key == -1:
+            return
 
-        if BUTTON_TYPES["RIGHT"] in event.button:
-            self.text += self.alphabet[self.current]
+        selected = self._keys[key]
+        if len(selected) == 1:
+            selected = self._keys[key][0]
 
-        if BUTTON_TYPES["LEFT"] in event.button:
-            if len(self.text) > 0:
+            if selected == SPECIAL_KEY_SPACE:
+                selected = " "
+
+            if selected == SPECIAL_KEY_DONE:
+                self._cleanup()
+                self._result = self.text
+                if self.complete_handler is not None:
+                    self.complete_handler()
+            elif selected == SPECIAL_KEY_CANCEL:
+                self._cleanup()
+                self._result = False
+                if self.cancel_handler is not None:
+                    self.cancel_handler()
+            elif selected == SPECIAL_KEY_BACKSPACE:
                 self.text = self.text[:-1]
+            elif selected == SPECIAL_KEY_BACK:
+                self._layer = 0
+            elif selected == SPECIAL_KEY_META:
+                self._layer = -1
+            elif selected == SPECIAL_KEY_SYMBOL:
+                self._layer = 0
+                self._current_alphabet = SYMBOL_ALPHABET
+            elif selected == SPECIAL_KEY_SHIFT or selected == SPECIAL_KEY_CAPS:
+                self._layer = 0
+                self._current_alphabet = UPPERCASE_ALPHABET
+                if selected == SPECIAL_KEY_CAPS:
+                    self._caps = True
+            else:
+                self.text += selected
+                self._layer = 0
+
+                if self._caps:
+                    self._current_alphabet = UPPERCASE_ALPHABET
+                else:
+                    self._current_alphabet = LOWERCASE_ALPHABET
+        elif len(selected) > 0:
+            self._current_alphabet = selected
+            self._layer = 1
+
+        self._update_keys()
