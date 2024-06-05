@@ -41,6 +41,12 @@ class Pin:
         self.name = pin_name
         self.pin = HEXPANSION_GPIOS[pin_name]
         self.mode = mode
+        if self.mode in (machine.Pin.IN, -1):
+            tildagonos.set_pin_mode(self.pin, machine.Pin.IN)
+        elif self.mode == machine.Pin.OUT:
+            tildagonos.set_pin_mode(self.pin, machine.Pin.OUT)
+        else:
+            raise ValueError("Invalid pin mode")
 
     def on(self):
         self.value(1)
