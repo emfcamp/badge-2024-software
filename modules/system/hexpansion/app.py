@@ -236,6 +236,13 @@ class HexpansionManagerApp(app.App):
                     hexpansion_present = not tildagonos.check_egpio_state(
                         n, readgpios=False
                     )
+                    if hexpansion_present:
+                        if settings.get("pattern_mirror_hexpansions", False):
+                            tildagonos.leds[13 + i] = tildagonos.leds[1 + (i * 2)]
+                        else:
+                            tildagonos.leds[13 + i] = led_colours[i]
+                    else:
+                        tildagonos.leds[13 + i] = (0, 0, 0)
                     if hexpansion_present and not hexpansion_plugin_states[i]:
                         hexpansion_plugin_states[i] = True
                         eventbus.emit(HexpansionInsertionEvent(port=i + 1))

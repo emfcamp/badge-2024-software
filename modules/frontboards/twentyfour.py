@@ -34,14 +34,7 @@ class TwentyTwentyFour(FrontBoard):
         display.gfx_init()
 
         button_states = {button: False for button in self.BUTTON_PINS.keys()}
-        hexpansion_states = {
-            1: {"inserted": None, "removed": None},
-            2: {"inserted": None, "removed": None},
-            3: {"inserted": None, "removed": None},
-            4: {"inserted": None, "removed": None},
-            5: {"inserted": None, "removed": None},
-            6: {"inserted": None, "removed": None},
-        }
+        hexpansion_states = {1: None, 2: None, 3: None, 4: None, 5: None, 6: None}
         while True:
             booped = not machine.Pin(0, mode=machine.Pin.IN).value()
             tildagonos.read_egpios()
@@ -50,27 +43,16 @@ class TwentyTwentyFour(FrontBoard):
                 for i, gpio in enumerate(
                     map(lambda i: self.BUTTON_PINS[BUTTONS[i]], "ABCDEF")
                 ):
-                    inserted_state = hexpansion_states[i + 1]['inserted']
-                    removed_state = hexpansion_states[i + 1]['removed']
+                    state = hexpansion_states[i + 1]
                     button_down = not tildagonos.check_egpio_state(
                         gpio, readgpios=False
                     )
                     # print(i, now, state)
-                    if (
-                        button_down
-                        and inserted_state is None
-                        and time.ticks_diff(now, removed_state) > 1000
-                    ):
-                        hexpansion_states[i + 1]['inserted'] = now
-                        hexpansion_states[i + 1]['removed'] = None
+                    if button_down and state is None:
+                        hexpansion_states[i + 1] = now
                         await eventbus.emit_async(HexpansionInsertionEvent(port=i + 1))
-                    elif (
-                        button_down
-                        and inserted_state
-                        and time.ticks_diff(now, inserted_state) > 1000
-                    ):
-                        hexpansion_states[i + 1]['inserted'] = None
-                        hexpansion_states[i + 1]['removed'] = now
+                    elif state and time.ticks_diff(now, state) > 4000:
+                        hexpansion_states[i + 1] = None
                         # print(f"Removing {i}")
                         await eventbus.emit_async(HexpansionRemovalEvent(port=i + 1))
             else:
