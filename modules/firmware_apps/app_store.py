@@ -33,7 +33,6 @@ def file_exists(filename):
         return False
 
 
-APP_STORE_LISTING_LIVE_URL = "https://api.badge.emf.camp/v1/apps"
 APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
 
 CODE_INSTALL = "CodeInstall"
@@ -81,13 +80,10 @@ class AppStoreApp(app.App):
     def background_update(self, delta):
         if self.state == "refreshing_index":
             try:
-                self.response = get(APP_STORE_LISTING_LIVE_URL)
+                self.response = get(APP_STORE_LISTING_URL)
             except Exception:
-                try:
-                    self.response = get(APP_STORE_LISTING_URL)
-                except Exception:
-                    self.update_state("no_index")
-                    return
+                self.update_state("no_index")
+                return
             self.update_state("index_received")
         if self.to_install_app:
             self.install_app(self.to_install_app)
