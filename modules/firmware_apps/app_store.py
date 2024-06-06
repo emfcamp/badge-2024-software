@@ -33,7 +33,6 @@ def file_exists(filename):
         return False
 
 
-APP_STORE_LISTING_LIVE_URL = "https://api.badge.emf.camp/v1/apps"
 APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
 
 CODE_INSTALL = "CodeInstall"
@@ -81,13 +80,10 @@ class AppStoreApp(app.App):
     def background_update(self, delta):
         if self.state == "refreshing_index":
             try:
-                self.response = get(APP_STORE_LISTING_LIVE_URL)
+                self.response = get(APP_STORE_LISTING_URL)
             except Exception:
-                try:
-                    self.response = get(APP_STORE_LISTING_URL)
-                except Exception:
-                    self.update_state("no_index")
-                    return
+                self.update_state("no_index")
+                return
             self.update_state("index_received")
         if self.to_install_app:
             self.install_app(self.to_install_app)
@@ -146,7 +142,6 @@ class AppStoreApp(app.App):
             focused_item_font_size=fourteen_pt,
             item_font_size=ten_pt,
         )
-
 
     def prepare_main_menu(self):
         def on_cancel():
@@ -217,8 +212,6 @@ class AppStoreApp(app.App):
         eventbus.emit(InstallNotificationEvent())
         machine.reset()
 
-
-
     def error_screen(self, ctx, message):
         ctx.save()
         ctx.text_align = ctx.CENTER
@@ -272,6 +265,8 @@ class AppStoreApp(app.App):
         clear_background(ctx)
         if self.state == "main_menu" and self.menu:
             self.menu.draw(ctx)
+        elif self.state == "main_menu" and not self.menu:
+            self.error_screen(ctx, "Loading...")
         elif self.state == "available_menu" and self.available_menu:
             self.available_menu.draw(ctx)
         elif self.state == "installed_menu" and self.installed_menu:
@@ -288,6 +283,8 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Connecting\nWi-Fi...\n")
         elif self.state == "refreshing_index":
             self.error_screen(ctx, "Refreshing\napp store\nindex")
+        elif self.state == "index_received":
+            self.error_screen(ctx, "App store\nindex\nreceived")
         elif self.state == "install_oom":
             self.error_screen(ctx, "Out of memory\n(app too big?)")
         elif self.state == "code_install_input" and self.codeinstall:
