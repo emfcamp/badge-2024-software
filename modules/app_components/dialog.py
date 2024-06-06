@@ -4,7 +4,7 @@ import display
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
 
-from .tokens import label_font_size, set_color, small_font_size, button_labels
+from .tokens import button_labels, label_font_size, set_color
 
 SPECIAL_KEY_META = "..."
 SPECIAL_KEY_DONE = "Done"
@@ -100,7 +100,6 @@ class TextDialog:
         eventbus.on(ButtonDownEvent, self._handle_buttondown, self.app)
         self._update_keys()
 
-
     def _update_keys(self):
         if self._layer == -1:
             self._keys = [
@@ -156,8 +155,9 @@ class TextDialog:
         set_color(ctx, "label")
 
         ctx.move_to(0, -15).text(self.message)
-        ctx.move_to(0, 15).text(self.text if not self.masked else ("*" * len(self.text)))
-
+        ctx.move_to(0, 15).text(
+            self.text if not self.masked else ("*" * len(self.text))
+        )
 
     def draw(self, ctx):
         ctx.save()
@@ -166,13 +166,15 @@ class TextDialog:
 
         self.draw_message(ctx)
         if len(self._keys) == 6:
-            button_labels(ctx,
-                          up_label=''.join(self._keys[0]),
-                          down_label=''.join(self._keys[3]),
-                          left_label=''.join(self._keys[4]),
-                          right_label=''.join(self._keys[1]),
-                          confirm_label=''.join(self._keys[2]),
-                          cancel_label=''.join(self._keys[5]))
+            button_labels(
+                ctx,
+                up_label="".join(self._keys[0]),
+                down_label="".join(self._keys[3]),
+                left_label="".join(self._keys[4]),
+                right_label="".join(self._keys[1]),
+                confirm_label="".join(self._keys[2]),
+                cancel_label="".join(self._keys[5]),
+            )
 
         ctx.restore()
 

@@ -56,7 +56,15 @@ def set_color(ctx, color):
     ctx.rgb(*ui_colors.get(color, colors.get(color, color)))
 
 
-def button_labels(ctx, up_label=None, down_label=None, left_label=None, right_label=None, cancel_label=None, confirm_label=None):
+def button_labels(
+    ctx,
+    up_label=None,
+    down_label=None,
+    left_label=None,
+    right_label=None,
+    cancel_label=None,
+    confirm_label=None,
+):
     set_color(ctx, "label")
 
     ctx.font_size = small_font_size
