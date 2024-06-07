@@ -12,6 +12,13 @@ def string_formatter(value):
         return str(value)
 
 
+def masked_string_formatter(value):
+    if value is None:
+        return "Default"
+    else:
+        return "*" * 8
+
+
 def pct_formatter(value):
     if value is None:
         return "Default"
@@ -39,6 +46,10 @@ class SettingsApp(app.App):
 
     async def string_editor(self, label, id, render_update):
         self.dialog = TextDialog(label, self)
+        self.dialog._settings_id = id
+
+    async def masked_string_editor(self, label, id, render_update):
+        self.dialog = TextDialog(label, self, masked=True)
         self.dialog._settings_id = id
 
     async def _button_handler(self, event):
@@ -168,7 +179,12 @@ class SettingsApp(app.App):
                 None,
             ),
             ("wifi_ssid", "WiFi SSID", string_formatter, self.string_editor),
-            ("wifi_password", "WiFi password", string_formatter, self.string_editor),
+            (
+                "wifi_password",
+                "WiFi password",
+                masked_string_formatter,
+                self.masked_string_editor,
+            ),
             (
                 "wifi_wpa2ent_username",
                 "WPA2 Enterprise Username",
