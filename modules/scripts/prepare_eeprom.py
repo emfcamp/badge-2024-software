@@ -29,6 +29,7 @@ header = HexpansionHeader(
     friendly_name="Flopagon",
 )
 
+
 # Determine amount of bytes in internal address
 addr_len = 2 if header.eeprom_total_size > 256 else 1
 print(f"Using {addr_len} bytes for eeprom internal address")

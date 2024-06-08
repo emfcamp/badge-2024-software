@@ -60,6 +60,7 @@ def get_hexpansion_block_devices(i2c, header, addr=0x50):
         chip_size=header.eeprom_total_size,
         page_size=header.eeprom_page_size,
         addr=addr,
+        max_chips_count = 1
     )
     partition = EEPROMPartition(
         eep=eep,
