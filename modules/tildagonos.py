@@ -77,8 +77,10 @@ class _tildagonos:
 
     def read_egpios(self):
         for i in [0x58, 0x59, 0x5A]:
-            portstates = list(map(int, self.system_i2c.readfrom_mem(i, 0x00, 2)))
-            self.gpiodata[i] = tuple(portstates)
+            self.gpiodata[i] = (
+                self.system_i2c.readfrom_mem(i, 0, 1)[0],
+                self.system_i2c.readfrom_mem(i, 1, 1)[0],
+            )
 
     def check_egpio_state(self, pin, readgpios=True):
         if pin[0] not in self.gpiodata or readgpios:
