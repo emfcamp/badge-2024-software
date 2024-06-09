@@ -1,2 +1,5 @@
 .vscode
 .idea
+
+*.pyc
+*.pyo
