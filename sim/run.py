@@ -89,15 +89,15 @@ except:
 
 
 def _path_replace(p):
-    if p.startswith("/flash/sys"):
+    if str(p).startswith("/flash/sys"):
         p = p[len("/flash/sys") :]
         p = projectpath + "/modules/" + p
         return p
-    if p.startswith("/flash"):
+    if str(p).startswith("/flash"):
         p = p[len("/flash") :]
         p = simpath + p
         return p
-    if p.startswith("/apps"):
+    if str(p).startswith("/apps"):
         dir = os.path.dirname(__file__)
         p = f"{dir}{p}"
     return p
