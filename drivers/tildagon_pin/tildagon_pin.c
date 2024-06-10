@@ -46,12 +46,6 @@
 
 #include "py/mpprint.h"
 
-
-// Used to implement a range of pull capabilities
-#define GPIO_PULL_DOWN (1)
-#define GPIO_PULL_UP   (2)
-
-
 // Return the tildagon_pin_obj_t pointer corresponding to a tildagon_pin_irq_obj_t pointer.
 #define PIN_OBJ_PTR_FROM_IRQ_OBJ_PTR(self) ((tildagon_pin_obj_t *)((uintptr_t)(self) - offsetof(tildagon_pin_obj_t, irq)))
 
@@ -93,18 +87,16 @@ void tildagon_pins_init(void) {
             ext_pin[i].mux = tildagon_get_i2c_mux();
             aw9523b_init(&ext_pin[i]);
         }
+        // setup outputs mux [2] 2, 4 and 5. 5v sw, usb mux and led sw 
+        aw9523b_pin_set_direction( &ext_pin[2], 2,  false );
+        aw9523b_pin_set_output( &ext_pin[2], 2,  false );
+        aw9523b_pin_set_direction( &ext_pin[2], 4,  false );
+        aw9523b_pin_set_output( &ext_pin[2], 4,  false );
+        aw9523b_pin_set_direction( &ext_pin[2], 5,  false );
+        aw9523b_pin_set_output( &ext_pin[2], 5,  false );
         did_install = true;
     }
     memset(&MP_STATE_PORT(tildagon_pin_irq_handler[0]), 0, sizeof(MP_STATE_PORT(tildagon_pin_irq_handler)));
-}
-
-void tildagon_pins_deinit(void) {
-    for (int i = 0; i < MP_ARRAY_SIZE(tildagon_pin_obj_table); ++i) {
-        if (tildagon_pin_obj_table[i].base.type != NULL) {
-            // gpio_isr_handler_remove(i);
-            // TODO: work out what to do here!
-        }
-    }
 }
 
 static void tildagon_pin_isr_handler(void *arg) {
@@ -144,7 +136,7 @@ static const tildagon_pin_obj_t *tildagon_pin_find(mp_obj_t pin_in) {
         }
     }
 
-    mp_raise_ValueError(MP_ERROR_TEXT("invalid pin"));
+    mp_raise_ValueError(MP_ERROR_TEXT("invalid LS pin"));
 }
 
 gpio_num_t tildagon_pin_get_id(mp_obj_t pin_in) {
@@ -157,61 +149,40 @@ static void tildagon_pin_print(const mp_print_t *print, mp_obj_t self_in, mp_pri
     mp_printf(print, "Pin(%u)", PIN_OBJ_PTR_INDEX(self));
 }
 
-// pin.init(mode=None, pull=-1, *, value, drive, hold)
+// pin.init(mode=None, value)
 static mp_obj_t tildagon_pin_obj_init_helper(const tildagon_pin_obj_t *self, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_mode, ARG_pull, ARG_value, ARG_drive, ARG_hold };
+    enum { ARG_mode, ARG_value };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_mode, MP_ARG_OBJ, {.u_obj = mp_const_none}},
-        { MP_QSTR_pull, MP_ARG_OBJ, {.u_obj = MP_OBJ_NEW_SMALL_INT(-1)}},
         { MP_QSTR_value, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}},
-        { MP_QSTR_drive, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}},
-        { MP_QSTR_hold, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}},
     };
 
     // parse args
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
-    gpio_num_t index = PIN_OBJ_PTR_INDEX(self);
     aw9523b_device_t *dev = PIN_OBJ_PTR_DEVICE(self);
     aw9523b_pin_t pin = PIN_OBJ_PTR_PORTPIN(self);
-
-
-    // configure the pin for gpio
-    aw9523b_pin_set_mode(dev, pin, AW9523B_PIN_MODE_GPIO);
-
 
     // set initial value (do this before configuring mode/pull)
     if (args[ARG_value].u_obj != MP_OBJ_NULL) {
         aw9523b_pin_set_output(dev, pin, mp_obj_is_true(args[ARG_value].u_obj));
     }
 
-    // set drive capability (do this before configuring mode)
-    if (args[ARG_drive].u_obj != MP_OBJ_NULL && PORTPIN_IS_VALID_LED(pin)) {
-        mp_int_t strength = mp_obj_get_int(args[ARG_drive].u_obj);
-        if (0 <= strength && strength < 255) {
-            gpio_set_drive_capability(index, strength);
-            aw9523b_pin_set_drive(dev, pin, strength);
-        }
-    }
-
     // configure mode
     if (args[ARG_mode].u_obj != mp_const_none) {
         mp_int_t pin_io_mode = mp_obj_get_int(args[ARG_mode].u_obj);
-        #ifdef GPIO_FIRST_NON_OUTPUT
-        if (index >= GPIO_FIRST_NON_OUTPUT && (pin_io_mode & GPIO_MODE_DEF_OUTPUT)) {
-            mp_raise_ValueError(MP_ERROR_TEXT("pin can only be input"));
+        if ( pin_io_mode == 2 )
+        {
+            aw9523b_pin_set_mode(dev, pin, AW9523B_PIN_MODE_LED);
         }
-        #endif
-        gpio_set_direction(index, pin_io_mode);
-        aw9523b_pin_set_direction(dev, pin, pin_io_mode);
+        else
+        {
+            // configure the pin for gpio
+            aw9523b_pin_set_mode(dev, pin, AW9523B_PIN_MODE_GPIO);
+            aw9523b_pin_set_direction(dev, pin, pin_io_mode);
+        }
     }
-
-    // configure pull
-    if (args[ARG_pull].u_obj != MP_OBJ_NEW_SMALL_INT(-1)) {
-        mp_raise_ValueError(MP_ERROR_TEXT("AW9523B does not support pull-up/pull-down"));
-    }
-
 
     return mp_const_none;
 }
@@ -237,7 +208,6 @@ mp_obj_t mp_tildagon_pin_make_new(const mp_obj_type_t *type, size_t n_args, size
 static mp_obj_t tildagon_pin_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 0, 1, false);
     tildagon_pin_obj_t *self = self_in;
-    gpio_num_t index = PIN_OBJ_PTR_INDEX(self);
     aw9523b_device_t *dev = PIN_OBJ_PTR_DEVICE(self);
     aw9523b_pin_t pin = PIN_OBJ_PTR_PORTPIN(self);
     if (n_args == 0) {
@@ -277,7 +247,6 @@ static mp_obj_t tildagon_pin_on(mp_obj_t self_in) {
     tildagon_pin_obj_t *self = MP_OBJ_TO_PTR(self_in);
     aw9523b_device_t *dev = PIN_OBJ_PTR_DEVICE(self);
     aw9523b_pin_t pin = PIN_OBJ_PTR_PORTPIN(self);
-    mp_printf(&mp_plat_print, "output %p %d %d\n", dev, pin, 1);
     aw9523b_pin_set_output(dev, pin, 1);
     return mp_const_none;
 }
@@ -285,11 +254,10 @@ static MP_DEFINE_CONST_FUN_OBJ_1(tildagon_pin_on_obj, tildagon_pin_on);
 
 // pin.irq(handler=None, trigger=IRQ_FALLING|IRQ_RISING)
 static mp_obj_t tildagon_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_handler, ARG_trigger, ARG_wake };
+    enum { ARG_handler, ARG_trigger };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_handler, MP_ARG_OBJ, {.u_obj = mp_const_none} },
-        // { MP_QSTR_trigger, MP_ARG_INT, {.u_int = GPIO_INTR_POSEDGE | GPIO_INTR_NEGEDGE} },
-        { MP_QSTR_wake, MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_trigger, MP_ARG_INT, {.u_int = GPIO_INTR_POSEDGE | GPIO_INTR_NEGEDGE} },
     };
     tildagon_pin_obj_t *self = MP_OBJ_TO_PTR(pos_args[0]);
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
@@ -301,7 +269,7 @@ static mp_obj_t tildagon_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map
         aw9523b_pin_t pin = PIN_OBJ_PTR_PORTPIN(self);
         uint8_t index = PIN_OBJ_PTR_INDEX(self);
         mp_obj_t handler = args[ARG_handler].u_obj;
-        mp_obj_t wake_obj = args[ARG_wake].u_obj;
+        //mp_obj_t trigger = args[ARG_trigger].u_obj;
 
         if (handler != mp_const_none) {
             aw9523b_irq_register(dev, pin, tildagon_pin_isr_handler, self);
@@ -318,7 +286,30 @@ static mp_obj_t tildagon_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map
     // return the irq object
     return MP_OBJ_FROM_PTR(&self->irq);
 }
-static MP_DEFINE_CONST_FUN_OBJ_KW(tildagon_pin_irq_obj, 1, tildagon_pin_irq);
+//static MP_DEFINE_CONST_FUN_OBJ_KW(tildagon_pin_irq_obj, 1, tildagon_pin_irq);
+
+static mp_obj_t tildagon_pin_pwm(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    enum { ARG_pwm_value };
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_pwmvalue, MP_ARG_OBJ, {.u_obj = mp_const_none} },    
+    };
+    tildagon_pin_obj_t *self = MP_OBJ_TO_PTR(pos_args[0]);
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    if (n_args > 1 || kw_args->used != 0) {
+          // configure irq
+        aw9523b_device_t *dev = PIN_OBJ_PTR_DEVICE(self);
+        aw9523b_pin_t pin = PIN_OBJ_PTR_PORTPIN(self);
+        mp_obj_t pwm_value = args[ARG_pwm_value].u_obj;
+        uint8_t pwm = mp_obj_get_int(pwm_value);
+        aw9523b_pin_set_drive( dev, pin, pwm );
+    }
+    
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_KW(tildagon_pin_pwm_obj, 1, tildagon_pin_pwm);
 
 MP_DEFINE_CONST_OBJ_TYPE(
     tildagon_pin_board_pins_obj_type,
@@ -333,27 +324,23 @@ static const mp_rom_map_elem_t tildagon_pin_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_value), MP_ROM_PTR(&tildagon_pin_value_obj) },
     { MP_ROM_QSTR(MP_QSTR_off), MP_ROM_PTR(&tildagon_pin_off_obj) },
     { MP_ROM_QSTR(MP_QSTR_on), MP_ROM_PTR(&tildagon_pin_on_obj) },
-    { MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&tildagon_pin_irq_obj) },
+    //{ MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&tildagon_pin_irq_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pwm), MP_ROM_PTR(&tildagon_pin_pwm_obj) },
 
     // class attributes
     { MP_ROM_QSTR(MP_QSTR_board), MP_ROM_PTR(&tildagon_pin_board_pins_obj_type) },
 
     // class constants
-    { MP_ROM_QSTR(MP_QSTR_IN), MP_ROM_INT(GPIO_MODE_INPUT) },
-    { MP_ROM_QSTR(MP_QSTR_OUT), MP_ROM_INT(GPIO_MODE_INPUT_OUTPUT) },
-    { MP_ROM_QSTR(MP_QSTR_OPEN_DRAIN), MP_ROM_INT(GPIO_MODE_INPUT_OUTPUT_OD) },
-    { MP_ROM_QSTR(MP_QSTR_PULL_UP), MP_ROM_INT(GPIO_PULL_UP) },
-    { MP_ROM_QSTR(MP_QSTR_PULL_DOWN), MP_ROM_INT(GPIO_PULL_DOWN) },
-    { MP_ROM_QSTR(MP_QSTR_IRQ_RISING), MP_ROM_INT(GPIO_INTR_POSEDGE) },
-    { MP_ROM_QSTR(MP_QSTR_IRQ_FALLING), MP_ROM_INT(GPIO_INTR_NEGEDGE) },
-    { MP_ROM_QSTR(MP_QSTR_WAKE_LOW), MP_ROM_INT(GPIO_INTR_LOW_LEVEL) },
-    { MP_ROM_QSTR(MP_QSTR_WAKE_HIGH), MP_ROM_INT(GPIO_INTR_HIGH_LEVEL) },
+    { MP_ROM_QSTR(MP_QSTR_IN), MP_ROM_INT(1) },
+    { MP_ROM_QSTR(MP_QSTR_OUT), MP_ROM_INT(0) },
+    { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_INT(2) },
+    //{ MP_ROM_QSTR(MP_QSTR_IRQ_RISING), MP_ROM_INT(GPIO_INTR_POSEDGE) },
+    //{ MP_ROM_QSTR(MP_QSTR_IRQ_FALLING), MP_ROM_INT(GPIO_INTR_NEGEDGE) },
 };
 
 static mp_uint_t tildagon_pin_ioctl(mp_obj_t self_in, mp_uint_t request, uintptr_t arg, int *errcode) {
     (void)errcode;
     tildagon_pin_obj_t *self = self_in;
-    gpio_num_t index = PIN_OBJ_PTR_INDEX(self);
     aw9523b_device_t *dev = PIN_OBJ_PTR_DEVICE(self);
     aw9523b_pin_t pin = PIN_OBJ_PTR_PORTPIN(self);
 
