@@ -1,13 +1,13 @@
 # A easy to use module for the basic components of the tildagon badge
 
 from tildagonos import tildagonos
+import tildagon
 import imu as tilda_imu
 import math
 import time
 
 
-class led():
-
+class led:
     @staticmethod
     def _setup_leds():
         tildagonos.set_led_power(True)
@@ -24,28 +24,29 @@ class led():
         tildagonos.leds.write()
 
 
-class button():
-
+class button:
     @staticmethod
     def get(button_letter):
         button_letter = button_letter.lower()
         button_letters = {
-            "a": (0x5A, 0, (1 << 6)),
-            "b": (0x5A, 0, (1 << 7)),
-            "c": (0x59, 0, (1 << 0)),
-            "d": (0x59, 0, (1 << 1)),
-            "e": (0x59, 0, (1 << 2)),
-            "f": (0x59, 0, (1 << 3)),
+            "a": (2, 6),
+            "b": (2, 7),
+            "c": (1, 0),
+            "d": (1, 1),
+            "e": (1, 2),
+            "f": (1, 3),
         }
         if button_letter in button_letters.keys():
             # Note the button must be flipped, as will return True when not pressed
-            return not tildagonos.check_egpio_state(button_letters[button_letter])
+            return not tildagon.Pin(button_letters[button_letter]).value()
         else:
-            raise ValueError("button_letter must be a string of a single letter from a to f")
+            raise ValueError(
+                "button_letter must be a string of a single letter from a to f"
+            )
 
 
-class imu():
-    class ImuData():
+class imu:
+    class ImuData:
         def __init__(self, x, y, z):
             self.x = x
             self.y = y
@@ -66,7 +67,7 @@ class imu():
 
     @staticmethod
     def _magnitude(acc_read):
-        return math.sqrt(sum(i ** 2 for i in acc_read))
+        return math.sqrt(sum(i**2 for i in acc_read))
 
     @staticmethod
     def is_tilted_forward():

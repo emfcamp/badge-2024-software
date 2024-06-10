@@ -35,7 +35,6 @@ static esp_err_t aw9523b_writeregs(aw9523b_device_t *dev, uint8_t reg, const uin
 }
 
 void aw9523b_init(aw9523b_device_t *dev) {
-    uint8_t regs[2] = {0x00, 0x00};
     aw9523b_writeregs(dev, 0x06, (const uint8_t*)"\xff\xff", 2);
     aw9523b_writeregs(dev, 0x04, (const uint8_t*)"\xff\xff", 2);
     aw9523b_writeregs(dev, 0x11, (const uint8_t*)"\x10", 1);
@@ -163,9 +162,9 @@ void aw9523b_pin_set_mode(aw9523b_device_t *dev, aw9523b_pin_t pin, aw9523b_pin_
 void aw9523b_irq_register(aw9523b_device_t *dev, aw9523b_pin_t pin, aw9523b_irq_callback_t callback, void* args) {
     aw9523b_check_valid_pin(pin);
     uint8_t port = aw9523b_portnum(pin);
-    uint8_t pin_mask = 1 << aw9523b_portpin(pin);
+    uint8_t pin_index = aw9523b_portpin(pin);
 
-    dev->irq_handlers[port][pin] = (struct aw9523b_irq_handler) {
+    dev->irq_handlers[port][pin_index] = (struct aw9523b_irq_handler) {
         .callback = callback,
         .args = args
     };
@@ -240,13 +239,13 @@ void aw9523b_irq_handler(aw9523b_device_t *dev) {
 void aw9523b_pin_set_drive(aw9523b_device_t *dev, aw9523b_pin_t pin, uint8_t drive) {
     aw9523b_check_valid_pin(pin);
     uint8_t port = aw9523b_portnum(pin);
-    uint8_t pin_mask = 1 << aw9523b_portpin(pin);
+    uint8_t pin_index = aw9523b_portpin(pin);
 
     uint8_t drive_regs[2][8] = {
         {0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b},
         {0x20, 0x21, 0x22, 0x23, 0x2c, 0x2d, 0x2e, 0x2f}
     };
 
-    uint8_t reg = drive_regs[port][pin];
+    uint8_t reg = drive_regs[port][pin_index];
     aw9523b_writeregs(dev, reg, &drive, 1);
 }

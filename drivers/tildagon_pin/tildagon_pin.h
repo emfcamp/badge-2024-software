@@ -14,6 +14,7 @@ typedef struct _tildagon_pin_obj_t {
     tildagon_pin_irq_obj_t irq;
 } tildagon_pin_obj_t;
 
+extern aw9523b_device_t ext_pin[3];
 extern const mp_obj_type_t tildagon_pin_irq_type;
 extern const mp_obj_type_t tildagon_pin_type;
 

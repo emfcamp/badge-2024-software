@@ -1,4 +1,4 @@
-from machine import Pin, I2C, SPI
+from machine import Pin, SPI
 import neopixel
 import gc9a01py as gc9a01
 import tildagon
@@ -24,10 +24,8 @@ led_colours = [
 
 class _tildagonos:
     def __init__(self):
-        self.system_i2c = I2C(7)
-        self.init_gpio()
         self.leds = neopixel.NeoPixel(Pin(21), 19)
-        self.gpiodata = {}
+        # self.gpiodata = {}
         self.spi = None
         self.tft = None
 
@@ -38,35 +36,7 @@ class _tildagonos:
         )
         self.tft.fill(gc9a01.MAGENTA)
 
-    def init_gpio(self):
-        # egpio reset
-        # self.system_i2c.writeto_mem(0x58, 0x7F, bytes([0x00]))
-        # self.system_i2c.writeto_mem(0x59, 0x7F, bytes([0x00]))
-        # self.system_i2c.writeto_mem(0x5A, 0x7F, bytes([0x00]))
-        # chip A - disable interrupts
-        self.system_i2c.writeto_mem(0x58, 0x06, bytes([0xFF, 0xFF]))
-        # chip A - set everything to input
-        self.system_i2c.writeto_mem(0x58, 0x04, bytes([0xFF, 0xFF]))
-        # chip A - switch mode to push-pull
-        self.system_i2c.writeto_mem(0x58, 0x11, bytes([0x10]))
-
-        # chip B - disable interrupts
-        self.system_i2c.writeto_mem(0x59, 0x06, bytes([0xFF, 0xFF]))
-        # chip B - set everything to input
-        self.system_i2c.writeto_mem(0x59, 0x04, bytes([0xFF, 0xFF]))
-        # chip B - switch mode to push-pull
-        self.system_i2c.writeto_mem(0x59, 0x11, bytes([0x10]))
-        # chip C - disable interrupts
-        self.system_i2c.writeto_mem(0x5A, 0x06, bytes([0xFF, 0xFF]))
-        # chip C - set P0 bits 0,1,3,6,7 and P1 bits 0,1,2,3,4,5,6,7 to input
-        self.system_i2c.writeto_mem(0x5A, 0x04, bytes([0xCB, 0xFF]))
-        # chip C - set P0_4(PMID_SW) to 0, set P0_5(USBSEL) to 0, set P0_2(led_power_en) to 0
-        self.system_i2c.writeto_mem(0x5A, 0x02, bytes([0x00]))
-        # chip C - switch mode to push-pull
-        self.system_i2c.writeto_mem(0x5A, 0x11, bytes([0x10]))
-
-        for pin in [(2, 2), (2, 4), (2, 5)]:
-            tildagon.Pin(pin).init(tildagon.Pin.OUT)
+    def init_gpio(self): ...
 
     def set_egpio_pin(self, pin, state):
         pin = self.convert_pin(pin)
@@ -83,9 +53,10 @@ class _tildagonos:
         return pin
 
     def read_egpios(self):
-        for i in [0x58, 0x59, 0x5A]:
-            portstates = list(map(int, self.system_i2c.readfrom_mem(i, 0x00, 2)))
-            self.gpiodata[i] = tuple(portstates)
+        ...
+        # for i in [0x58, 0x59, 0x5A]:
+        #    portstates = list(map(int, self.system_i2c.readfrom_mem(i, 0x00, 2)))
+        #    self.gpiodata[i] = tuple(portstates)
 
     def check_egpio_state(self, pin, readgpios=True):
         pin = self.convert_pin(pin)
@@ -93,7 +64,7 @@ class _tildagonos:
         return pin()
 
     def set_led_power(self, state):
-        self.set_egpio_pin(EPIN_LED_POWER, state)
+        tildagon.Pin(EPIN_LED_POWER)(state)
 
 
 tildagonos = _tildagonos()

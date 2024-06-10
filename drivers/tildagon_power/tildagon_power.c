@@ -7,6 +7,7 @@
 #include "esp_random.h"
 #include "driver/i2c_master.h"
 #include "modmachine.h"
+#include "tildagon_pin.h"
 
 #include "tildagon_power.h"
 #include "mp_power_event.h"
@@ -90,30 +91,6 @@ static pd_machine_state_t device_pd_state = NOT_STARTED;
 static TaskHandle_t tildagon_power_task_handle = NULL;
 static QueueHandle_t event_queue;
 bool lanyard_mode = false;
-//todo integrate with port expanders
-#include "tildagon_i2c.h"
-#define READ ( MP_MACHINE_I2C_FLAG_WRITE1 | MP_MACHINE_I2C_FLAG_READ | MP_MACHINE_I2C_FLAG_STOP )
-#define WRITE MP_MACHINE_I2C_FLAG_STOP
-void dev_5v_sw( bool enable )
-{
-    uint8_t state = 0x00;
-    uint8_t regVal = 0;
-    uint8_t regAddr = 0x02;
-    if ( enable )
-    {
-        state = 0x10;
-    }
-    mp_machine_i2c_buf_t buffer[2] = { { .len = 1, .buf = &regAddr },
-                                       { .len = 1, .buf = &regVal } };
-    tildagon_mux_i2c_transaction( usb_in.fusb.mux_port, 0x5A, 2, buffer, READ );
-    regVal = regVal & 0xEF;
-    regVal = regVal | state;
-    uint8_t write_buffer[2] = { 0x02, regVal };
-    buffer[0].len = 2;
-    buffer[0].buf = write_buffer;  
-    tildagon_mux_i2c_transaction( usb_in.fusb.mux_port, 0x5A, 1, buffer, WRITE );
-}
-
 
 /**
  * @brief fast rate task to handle the interrupt generated events
@@ -125,8 +102,7 @@ void tildagon_power_fast_task(void *param __attribute__((__unused__)))
     usb_out.fusb.mux_port = tildagon_get_mux_obj( 0 );
     pmic.mux_port = tildagon_get_mux_obj( 7 );
     // turn off 5V switch before setting up PMIC as the reset will enable the boost.
-    dev_5v_sw(false);
-    //todo replace when port expander interface available
+    aw9523b_pin_set_output( &ext_pin[2], 4, false);
     bq_init( &pmic );
     
     /* initialise isr */ 
@@ -216,8 +192,7 @@ void tildagon_power_interrupt_event( void* param )
  */
 void tildagon_power_off( void )
 {
-    //todo replace 5v off.
-    dev_5v_sw(false);
+    aw9523b_pin_set_output( &ext_pin[2], 4, false);
     bq_disconnect_battery( &pmic );
 }
 
@@ -226,16 +201,15 @@ void tildagon_power_off( void )
  */
 void tildagon_power_enable_5v( bool enable )
 {
-    //todo replace when port expander interface available
     if ( enable )
     {
         bq_enable_boost( &pmic, 1 );
-        dev_5v_sw(true);
+        aw9523b_pin_set_output( &ext_pin[2], 4, true);
     }
     else
     {
         /* open switch then disable 5V */
-        dev_5v_sw(false);
+        aw9523b_pin_set_output( &ext_pin[2], 4, false);
         bq_enable_boost( &pmic, 0 );
         bq_enable_HiZ_input( &pmic, 0 );
     }    
