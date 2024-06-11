@@ -10,7 +10,7 @@ class Pin:
         pass
 
     def value(self):
-        return 0
+        return 1
 
     def on(self):
         pass

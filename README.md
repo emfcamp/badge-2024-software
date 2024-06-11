@@ -2,6 +2,19 @@
 
 Web flasher is available @ https://emfcamp.github.io/badge-2024-software/
 
+## Running from a checkout
+
+Clone the repository including submodules:
+
+    git clone --recursive git@github.com:emfcamp/badge-2024-software.git
+
+Connect your badge via usb, run mpremote to reset, connect to the badge and run the software:
+
+    ./micropython/tools/mpremote/mpremote.py reset; sleep 3; ./micropython/tools/mpremote/mpremote.py mount modules
+    import main
+
+NB: mpremote can also be installed separately: https://docs.micropython.org/en/latest/reference/mpremote.html
+
 ## Building
 
 To build with a consistent toolchain, use docker.

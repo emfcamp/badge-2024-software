@@ -1,3 +1,6 @@
+import machine
+from tildagonos import tildagonos
+
 HEXPANSION_GPIOS = {
     "1_LS_A": (2, 3),
     "1_LS_B": (2, 8),
@@ -30,3 +33,30 @@ HEXPANSION_GPIOS = {
     "6_LS_D": (0, 14),
     "6_LS_E": (0, 15),
 }
+
+
+class Pin:
+    def __init__(self, pin_name, mode=-1):
+        self.name = pin_name
+        self.pin = HEXPANSION_GPIOS[pin_name]
+        self.mode = mode
+        if self.mode in (machine.Pin.IN, -1):
+            tildagonos.set_pin_mode(self.pin, machine.Pin.IN)
+        elif self.mode == machine.Pin.OUT:
+            tildagonos.set_pin_mode(self.pin, machine.Pin.OUT)
+        else:
+            raise ValueError("Invalid pin mode")
+
+    def on(self):
+        self.value(1)
+
+    def off(self):
+        self.value(0)
+
+    def value(self, value=None, read=True):
+        if self.mode in (machine.Pin.IN, -1) and value is None:
+            return tildagonos.check_egpio_state(self.pin, readgpios=read)
+        elif self.mode in (machine.Pin.OUT, -1):
+            return tildagonos.set_egpio_pin(self.pin, value)
+        else:
+            raise ValueError("Wrong pin state")

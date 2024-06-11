@@ -38,11 +38,6 @@ class _tildagonos:
 
     def init_gpio(self): ...
 
-    def set_egpio_pin(self, pin, state):
-        pin = self.convert_pin(pin)
-        pin = tildagon.Pin(pin)
-        pin(state)
-
     @staticmethod
     def convert_pin(pin):
         if len(pin) == 3:
@@ -51,6 +46,30 @@ class _tildagonos:
                 bitpos += 1
             pin = (pin[0] - 0x58, pin[1] * 8 + bitpos)
         return pin
+
+    def set_pin_mode(self, pin, mode=Pin.IN):
+        portstates = list(map(int, self.system_i2c.readfrom_mem(pin[0], 0x04, 2)))
+        if mode == Pin.IN:
+            self.system_i2c.writeto_mem(
+                pin[0], 0x04 + pin[1], bytes([portstates[pin[1]] | pin[2]])
+            )
+        elif mode == Pin.OUT:
+            self.system_i2c.writeto_mem(
+                pin[0], 0x04 + pin[1], bytes([portstates[pin[1]] & (pin[2] ^ 0xFF)])
+            )
+        else:
+            raise ValueError("Invalid pin mode")
+
+    def set_egpio_pin(self, pin, state):
+        """
+        Write an output state to a specific pin on a GPIO expander
+
+        @param pin: tuple of (i2c addr, port number 0/1, bitmask) selecting the pin to modify
+        @param state: True to set the pin high, False to set the pin low
+        """
+        pin = self.convert_pin(pin)
+        pin = tildagon.Pin(pin)
+        pin(state)
 
     def read_egpios(self):
         ...
