@@ -65,20 +65,24 @@ class _tildagonos:
         self.system_i2c.writeto_mem(0x5A, 0x11, bytes([0x10]))
 
     def set_egpio_pin(self, pin, state):
-        portstates = list(map(int, self.system_i2c.readfrom_mem(pin[0], 0x02, 2)))
-        if state:
-            self.system_i2c.writeto_mem(
-                0x5A, 0x02 + pin[1], bytes([portstates[pin[1]] | pin[2]])
-            )
-        else:
-            self.system_i2c.writeto_mem(
-                0x5A, 0x02 + pin[1], bytes([portstates[pin[1]] & (pin[2] ^ 0xFF)])
-            )
+        """
+        Write an output state to a specific pin on a GPIO expander
+
+        @param pin: tuple of (i2c addr, port number 0/1, bitmask) selecting the pin to modify
+        @param state: True to set the pin high, False to set the pin low
+        """
+        addr, port, bit = pin
+        old_state = self.system_i2c.readfrom_mem(addr, 0x02 + port, 1)[0]
+        new_state = (old_state | bit) if state else (old_state & (0xFF ^ bit))
+
+        self.system_i2c.writeto_mem(addr, 0x02 + port, bytes([new_state]))
 
     def read_egpios(self):
         for i in [0x58, 0x59, 0x5A]:
-            portstates = list(map(int, self.system_i2c.readfrom_mem(i, 0x00, 2)))
-            self.gpiodata[i] = tuple(portstates)
+            self.gpiodata[i] = (
+                self.system_i2c.readfrom_mem(i, 0, 1)[0],
+                self.system_i2c.readfrom_mem(i, 1, 1)[0],
+            )
 
     def check_egpio_state(self, pin, readgpios=True):
         if pin[0] not in self.gpiodata or readgpios:
