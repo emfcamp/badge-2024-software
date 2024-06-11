@@ -62,7 +62,7 @@ jobs:
           cd ../../..
           echo "{\"build\":\"$(git describe --tags --always)\", \"name\":\"$(git describe --tags --always)\"}" > micropython/ports/esp32/build-tildagon/tildagon.txt
       - name: Archive firmware
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: firmware
           path: |
