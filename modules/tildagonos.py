@@ -64,6 +64,19 @@ class _tildagonos:
         # chip C - switch mode to push-pull
         self.system_i2c.writeto_mem(0x5A, 0x11, bytes([0x10]))
 
+    def set_pin_mode(self, pin, mode=Pin.IN):
+        portstates = list(map(int, self.system_i2c.readfrom_mem(pin[0], 0x04, 2)))
+        if mode == Pin.IN:
+            self.system_i2c.writeto_mem(
+                pin[0], 0x04 + pin[1], bytes([portstates[pin[1]] | pin[2]])
+            )
+        elif mode == Pin.OUT:
+            self.system_i2c.writeto_mem(
+                pin[0], 0x04 + pin[1], bytes([portstates[pin[1]] & (pin[2] ^ 0xFF)])
+            )
+        else:
+            raise ValueError("Invalid pin mode")
+
     def set_egpio_pin(self, pin, state):
         """
         Write an output state to a specific pin on a GPIO expander
