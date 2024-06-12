@@ -4,7 +4,7 @@ import display
 from events.input import Button, BUTTON_TYPES, ButtonDownEvent, ButtonUpEvent
 import machine
 from system.eventbus import eventbus
-import tildagon
+from tildagon import ePin
 from . import FrontBoard
 from system.hexpansion.events import HexpansionInsertionEvent, HexpansionRemovalEvent
 import time
@@ -43,7 +43,7 @@ class TwentyTwentyFour(FrontBoard):
                     map(lambda i: self.BUTTON_PINS[BUTTONS[i]], "ABCDEF")
                 ):
                     state = hexpansion_states[i + 1]
-                    button_down = not tildagon.Pin(gpio).value()
+                    button_down = not ePin(gpio).value()
                     # print(i, now, state)
                     if button_down and state is None:
                         hexpansion_states[i + 1] = now
@@ -54,7 +54,7 @@ class TwentyTwentyFour(FrontBoard):
                         await eventbus.emit_async(HexpansionRemovalEvent(port=i + 1))
             else:
                 for button, pin in self.BUTTON_PINS.items():
-                    button_down = not tildagon.Pin(pin).value()
+                    button_down = not ePin(pin).value()
                     if button_down and not button_states[button]:
                         await eventbus.emit_async(ButtonDownEvent(button=button))
                     if not button_down and button_states[button]:

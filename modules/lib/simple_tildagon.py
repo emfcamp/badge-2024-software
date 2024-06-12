@@ -1,7 +1,7 @@
 # A easy to use module for the basic components of the tildagon badge
 
 from tildagonos import tildagonos
-import tildagon
+from egpio import ePin
 import imu as tilda_imu
 import math
 import time
@@ -38,7 +38,7 @@ class button:
         }
         if button_letter in button_letters.keys():
             # Note the button must be flipped, as will return True when not pressed
-            return not tildagon.Pin(button_letters[button_letter]).value()
+            return not ePin(button_letters[button_letter]).value()
         else:
             raise ValueError(
                 "button_letter must be a string of a single letter from a to f"

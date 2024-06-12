@@ -53,7 +53,8 @@
 #define PIN_OBJ_PTR_PORTPIN(self) (PIN_OBJ_PTR_INDEX(self)%16)
 #define PORTPIN_IS_VALID_LED(pin) (0 <= pin && pin < 16)
 #define PIN_OBJ_PTR_INDEX(self) ((self) - tildagon_pin_obj_table)
-
+// this is outside of machine.Pins defines
+#define EGPIO_MODE_PWM 8
 
 aw9523b_device_t ext_pin[3] = {
     {
@@ -172,7 +173,7 @@ static mp_obj_t tildagon_pin_obj_init_helper(const tildagon_pin_obj_t *self, siz
     // configure mode
     if (args[ARG_mode].u_obj != mp_const_none) {
         mp_int_t pin_io_mode = mp_obj_get_int(args[ARG_mode].u_obj);
-        if ( pin_io_mode == 2 )
+        if ( pin_io_mode == EGPIO_MODE_PWM )
         {
             aw9523b_pin_set_mode(dev, pin, AW9523B_PIN_MODE_LED);
         }
@@ -180,7 +181,15 @@ static mp_obj_t tildagon_pin_obj_init_helper(const tildagon_pin_obj_t *self, siz
         {
             // configure the pin for gpio
             aw9523b_pin_set_mode(dev, pin, AW9523B_PIN_MODE_GPIO);
-            aw9523b_pin_set_direction(dev, pin, pin_io_mode);
+         
+            if ( pin_io_mode == GPIO_MODE_INPUT_OUTPUT )
+            {
+                aw9523b_pin_set_direction(dev, pin, 0);
+            }
+            else
+            {
+                aw9523b_pin_set_direction(dev, pin, 1);
+            }
         }
     }
 
@@ -288,10 +297,10 @@ static mp_obj_t tildagon_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map
 }
 //static MP_DEFINE_CONST_FUN_OBJ_KW(tildagon_pin_irq_obj, 1, tildagon_pin_irq);
 
-static mp_obj_t tildagon_pin_pwm(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_pwm_value };
+static mp_obj_t tildagon_pin_duty(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    enum { ARG_duty };
     static const mp_arg_t allowed_args[] = {
-        { MP_QSTR_pwmvalue, MP_ARG_OBJ, {.u_obj = mp_const_none} },    
+        { MP_QSTR_duty, MP_ARG_OBJ, {.u_obj = mp_const_none} },    
     };
     tildagon_pin_obj_t *self = MP_OBJ_TO_PTR(pos_args[0]);
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
@@ -301,15 +310,15 @@ static mp_obj_t tildagon_pin_pwm(size_t n_args, const mp_obj_t *pos_args, mp_map
           // configure irq
         aw9523b_device_t *dev = PIN_OBJ_PTR_DEVICE(self);
         aw9523b_pin_t pin = PIN_OBJ_PTR_PORTPIN(self);
-        mp_obj_t pwm_value = args[ARG_pwm_value].u_obj;
-        uint8_t pwm = mp_obj_get_int(pwm_value);
-        aw9523b_pin_set_drive( dev, pin, pwm );
+        mp_obj_t mp_duty = args[ARG_duty].u_obj;
+        uint8_t duty = mp_obj_get_int(mp_duty);
+        aw9523b_pin_set_drive( dev, pin, duty );
     }
     
     return mp_const_none;
 }
 
-static MP_DEFINE_CONST_FUN_OBJ_KW(tildagon_pin_pwm_obj, 1, tildagon_pin_pwm);
+static MP_DEFINE_CONST_FUN_OBJ_KW(tildagon_pin_duty_obj, 1, tildagon_pin_duty);
 
 MP_DEFINE_CONST_OBJ_TYPE(
     tildagon_pin_board_pins_obj_type,
@@ -324,16 +333,17 @@ static const mp_rom_map_elem_t tildagon_pin_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_value), MP_ROM_PTR(&tildagon_pin_value_obj) },
     { MP_ROM_QSTR(MP_QSTR_off), MP_ROM_PTR(&tildagon_pin_off_obj) },
     { MP_ROM_QSTR(MP_QSTR_on), MP_ROM_PTR(&tildagon_pin_on_obj) },
+    //todo reinstate once triggers can be split into rising/falling edge
     //{ MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&tildagon_pin_irq_obj) },
-    { MP_ROM_QSTR(MP_QSTR_pwm), MP_ROM_PTR(&tildagon_pin_pwm_obj) },
+    { MP_ROM_QSTR(MP_QSTR_duty), MP_ROM_PTR(&tildagon_pin_duty_obj) },
 
     // class attributes
     { MP_ROM_QSTR(MP_QSTR_board), MP_ROM_PTR(&tildagon_pin_board_pins_obj_type) },
 
     // class constants
-    { MP_ROM_QSTR(MP_QSTR_IN), MP_ROM_INT(1) },
-    { MP_ROM_QSTR(MP_QSTR_OUT), MP_ROM_INT(0) },
-    { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_INT(2) },
+    { MP_ROM_QSTR(MP_QSTR_IN), MP_ROM_INT(GPIO_MODE_INPUT) },
+    { MP_ROM_QSTR(MP_QSTR_OUT), MP_ROM_INT(GPIO_MODE_INPUT_OUTPUT) },
+    { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_INT(EGPIO_MODE_PWM) },
     //{ MP_ROM_QSTR(MP_QSTR_IRQ_RISING), MP_ROM_INT(GPIO_INTR_POSEDGE) },
     //{ MP_ROM_QSTR(MP_QSTR_IRQ_FALLING), MP_ROM_INT(GPIO_INTR_NEGEDGE) },
 };
@@ -364,7 +374,7 @@ static const mp_pin_p_t tildagon_pin_pin_p = {
 
 MP_DEFINE_CONST_OBJ_TYPE(
     tildagon_pin_type,
-    MP_QSTR_Pin,
+    MP_QSTR_ePin,
     MP_TYPE_FLAG_NONE,
     make_new, mp_tildagon_pin_make_new,
     print, tildagon_pin_print,
