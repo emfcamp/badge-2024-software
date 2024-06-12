@@ -18,3 +18,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/tildagon_power/tildagon_power.cmake)
 
 # Add OTA helpers
 include(${CMAKE_CURRENT_LIST_DIR}/ota/micropython.cmake)
+
+# Add burnt-in HMAC
+include(${CMAKE_CURRENT_LIST_DIR}/tildagon_hmac/micropython.cmake)

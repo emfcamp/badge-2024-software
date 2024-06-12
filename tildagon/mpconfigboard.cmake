@@ -5,6 +5,7 @@ set(IDF_TARGET esp32s3)
 set(IDF_COMPONENTS
     ctx
     st3m
+    flow3r_bmi270
     flow3r_bsp
     tildagon
 )

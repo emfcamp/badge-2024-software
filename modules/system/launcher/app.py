@@ -6,13 +6,19 @@ from app_components import clear_background
 from app_components.menu import Menu
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
+from events import Event
 from system.scheduler.events import (
     RequestForegroundPushEvent,
     RequestStartAppEvent,
     RequestStopAppEvent,
 )
+from system.notification.events import ShowNotificationEvent
 
 APP_DIR = "/apps"
+
+
+class InstallNotificationEvent(Event):
+    pass
 
 
 def path_isfile(path):
@@ -83,6 +89,12 @@ class Launcher(App):
         self.update_menu()
         self._apps = {}
         eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)
+        eventbus.on_async(
+            InstallNotificationEvent, self._handle_refresh_notifications, self
+        )
+
+    async def _handle_refresh_notifications(self, _):
+        self.update_menu()
 
     async def _handle_stop_app(self, event: RequestStopAppEvent):
         # If an app is stopped, remove our cache of it as it needs restarting
@@ -139,8 +151,15 @@ class Launcher(App):
         print(self._apps)
         if app is None:
             print(f"Creating app {app_id}...")
-            module = __import__(module_name, None, None, (fn,))
-            app = getattr(module, fn)()
+            try:
+                module = __import__(module_name, None, None, (fn,))
+                app = getattr(module, fn)()
+            except Exception as e:
+                print(f"Error creating app: {e}")
+                eventbus.emit(
+                    ShowNotificationEvent(message=f"{item['name']} has crashed")
+                )
+                return
             self._apps[app_id] = app
             eventbus.emit(RequestStartAppEvent(app, foreground=True))
         else:

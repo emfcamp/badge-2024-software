@@ -23,8 +23,6 @@ led_colours = [
 
 class _tildagonos:
     def __init__(self):
-        self.pin_reset_i2c = Pin(9, Pin.OUT)
-        self.pin_reset_i2c.on()
         self.system_i2c = I2C(7)
         self.init_gpio()
         self.leds = neopixel.NeoPixel(Pin(21), 19)
@@ -66,21 +64,38 @@ class _tildagonos:
         # chip C - switch mode to push-pull
         self.system_i2c.writeto_mem(0x5A, 0x11, bytes([0x10]))
 
-    def set_egpio_pin(self, pin, state):
-        portstates = list(map(int, self.system_i2c.readfrom_mem(pin[0], 0x02, 2)))
-        if state:
+    def set_pin_mode(self, pin, mode=Pin.IN):
+        portstates = list(map(int, self.system_i2c.readfrom_mem(pin[0], 0x04, 2)))
+        if mode == Pin.IN:
             self.system_i2c.writeto_mem(
-                0x5A, 0x02 + pin[1], bytes([portstates[pin[1]] | pin[2]])
+                pin[0], 0x04 + pin[1], bytes([portstates[pin[1]] | pin[2]])
+            )
+        elif mode == Pin.OUT:
+            self.system_i2c.writeto_mem(
+                pin[0], 0x04 + pin[1], bytes([portstates[pin[1]] & (pin[2] ^ 0xFF)])
             )
         else:
-            self.system_i2c.writeto_mem(
-                0x5A, 0x02 + pin[1], bytes([portstates[pin[1]] & (pin[2] ^ 0xFF)])
-            )
+            raise ValueError("Invalid pin mode")
+
+    def set_egpio_pin(self, pin, state):
+        """
+        Write an output state to a specific pin on a GPIO expander
+
+        @param pin: tuple of (i2c addr, port number 0/1, bitmask) selecting the pin to modify
+        @param state: True to set the pin high, False to set the pin low
+        """
+        addr, port, bit = pin
+        old_state = self.system_i2c.readfrom_mem(addr, 0x02 + port, 1)[0]
+        new_state = (old_state | bit) if state else (old_state & (0xFF ^ bit))
+
+        self.system_i2c.writeto_mem(addr, 0x02 + port, bytes([new_state]))
 
     def read_egpios(self):
         for i in [0x58, 0x59, 0x5A]:
-            portstates = list(map(int, self.system_i2c.readfrom_mem(i, 0x00, 2)))
-            self.gpiodata[i] = tuple(portstates)
+            self.gpiodata[i] = (
+                self.system_i2c.readfrom_mem(i, 0, 1)[0],
+                self.system_i2c.readfrom_mem(i, 1, 1)[0],
+            )
 
     def check_egpio_state(self, pin, readgpios=True):
         if pin[0] not in self.gpiodata or readgpios:

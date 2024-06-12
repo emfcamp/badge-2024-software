@@ -42,15 +42,16 @@ class TextDisplay(Layoutable):
 
 
 class ButtonDisplay(Layoutable):
-    def __init__(self, text, font_size=None, rgb=None):
+    def __init__(self, text, font_size=None, rgb=None, button_handler=None):
         self.text = text
-        self.height = 40
+        self.height = 60
+        self.button_handler = button_handler
 
     def draw(self, ctx, focused=False):
         ctx.save()
 
         # Draw button
-        ctx.translate(30, 5)
+        ctx.translate(30, 0)
         ctx.scale(0.75, 0.75)
         if focused:
             bg = tokens.ui_colors["active_button_background"]
@@ -69,12 +70,23 @@ class ButtonDisplay(Layoutable):
 
         ctx.restore()
 
+    async def button_event(self, event):
+        if self.button_handler:
+            return await self.button_handler(event)
+        return False
+
 
 class DefinitionDisplay(Layoutable):
-    def __init__(self, label, value):
+    def __init__(self, label, value, button_handler=None):
         self.label = label
         self.value = value
         self.height = 0
+        self.button_handler = button_handler
+
+    async def button_event(self, event):
+        if self.button_handler:
+            return await self.button_handler(event)
+        return False
 
     def draw(self, ctx, focused=False):
         ctx.save()
@@ -145,7 +157,7 @@ class LinearLayout(Layoutable):
             cumulative_height += item.height * self.scale_factor
             if round(cumulative_height) > round(120 - self.y_offset):
                 return item
-        return item
+        return self.items[0]
 
     async def button_event(self, event) -> bool:
         focused = self.centred_component()

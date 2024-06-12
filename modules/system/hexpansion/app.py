@@ -149,12 +149,18 @@ class HexpansionManagerApp(app.App):
         mountpoint = f"/hexpansion_{port}"
 
         try:
+            # This is mounted already, unmount first
+            vfs.umount(mountpoint)
+        except OSError:
+            pass
+
+        try:
             print(f"Attempting to mount i2c eeprom from hexpansion port {port}")
             vfs.mount(eep, mountpoint)
         except Exception as e:
             print(f"Failed to mount: {e}")
-            self.format_requests.append((eep, port))
-            eventbus.emit(RequestForegroundPushEvent(self))
+            # self.format_requests.append((eep, port))
+            # eventbus.emit(RequestForegroundPushEvent(self))
             return
 
         self.mountpoints[port] = mountpoint
@@ -232,7 +238,7 @@ class HexpansionManagerApp(app.App):
                     )
                     if hexpansion_present:
                         if settings.get("pattern_mirror_hexpansions", False):
-                            tildagonos.leds[13 + i] = tildagonos.leds[1 + (i*2)]
+                            tildagonos.leds[13 + i] = tildagonos.leds[1 + (i * 2)]
                         else:
                             tildagonos.leds[13 + i] = led_colours[i]
                     else:
