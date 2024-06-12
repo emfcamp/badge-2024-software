@@ -37,6 +37,7 @@ class Menu:
         self.item_line_height = item_line_height
         self.focused_item_font_size = focused_item_font_size
         self.focused_item_margin = focused_item_margin
+        self.focused_item_font_size_arr = []
 
         self.animation_time_ms = 0
         # self.is_animating: Literal["up", "down", "none"] = "none"
@@ -86,20 +87,39 @@ class Menu:
             (self.position + 1) % num_menu_items if num_menu_items > 0 else 1
         )
 
+    def _calculate_max_focussed_font_size(self, item, ctx):
+        ctx.save()
+        proposed_font_size = self.focused_item_font_size
+        ctx.font_size = proposed_font_size
+        width = ctx.text_width(item)
+        while width > 230 and proposed_font_size > self.item_font_size:
+            proposed_font_size = proposed_font_size - 0.125
+            ctx.font_size = proposed_font_size
+            width = ctx.text_width(item)
+        ctx.restore()
+        return proposed_font_size
+
     def draw(self, ctx):
+        # calculate biggest font size a menu item should grow to
+        if not self.focused_item_font_size_arr:
+            for item in self.menu_items:
+                fs = self._calculate_max_focussed_font_size(item, ctx)
+                self.focused_item_font_size_arr = self.focused_item_font_size_arr + [fs]
+
         animation_progress = ease_out_quart(self.animation_time_ms / self.speed_ms)
         animation_direction = 1 if self.is_animating == "up" else -1
-
-        # Current menu item
-        ctx.font_size = self.item_font_size + animation_progress * (
-            self.focused_item_font_size - self.item_font_size
-        )
 
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
 
         set_color(ctx, "label")
         num_menu_items = len(self.menu_items)
+
+        # Current menu item
+        ctx.font_size = self.item_font_size + animation_progress * (
+            self.focused_item_font_size_arr[self.position % num_menu_items if num_menu_items > 0 else 1] - self.item_font_size
+        )
+
         label = ""
         try:
             label = self.menu_items[
