@@ -1,7 +1,7 @@
 from machine import Pin, SPI
 import neopixel
 import gc9a01py as gc9a01
-import tildagon
+from egpio import ePin
 
 BUS_SYSTEM = 7
 BUS_TOP = 0
@@ -52,6 +52,25 @@ class _tildagonos:
             pin = (pin[0] - 0x58, pin[1] * 8 + bitpos)
         return pin
 
+    def set_pin_mode(self, pin, mode=Pin.IN):
+        pin = self.convert_pin(pin)
+        pin = ePin(pin)
+        if mode == Pin.IN or mode == Pin.OUT or mode == ePin.PWM:
+            pin.init(mode)
+        else:
+            raise ValueError("Invalid pin mode")
+
+    def set_egpio_pin(self, pin, state):
+        """
+        Write an output state to a specific pin on a GPIO expander
+
+        @param pin: tuple of (i2c addr, port number 0/1, bitmask) or (device 0-2, pin 0-15) selecting the pin to modify
+        @param state: True to set the pin high, False to set the pin low
+        """
+        pin = self.convert_pin(pin)
+        pin = ePin(pin)
+        pin(state)
+
     def read_egpios(self):
         ...
         # for i in [0x58, 0x59, 0x5A]:
@@ -60,11 +79,11 @@ class _tildagonos:
 
     def check_egpio_state(self, pin, readgpios=True):
         pin = self.convert_pin(pin)
-        pin = tildagon.Pin(pin)
+        pin = ePin(pin)
         return pin()
 
     def set_led_power(self, state):
-        tildagon.Pin(EPIN_LED_POWER)(state)
+        ePin(EPIN_LED_POWER)(state)
 
 
 tildagonos = _tildagonos()
