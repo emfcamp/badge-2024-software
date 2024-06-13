@@ -13,7 +13,7 @@ def detect_eeprom_addr(i2c):
     if 0x57 in devices and 0x56 in devices and 0x55 in devices and 0x54 in devices and 0x53 in devices and 0x52 in devices and 0x51 in devices and 0x50 in devices:
         return (0x50, 1)
     if 0x50 in devices:
-        return (0x50, 1)
+        return (0x50, 2)
     return (None, None)
 
 
@@ -57,12 +57,16 @@ def get_hexpansion_block_devices(i2c, header, addr=0x50, addr_len=2):
         chip_size = 2 ** (8 * addr_len)
     else:
         chip_size = header.eeprom_total_size
+    if header.eeprom_total_size >= 8192:
+        block_size = 9 # 512 byte blocks for big EEPROMs
+    else:
+        block_size = 6 # 64 byte blocks on small EEPROMs
     eep = EEPROM(
         i2c=i2c,
         chip_size=chip_size,
         page_size=header.eeprom_page_size,
         addr=addr,
-        block_size=6
+        block_size=block_size
     )
     partition = EEPROMPartition(
         eep=eep,
