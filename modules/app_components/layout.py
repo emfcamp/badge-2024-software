@@ -53,7 +53,7 @@ class ButtonDisplay(Layoutable):
         ctx.save()
 
         # Draw button
-        ctx.translate(30, 0)
+        ctx.translate(-90, 0)
         ctx.scale(0.75, 0.75)
         if focused:
             bg = tokens.ui_colors["active_button_background"]
