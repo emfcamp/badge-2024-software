@@ -1,6 +1,7 @@
-from events.input import BUTTON_TYPES
+from events.input import BUTTON_TYPES, ButtonDownEvent
 from . import tokens, utils
 
+from system.eventbus import eventbus
 
 class Layoutable:
     height: int  # Available after draw
@@ -44,10 +45,16 @@ class TextDisplay(Layoutable):
 
 
 class ButtonDisplay(Layoutable):
-    def __init__(self, text, font_size=None, rgb=None, button_handler=None):
+    def __init__(self, text, app, font_size=None, rgb=None, button_handler=None):
         self.text = text
         self.height = 60
         self.button_handler = button_handler
+        self.app = app
+
+        eventbus.on(ButtonDownEvent, self._handle_buttondown, self.app)
+
+    def _cleanup(self):
+        eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
 
     def draw(self, ctx, focused=False):
         ctx.save()
@@ -72,11 +79,11 @@ class ButtonDisplay(Layoutable):
 
         ctx.restore()
 
-    async def button_event(self, event):
-        if self.button_handler:
-            return await self.button_handler(event)
-        return False
-
+    def _handle_buttondown(self, event: ButtonDownEvent):
+        self._cleanup()
+        if BUTTON_TYPES["CONFIRM"] in event.button:
+            if self.button_handler:
+                self.button_handler(event)
 
 class DefinitionDisplay(Layoutable):
     def __init__(self, label, value, button_handler=None):
@@ -91,7 +98,9 @@ class DefinitionDisplay(Layoutable):
         return False
 
     def draw(self, ctx, focused=False):
+        print("draw")
         ctx.save()
+        ctx.translate(-100,0)
         self.height = 0
 
         # Draw heading
@@ -113,7 +122,7 @@ class DefinitionDisplay(Layoutable):
 
         # Draw value
         ctx.font_size = tokens.ten_pt
-        value_lines = utils.wrap_text(ctx, self.value, 230, tokens.label_font_size)
+        value_lines = utils.wrap_text(ctx, self.value, tokens.label_font_size)
         for line in value_lines:
             ctx.move_to(10, self.height)
             ctx.text(line)
