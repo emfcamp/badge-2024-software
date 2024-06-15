@@ -81,9 +81,8 @@ class ButtonDisplay(Layoutable):
 
     def _handle_buttondown(self, event: ButtonDownEvent):
         self._cleanup()
-        if BUTTON_TYPES["CONFIRM"] in event.button:
-            if self.button_handler:
-                self.button_handler(event)
+        if self.button_handler:
+            self.button_handler(event)
 
 class DefinitionDisplay(Layoutable):
     def __init__(self, label, value, height=None, button_handler=None):
