@@ -29,14 +29,16 @@ class TextDisplay(Layoutable):
 
     def draw(self, ctx, focused=False):
         ctx.save()
+        ctx.translate(-100,-40)
         if self.lines is None:
-            self.lines = utils.wrap_text(ctx, self.text)
-            self.height = len(self.lines) * ctx.font_size
+            self.lines = utils.wrap_text(ctx, self.text, self.font_size)
+            self.height = len(self.lines) * self.font_size
         ctx.text_align = ctx.LEFT
+        ctx.font_size = self.font_size
         if self.rgb:
             ctx.rgb(*self.rgb)
         for i, line in enumerate(self.lines):
-            ctx.move_to(0, i * ctx.font_size)
+            ctx.move_to(0, i * self.font_size)
             ctx.text(line)
         ctx.restore()
 
@@ -101,7 +103,7 @@ class DefinitionDisplay(Layoutable):
             ctx.rgb(*tokens.colors["yellow"])
 
         # Draw label
-        label_lines = utils.wrap_text(ctx, self.label)
+        label_lines = utils.wrap_text(ctx, self.label, tokens.label_font_size)
         for line in label_lines:
             ctx.move_to(0, self.height)
             ctx.text(line)
@@ -111,7 +113,7 @@ class DefinitionDisplay(Layoutable):
 
         # Draw value
         ctx.font_size = tokens.ten_pt
-        value_lines = utils.wrap_text(ctx, self.value, width=230)
+        value_lines = utils.wrap_text(ctx, self.value, 230, tokens.label_font_size)
         for line in value_lines:
             ctx.move_to(10, self.height)
             ctx.text(line)
@@ -202,5 +204,5 @@ def scroll():
         display.end_frame(ctx)
         time.sleep_ms(100)
         layout.y_offset -= 10
-        
+
 """
