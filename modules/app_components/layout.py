@@ -86,22 +86,28 @@ class ButtonDisplay(Layoutable):
                 self.button_handler(event)
 
 class DefinitionDisplay(Layoutable):
-    def __init__(self, label, value, button_handler=None):
+    def __init__(self, label, value, height=None, button_handler=None):
         self.label = label
         self.value = value
-        self.height = 0
+        if not height:
+            self.height = 0
+        else:
+            self.height = height
         self.button_handler = button_handler
 
-    async def button_event(self, event):
+        eventbus.on(ButtonDownEvent, self._handle_buttondown, self.app)
+
+    def _cleanup(self):
+        eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
+
+    def _handle_buttondown(self, event):
         if self.button_handler:
-            return await self.button_handler(event)
+            return self.button_handler(event)
         return False
 
     def draw(self, ctx, focused=False):
-        print("draw")
         ctx.save()
         ctx.translate(-100,0)
-        self.height = 0
 
         # Draw heading
         ctx.font_size = tokens.one_pt * 8
@@ -111,12 +117,14 @@ class DefinitionDisplay(Layoutable):
         else:
             ctx.rgb(*tokens.colors["yellow"])
 
+        height = self.height
+
         # Draw label
         label_lines = utils.wrap_text(ctx, self.label, tokens.label_font_size)
         for line in label_lines:
-            ctx.move_to(0, self.height)
+            ctx.move_to(0, height)
             ctx.text(line)
-            self.height += ctx.font_size
+            height += ctx.font_size
 
         ctx.rgb(*tokens.ui_colors["label"])
 
@@ -124,9 +132,9 @@ class DefinitionDisplay(Layoutable):
         ctx.font_size = tokens.ten_pt
         value_lines = utils.wrap_text(ctx, self.value, tokens.label_font_size)
         for line in value_lines:
-            ctx.move_to(10, self.height)
+            ctx.move_to(10, height)
             ctx.text(line)
-            self.height += ctx.font_size
+            height += ctx.font_size
 
         ctx.restore()
 
