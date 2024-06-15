@@ -38,7 +38,7 @@ BRIGHTNESSES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
 class SettingsApp(app.App):
     def __init__(self):
-        self.layout = layout.LinearLayout(items=[layout.DefinitionDisplay("", "")])
+        self.layout = layout.LinearLayout(items=[layout.DefinitionDisplay("", "", self)])
         self.overlays = []
         self.dialog = None
         eventbus.on_async(ButtonDownEvent, self._button_handler, self)
@@ -86,10 +86,10 @@ class SettingsApp(app.App):
                         return False
 
                     entry = layout.DefinitionDisplay(
-                        label, formatter(value), button_handler=_button_event
+                        label, formatter(value), self, button_handler=_button_event
                     )
                 else:
-                    entry = layout.DefinitionDisplay(label, formatter(value))
+                    entry = layout.DefinitionDisplay(label, formatter(value), self)
                 self.layout.items.append(entry)
 
                 if id == "pattern":
@@ -111,7 +111,7 @@ class SettingsApp(app.App):
                         return False
 
                     entry = layout.ButtonDisplay(
-                        "Next pattern", button_handler=_button_event_pattern_toggle
+                        "Next pattern", self, button_handler=_button_event_pattern_toggle
                     )
                     self.layout.items.append(entry)
 
@@ -134,7 +134,7 @@ class SettingsApp(app.App):
                         return False
 
                     entry = layout.ButtonDisplay(
-                        "Toggle", button_handler=_button_event_pattern_toggle
+                        "Toggle", self, button_handler=_button_event_pattern_toggle
                     )
                     self.layout.items.append(entry)
 
@@ -150,7 +150,7 @@ class SettingsApp(app.App):
                     return True
                 return False
 
-            entry = layout.ButtonDisplay("Reset WiFi", button_handler=_button_event_w)
+            entry = layout.ButtonDisplay("Reset WiFi", self, button_handler=_button_event_w)
             self.layout.items.append(entry)
 
             while True:
@@ -197,9 +197,11 @@ class SettingsApp(app.App):
         return True
 
     def draw(self, ctx):
+        ctx.save()
         tokens.clear_background(ctx)
         self.layout.draw(ctx)
         self.draw_overlays(ctx)
+        ctx.restore()
 
 
 __app_export__ = SettingsApp

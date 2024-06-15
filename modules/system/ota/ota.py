@@ -18,9 +18,9 @@ class OtaUpdate(App):
     def __init__(self):
         self.status = None
         super().__init__()
-        self.status = layout.DefinitionDisplay("Status", "")
-        self.old_version = layout.DefinitionDisplay("Current", "-")
-        self.new_version = layout.DefinitionDisplay("New", "-")
+        self.status = layout.DefinitionDisplay("Status", "", self)
+        self.old_version = layout.DefinitionDisplay("Current", "-", self)
+        self.new_version = layout.DefinitionDisplay("New", "-", self)
         self.layout = layout.LinearLayout(
             [self.status, self.old_version, self.new_version]
         )
@@ -137,7 +137,7 @@ class OtaUpdate(App):
                     line.split("[")[0].strip() for line in release_notes.split("\n")
                 ]
                 release_notes = "\n".join(release_notes)
-                self.notes = layout.DefinitionDisplay("Release notes", release_notes)
+                self.notes = layout.DefinitionDisplay("Release notes", release_notes, self)
                 self.layout.items.append(self.notes)
             """
             try:

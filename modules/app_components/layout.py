@@ -30,7 +30,7 @@ class TextDisplay(Layoutable):
 
     def draw(self, ctx, focused=False):
         ctx.save()
-        ctx.translate(-100,-40)
+        # ctx.translate(-100,-40)
         if self.lines is None:
             self.lines = utils.wrap_text(ctx, self.text, self.font_size)
             self.height = len(self.lines) * self.font_size
@@ -60,7 +60,8 @@ class ButtonDisplay(Layoutable):
         ctx.save()
 
         # Draw button
-        ctx.translate(-90, 0)
+        # ctx.translate(-90, 0)
+        # ctx.translate(30, 0)
         ctx.scale(0.75, 0.75)
         if focused:
             bg = tokens.ui_colors["active_button_background"]
@@ -85,9 +86,10 @@ class ButtonDisplay(Layoutable):
             self.button_handler(event)
 
 class DefinitionDisplay(Layoutable):
-    def __init__(self, label, value, height=None, button_handler=None):
+    def __init__(self, label, value, app, height=None, button_handler=None):
         self.label = label
         self.value = value
+        self.app = app
         if not height:
             self.height = 0
         else:
@@ -106,7 +108,7 @@ class DefinitionDisplay(Layoutable):
 
     def draw(self, ctx, focused=False):
         ctx.save()
-        ctx.translate(-100,0)
+        # ctx.translate(-100,0)
 
         # Draw heading
         ctx.font_size = tokens.one_pt * 8
@@ -200,7 +202,7 @@ import app_components.layout
 
 text = app_components.layout.TextDisplay("Lorem ipsum " + "abcde "*30)
 foo = app_components.layout.ButtonDisplay("foo")
-bar = app_components.layout.DefinitionDisplay("Wifi", "emfcamp")
+bar = app_components.layout.DefinitionDisplay("Wifi", "emfcamp", self)
 layout = app_components.layout.LinearLayout([text, foo, bar])
 
 ctx=display.get_ctx()
