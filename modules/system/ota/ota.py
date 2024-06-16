@@ -82,7 +82,10 @@ class OtaUpdate(App):
             return
 
         if not wifi.status():
-            wifi.connect()
+            try:
+                wifi.connect()
+            except OSError:
+                pass
             while True:
                 self.status.value = f"Connecting to {ssid}"
                 await render_update()
