@@ -20,6 +20,7 @@ static SemaphoreHandle_t _mu;
 
 static float _acc_x, _acc_y, _acc_z;
 static float _gyro_x, _gyro_y, _gyro_z;
+static uint32_t _steps;
 
 void st3m_imu_init() {
     _mu = xSemaphoreCreateMutex();
@@ -51,11 +52,17 @@ void st3m_imu_read_gyro_dps(float *x, float *y, float *z) {
     UNLOCK;
 }
 
+void st3m_imu_read_steps(uint32_t *steps) {
+    LOCK;
+    *steps = _steps;
+    UNLOCK;
+}
 
 static void _task(void *data) {
     TickType_t last_wake = xTaskGetTickCount();
     esp_err_t ret;
     float a, b, c;
+    uint32_t steps;
     while (1) {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(10));  // 100 Hz
 
@@ -72,11 +79,16 @@ static void _task(void *data) {
             _acc_z = c;
         }
 
-        flow3r_bsp_imu_read_gyro_dps(&_imu, &a, &b, &c);
+        ret = flow3r_bsp_imu_read_gyro_dps(&_imu, &a, &b, &c);
         if (ret == ESP_OK) {
             _gyro_x = a;
             _gyro_y = b;
             _gyro_z = c;
+        }
+
+        ret = flow3r_bsp_imu_read_steps(&_imu, &steps);
+        if (ret == ESP_OK) {
+            _steps = steps;
         }
 
         UNLOCK;
