@@ -1,6 +1,6 @@
 
-#include <stdint.h>
 #include "ctx_config.h"
+#include <stdint.h>
 #undef EMSCRIPTEN
 #undef CTX_PARSER
 #define CTX_PARSER 1
