@@ -161,7 +161,7 @@ class TextDialog:
 
     def draw(self, ctx):
         ctx.save()
-        ctx.rgba(0, 0, 0, 0.5)
+        ctx.rgba(0, 0, 0, 0.8)
         display.hexagon(ctx, 0, 0, 120)
 
         self.draw_message(ctx)
