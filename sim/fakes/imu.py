@@ -22,3 +22,7 @@ def pressure_read() -> Tuple[float, float]:
     Returns current pressure in Pa and temperature in degree C.
     """
     return (7.0, 8.0)
+
+
+def step_counter_read() -> int:
+    return 1337
