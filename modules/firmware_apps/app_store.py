@@ -91,8 +91,15 @@ class AppStoreApp(app.App):
 
     def handle_index(self):
         if not self.response:
+            print(self.response)
+            self.update_state("no_index")
             return
-        self.app_store_index = self.response.json()["items"]
+        try:
+            self.app_store_index = self.response.json()["items"]
+        except Exception:
+            print(self.response)
+            self.update_state("no_index")
+            return
 
         self.update_state("main_menu")
 
@@ -198,14 +205,14 @@ class AppStoreApp(app.App):
 
     def uninstall_app(self, app):
         user_apps = list_user_apps()
-        selected_app = list(filter(lambda x: x['name'] == app, user_apps))
+        selected_app = list(filter(lambda x: x["name"] == app, user_apps))
         if len(selected_app) == 0:
             raise RuntimeError(f"app not found: {app}")
         if len(selected_app) > 1:
             raise RuntimeError(f"duplicate app found: {app}")
         else:
             selected_app = selected_app[0]
-        selected_app_module = selected_app['path']
+        selected_app_module = selected_app["path"]
         selected_app_fs_path = "/" + "/".join(selected_app_module.split(".")[0:-1])
         print(f"Selected app fs path: {selected_app_fs_path}")
         shutil.rmtree(selected_app_fs_path)
@@ -285,6 +292,8 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Refreshing\napp store\nindex")
         elif self.state == "index_received":
             self.error_screen(ctx, "App store\nindex\nreceived")
+        elif self.state == "no_index":
+            self.error_screen(ctx, "Index\nerror")
         elif self.state == "install_oom":
             self.error_screen(ctx, "Out of memory\n(app too big?)")
         elif self.state == "code_install_input" and self.codeinstall:
@@ -362,7 +371,7 @@ def install_app(app):
         tar_bytesio = io.BytesIO(tar)
 
         print("Validating")
-        prefix = find_app_root_dir(TarFile(fileobj=tar_bytesio)).rstrip('/')
+        prefix = find_app_root_dir(TarFile(fileobj=tar_bytesio)).rstrip("/")
         tar_bytesio.seek(0)
         print(f"Found app prefix: {prefix}")
         app_py_info = find_app_py_file(prefix, TarFile(fileobj=tar_bytesio))
@@ -378,7 +387,7 @@ def install_app(app):
         except OSError:
             pass
 
-        app_module_name = '_'.join(prefix.split('-')[0:-1])
+        app_module_name = "_".join(prefix.split("-")[0:-1])
 
         t = TarFile(fileobj=tar_bytesio)
         for i in t:
@@ -435,10 +444,13 @@ def find_app_root_dir(tar):
     root_dir = None
     for i, f in enumerate(tar):
         print(f"prefix: {i}, name: {f.name}")
-        slash_count = len(f.name.split("/")) - 1
+        # Normalise directory names between MicroPython's tarfile which uses
+        # "dir/" and Python's tarfile which uses "dir"
+        name = f.name.rstrip("/")
+        slash_count = len(name.split("/"))
         if slash_count == 1 and f.isdir():
             if root_dir is None:
-                root_dir = f.name
+                root_dir = name + "/"
             else:
                 raise ValueError("More than one root directory found in app tarball")
     if root_dir is None:
