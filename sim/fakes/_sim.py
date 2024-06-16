@@ -126,7 +126,6 @@ class Input:
                 )
 
 
-
 class ButtonsInput(Input):
     POSITIONS = [
         (370, 33),
@@ -255,7 +254,6 @@ class Simulation:
         (200, 93),
     ]
 
-
     def __init__(self):
         # Buffered LED state. Will be propagated to led_state when the
         # simulated update_leds function gets called.
@@ -319,10 +317,12 @@ class Simulation:
 
     def _render_button_markers(self, surface):
         self.buttons.render(surface)
-        #self.grav.render(surface, self.acc)
+        # self.grav.render(surface, self.acc)
 
     def _render_leds(self, surface, top=True, bottom=True):
-        for pos, state, n in zip(self.LED_POSITIONS, self.led_state, range(len(self.LED_POSITIONS))):
+        for pos, state, n in zip(
+            self.LED_POSITIONS, self.led_state, range(len(self.LED_POSITIONS))
+        ):
             # TODO(q3k): pre-apply to LED_POSITIONS
             x = pos[0] + 3.0
             y = pos[1] + 3.0
@@ -331,17 +331,16 @@ class Simulation:
                 # This is the top board, big diffuse circle
                 for i in range(20):
                     radius = 100 - i
-                    r2 = r / (100 - i*5)
-                    g2 = g / (100 - i*5)
-                    b2 = b / (100 - i*5)
+                    r2 = r / (100 - i * 5)
+                    g2 = g / (100 - i * 5)
+                    b2 = b / (100 - i * 5)
                     pygame.draw.circle(surface, (r2, g2, b2), (x, y), radius)
             if 1 <= n < 13 and top:
                 for i in range(20):
                     radius = 26 - i
-                    r2 = r / (20 - i)
-                    g2 = g / (20 - i)
-                    b2 = b / (20 - i)
-                    pygame.draw.circle(surface, (r2, g2, b2), (x, y), radius)
+                    pygame.draw.circle(
+                        surface, (r, g, b, 250 - ((20 - i) * 10)), (x, y), radius
+                    )
 
     def _render_oled(self, surface, fb):
         surface.fill((0, 0, 0, 0))
@@ -373,9 +372,10 @@ class Simulation:
             self._render_leds(full, bottom=True, top=False)
             full.blit(background, (0, 0))
 
+            self._led_surface.fill((255, 255, 255, 0))
             self._render_leds(self._led_surface, bottom=False, top=True)
             self._led_surface_dirty = False
-            full.blit(self._led_surface, (0, 0), special_flags=pygame.BLEND_ADD)
+            full.blit(self._led_surface, (0, 0))
 
             self._render_button_markers(self._button_surface)
             self._button_surface_dirty = False
