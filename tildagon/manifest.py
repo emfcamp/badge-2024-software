@@ -51,6 +51,8 @@ include("$(MPY_DIR)/extmod/asyncio/manifest.py")
 require("neopixel")
 require("ntptime")
 require("requests")
+require("umqtt.robust")
+require("umqtt.simple")
 require("mip")
 
 require("aioble")
