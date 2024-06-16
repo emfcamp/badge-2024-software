@@ -237,6 +237,7 @@ MP_CTX_COMMON_FUN_0(stroke);
 MP_CTX_COMMON_FUN_0(paint);
 
 MP_CTX_COMMON_FUN_4F(linear_gradient);
+MP_CTX_COMMON_FUN_4F(conic_gradient);
 MP_CTX_COMMON_FUN_6F(radial_gradient);
 
 MP_CTX_COMMON_FUN_3F(logo);
@@ -852,6 +853,7 @@ static const mp_rom_map_elem_t mp_ctx_locals_dict_table[] = {
 #endif
     MP_CTX_METHOD(preserve),
     MP_CTX_METHOD(linear_gradient),
+    MP_CTX_METHOD(conic_gradient),
     MP_CTX_METHOD(radial_gradient),
     MP_CTX_METHOD(add_stop),
     MP_CTX_METHOD(line_dash),
@@ -1060,6 +1062,52 @@ const mp_obj_module_t mp_module_ctx = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&mp_ctx_module_globals,
 };
+
+
+#include "py/stream.h"
+#include "extmod/vfs.h"
+
+int mp_ctx_vfs_load_file (const char     *path,
+                          unsigned char **contents,
+                          long           *length,
+                          long            max_length)
+{
+  mp_obj_t filename = mp_obj_new_str(path, strlen(path));
+  mp_obj_t open_args[2] = {filename,
+                           MP_OBJ_NEW_QSTR(MP_QSTR_rb)};
+  mp_obj_t stat = mp_vfs_stat(filename);
+  mp_obj_tuple_t *l = MP_OBJ_TO_PTR(stat);
+  mp_obj_t file = mp_vfs_open(MP_ARRAY_SIZE(open_args), &open_args[0],
+		              (mp_map_t*)&mp_const_empty_map);
+  const mp_stream_p_t *stream_p = mp_get_stream(file);
+  if (!stream_p)
+  {
+    mp_stream_close (file);
+    return -1;
+  }
+  int   errcode = 0;
+
+  long len = mp_obj_get_int(l->items[6]);
+  if (len > max_length) {
+    mp_stream_close (file);
+    return -1;
+  }
+  unsigned char *buf = ctx_malloc (len);
+  if (!buf)
+  {
+    mp_stream_close (file);
+    return -1;
+  }
+  mp_stream_rw(file, buf, len, &errcode, MP_STREAM_RW_READ | MP_STREAM_RW_ONCE);
+  if (errcode != 0) {
+    mp_raise_OSError(errcode);
+  }
+  *contents = buf;
+  *length = len;
+  mp_stream_close (file);
+  return 0;
+}
+
 
 /* This is a special macro that will make MicroPython aware of this module */
 /* clang-format off */

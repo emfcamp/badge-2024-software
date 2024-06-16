@@ -61,6 +61,8 @@ typedef enum {
     st3m_gfx_32bpp = 32,
 } st3m_gfx_mode;
 
+void st3m_gfx_fps_update (void);
+
 // sets the system graphics mode, this is the mode you get to
 // when calling st3m_gfx_set_mode(st3m_gfx_default);
 void st3m_gfx_set_default_mode(st3m_gfx_mode mode);
