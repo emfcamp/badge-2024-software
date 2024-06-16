@@ -213,7 +213,7 @@ class _Scheduler:
 
             with PerfTimer("render"):
                 ctx = display.get_ctx()
-                for app in self.foreground_stack:
+                for app in self.foreground_stack[-1:] + self.on_top_stack:
                     with PerfTimer(f"rendering {app}"):
                         ctx.save()
                         try:
@@ -226,11 +226,6 @@ class _Scheduler:
                                     message=f"{app.__class__.__name__} has crashed"
                                 )
                             )
-                        ctx.restore()
-                for app in self.on_top_stack:
-                    with PerfTimer(f"rendering {app}"):
-                        ctx.save()
-                        app.draw(ctx)
                         ctx.restore()
                 display.end_frame(ctx)
             await asyncio.sleep(0)
