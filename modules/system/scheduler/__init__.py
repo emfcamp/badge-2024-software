@@ -213,20 +213,20 @@ class _Scheduler:
 
             with PerfTimer("render"):
                 ctx = display.get_ctx()
-                for app in self.foreground_stack:
-                    with PerfTimer(f"rendering {app}"):
-                        ctx.save()
-                        try:
-                            app.draw(ctx)
-                        except Exception as e:
-                            eventbus.emit(RequestStopAppEvent(app=app))
-                            sys.print_exception(e, sys.stderr)
-                            eventbus.emit(
-                                ShowNotificationEvent(
-                                    message=f"{app.__class__.__name__} has crashed"
-                                )
+                app = self.foreground_stack[-1]
+                with PerfTimer(f"rendering {app}"):
+                    ctx.save()
+                    try:
+                        app.draw(ctx)
+                    except Exception as e:
+                        eventbus.emit(RequestStopAppEvent(app=app))
+                        sys.print_exception(e, sys.stderr)
+                        eventbus.emit(
+                            ShowNotificationEvent(
+                                message=f"{app.__class__.__name__} has crashed"
                             )
-                        ctx.restore()
+                        )
+                    ctx.restore()
                 for app in self.on_top_stack:
                     with PerfTimer(f"rendering {app}"):
                         ctx.save()
