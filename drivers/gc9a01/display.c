@@ -27,17 +27,55 @@ static mp_obj_t get_fps() {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(get_fps_obj, get_fps);
 
+#define TILDAGON_DISPLAY_WIDTH  240
+#define TILDAGON_DISPLAY_HEIGHT 240
+
+EXT_RAM_BSS_ATTR
+static uint8_t tildagon_fb[TILDAGON_DISPLAY_WIDTH * TILDAGON_DISPLAY_HEIGHT * 2];
+static Ctx *tildagon_ctx = NULL;
+
+Ctx *tildagon_gfx_ctx(void)
+{
+  if (tildagon_ctx == NULL)
+  {
+    tildagon_ctx = ctx_new_for_framebuffer (tildagon_fb, TILDAGON_DISPLAY_WIDTH, TILDAGON_DISPLAY_HEIGHT, TILDAGON_DISPLAY_WIDTH * 2, CTX_FORMAT_RGB565_BYTESWAPPED);
+  }
+  return tildagon_ctx;
+}
+
+void tildagon_start_frame(Ctx *ctx)
+{
+  int32_t offset_x = FLOW3R_BSP_DISPLAY_WIDTH / 2;
+  int32_t offset_y = FLOW3R_BSP_DISPLAY_HEIGHT / 2;
+
+  ctx_save (ctx);
+  ctx_identity (ctx);
+  ctx_apply_transform (ctx, 1.0f, 0.0f, offset_x, 0.0f, 1.0f, offset_y, 0.0f, 0.0f, 1.0f);
+}
 
 static mp_obj_t get_ctx() {
-    Ctx *ctx = st3m_gfx_ctx(st3m_gfx_default);
+    Ctx *ctx = tildagon_gfx_ctx();
+    assert (ctx);
+    tildagon_start_frame (ctx);
     return mp_ctx_from_ctx(ctx);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(get_ctx_obj, get_ctx);
 
+void tildagon_blit_fb (void)
+{
+  flow3r_bsp_display_send_fb(tildagon_fb, 16);
+}
+
+void tildagon_end_frame(Ctx *ctx)
+{
+  ctx_restore (ctx);
+  tildagon_blit_fb ();
+  st3m_gfx_fps_update ();
+}
 
 static mp_obj_t end_frame(mp_obj_t ctx) {
     mp_ctx_obj_t *self = MP_OBJ_TO_PTR(ctx);
-    st3m_gfx_end_frame(self->ctx);
+    tildagon_end_frame (self->ctx);
     return ctx;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(end_frame_obj, end_frame);

@@ -5412,6 +5412,9 @@ static inline CtxList *ctx_list_find_custom (CtxList *list,
 #define CTX_ENABLE_FLOAT 1
 #endif
 
+#ifndef CTX_LOAD_FILE
+#define CTX_LOAD_FILE ___ctx_file_get_contents
+#endif
 
 /* enable cmykf which is cmyk intermediate format
  */
@@ -34464,14 +34467,6 @@ ___ctx_file_get_contents (const char     *path,
   return 0;
 }
 
-static int
-__ctx_file_get_contents (const char     *path,
-                        unsigned char **contents,
-                        long           *length)
-{
-  return ___ctx_file_get_contents (path, contents, length, 1024*1024*1024);
-}
-
 #if !__COSMOPOLITAN__
 #include <limits.h>
 #endif
@@ -53075,11 +53070,13 @@ ctx_texture_load (Ctx *ctx, const char *path, int *tw, int *th, char *reid)
   int w, h, components;
   unsigned char *pixels = NULL;
 
+#if 0
   if (path[0] == '/' || !strncmp (path, "file://", 7))
   {
     pixels = stbi_load (path + (path[0]=='/'?0:7), &w, &h, &components, 0);
   }
   else
+#endif
   {
     unsigned char *data = NULL;
     long length = 0;
@@ -54934,7 +54931,7 @@ ctx_get_contents2 (const char     *uri,
   }
 
   if (!strncmp (uri, "file://", 7))
-    success = ___ctx_file_get_contents (uri + 7, contents, length, max_len);
+    success = CTX_LOAD_FILE (uri + 7, contents, length, max_len);
 #ifdef ITK_HAVE_FS
   else if (!strncmp (uri, "itk:", 4))
   {
@@ -54973,7 +54970,7 @@ ctx_get_contents2 (const char     *uri,
      success = 0;
   }
 #else
-    success = ___ctx_file_get_contents (uri, contents, length, max_len);
+    success = CTX_LOAD_FILE (uri, contents, length, max_len);
 #endif
   }
   ctx_free (temp_uri);
@@ -54989,7 +54986,7 @@ ctx_get_contents (const char     *uri,
   return ctx_get_contents2 (uri, contents, length, 1024*1024*1024);
 }
 
-
+#if 0
 
 typedef struct CtxMagicEntry {
   int is_text;
@@ -55255,6 +55252,7 @@ CtxMediaTypeClass ctx_media_type_class (const char *media_type)
   }
   return ret;
 }
+#endif
 
 #else
 int
