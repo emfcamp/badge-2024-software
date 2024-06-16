@@ -3,6 +3,7 @@ import app
 from app_components import layout, tokens, TextDialog
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
+from system.patterndisplay.events import PatternReload
 
 
 def string_formatter(value):
@@ -105,6 +106,7 @@ class SettingsApp(app.App):
                                 idx = 0
                             print(f"{PATTERNS} {idx}")
                             settings.set("pattern", PATTERNS[idx])
+                            eventbus.emit(PatternReload())
                             await self.update_values()
                             await render_update()
                             return True

@@ -10,14 +10,19 @@ class PatternDisplay(App):
     def __init__(self):
         eventbus.on_async(PatternEnable, self._enable, self)
         eventbus.on_async(PatternDisable, self._disable, self)
+        eventbus.on_async(PatternReload, self._reload, self)
+        self.load_pattern()
+        self.enabled = settings.get("pattern_generator_enabled", True)
+
+    def load_pattern(self):
         self.pattern = settings.get("pattern", "rainbow")
+        print("Loading pattern: %s" % self.pattern)
         try:
             _patternpath = "patterns." + self.pattern
             _patternclass = self.pattern[0].upper() + self.pattern[1:] + "Pattern"
             _pmodule = __import__(_patternpath, globals(), locals(), [_patternclass])
             _pclass = getattr(_pmodule, _patternclass)
             self._p = _pclass()
-            self.enabled = settings.get("pattern_generator_enabled", True)
         except:
             raise ImportError(f"Pattern {self.pattern} not found!")
 
@@ -26,6 +31,9 @@ class PatternDisplay(App):
 
     async def _disable(self, event: PatternDisable):
         self.enabled = False
+
+    async def _reload(self, event: PatternReload):
+        self.load_pattern()
 
     async def background_task(self):
         while True:
