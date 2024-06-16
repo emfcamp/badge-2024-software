@@ -38,6 +38,7 @@
 #define CTX_TILED                          0
 #define CTX_BAREMETAL                      1
 #define CTX_ONE_FONT_ENGINE                1
+#define CTX_GET_CONTENTS                   1
 
 #define CTX_MAX_SCANLINE_LENGTH            960
 #define CTX_MAX_JOURNAL_SIZE               (1024*512)
