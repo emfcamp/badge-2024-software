@@ -97,8 +97,10 @@ class HexpansionHeader:
 def write_header(port, header, addr=0x50, addr_len=2, page_size=32):
     i2c = I2C(port)
 
-    addr_bytes = [0] * addr_len
-    i2c.writeto(addr, bytes(addr_bytes))
+    if addr_len == 2:
+        addr_pack = ">H"
+    else:
+        addr_pack = ">B"
 
     # We can't write more bytes than the page size in one transaction, so chunk the bytes if necessary:
     header_bytes = header.to_bytes()
@@ -107,10 +109,10 @@ def write_header(port, header, addr=0x50, addr_len=2, page_size=32):
     ]
 
     for idx, chunk in enumerate(header_chunks):
-        write_addr = bytes([idx * page_size])
-        print(f"Writing {len(chunk)} bytes at {write_addr}:", chunk)
+        write_addr = struct.pack(addr_pack, idx * page_size)
+        print(f"Writing {len(chunk)} bytes at {idx * page_size}:", chunk)
 
-        i2c.writeto(addr, bytes([idx * page_size]) + chunk)
+        i2c.writeto(addr, write_addr + chunk)
 
         # Poll ACK
         while True:
