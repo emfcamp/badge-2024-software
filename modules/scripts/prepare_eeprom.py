@@ -14,24 +14,35 @@ port = 2  # <<-- Customize!!
 i2c = I2C(port)
 
 # autodetect eeprom address
-addr = detect_eeprom_addr(i2c)
+addr, addr_len = detect_eeprom_addr(i2c)
 print(f"Detected eeprom at {hex(addr)}")
 
 # Fill in your desired header info here:
-header = HexpansionHeader(
+# use this one for the M24C16:
+header_m24c16 = HexpansionHeader(
     manifest_version="2024",
     fs_offset=32,
     eeprom_page_size=16,
-    eeprom_total_size=1024 * (16 // 8) // 8,
+    eeprom_total_size=1024 * (16 // 8),
+    vid=0xCA75,
+    pid=0x1337,
+    unique_id=0,
+    friendly_name="M24C16"
+)
+# use this template for the ZD24C64A
+header_zd24c64 = HexpansionHeader(
+    manifest_version="2024",
+    fs_offset=32,
+    eeprom_page_size=32,
+    eeprom_total_size=1024 * (64 // 8),
     vid=0xCA75,
     pid=0x1337,
     unique_id=0x0,
-    friendly_name="Flopagon",
+    friendly_name="ZD24C64A",
 )
 
-# Determine amount of bytes in internal address
-addr_len = 2 if header.eeprom_total_size > 256 else 1
-print(f"Using {addr_len} bytes for eeprom internal address")
+# pick which one to use here
+header = header_m24c16
 
 # Write and read back header
 write_header(
@@ -43,7 +54,7 @@ if header is None:
     raise RuntimeError("Failed to read back hexpansion header")
 
 # Get block devices
-eep, partition = get_hexpansion_block_devices(i2c, header, addr)
+eep, partition = get_hexpansion_block_devices(i2c, header, addr, addr_len=addr_len)
 
 # Format
 vfs.VfsLfs2.mkfs(partition)
