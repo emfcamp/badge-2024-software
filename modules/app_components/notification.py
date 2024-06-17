@@ -72,21 +72,30 @@ class Notification:
             extra_text = self.message
             line = 0
             while extra_text:
-                text_that_fits, extra_text = self.get_text_for_line(ctx, extra_text, line)
+                text_that_fits, extra_text = self.get_text_for_line(
+                    ctx, extra_text, line
+                )
                 lines.append(text_that_fits)
                 line = line + 1
 
             set_color(ctx, "mid_green")
-            ctx.rectangle(-120, -150 - 30 * (len(lines)-1) - (self._animation_state * -30  * len(lines)), 240, 30 * len(lines)).fill()
+            ctx.rectangle(
+                -120,
+                -150
+                - 30 * (len(lines) - 1)
+                - (self._animation_state * -30 * len(lines)),
+                240,
+                30 * len(lines),
+            ).fill()
 
-            if self._port != 0:
-                ctx.rotate(3.14)
-                set_color(ctx, "label")
-                for i in range(len(lines)):
-                    ctx.move_to(0, 135 - 30* (len(lines)-1) - (self._animation_state * -30  * len(lines)) + 30*i).text(lines[i])
-            else:
-                set_color(ctx, "label")
-                for i in range(len(lines)):
-                    ctx.move_to(0, -130 - 30* (len(lines)-1) - (self._animation_state * -30  * len(lines)) + 30*i).text(lines[i])
+            set_color(ctx, "label")
+            for i in range(len(lines)):
+                ctx.move_to(
+                    0,
+                    -130
+                    - 30 * (len(lines) - 1)
+                    - (self._animation_state * -30 * len(lines))
+                    + 30 * i,
+                ).text(lines[i])
 
             ctx.restore()
