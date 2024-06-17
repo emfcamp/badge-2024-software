@@ -30,7 +30,7 @@ static MP_DEFINE_CONST_FUN_OBJ_0(get_fps_obj, get_fps);
 #define TILDAGON_DISPLAY_WIDTH  240
 #define TILDAGON_DISPLAY_HEIGHT 240
 
-EXT_RAM_BSS_ATTR
+//EXT_RAM_BSS_ATTR
 static uint8_t tildagon_fb[TILDAGON_DISPLAY_WIDTH * TILDAGON_DISPLAY_HEIGHT * 2];
 static Ctx *tildagon_ctx = NULL;
 
