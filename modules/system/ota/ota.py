@@ -9,9 +9,30 @@ import ota
 import ntptime
 import requests
 import wifi
+import settings
 from system.eventbus import eventbus
 from system.scheduler.events import RequestStopAppEvent
 from events.input import BUTTON_TYPES, ButtonDownEvent
+
+
+def parse_version(version):
+    if "-" in version:
+        version, ahead, _ = version.split("-")
+        ahead = int(ahead)
+    else:
+        ahead = 0
+    version = version.strip("v").split(".")
+    major, minor, patch = version
+    if "rc" in patch:
+        patch, rc = patch.split("rc")
+        patch = int(patch) - 1
+        patch = patch + float(rc) / 10
+    else:
+        patch = int(patch)
+    major = int(major)
+    minor = int(minor)
+    patch = float(patch)
+    return major, minor, patch, ahead
 
 
 class OtaUpdate(App):
@@ -26,6 +47,7 @@ class OtaUpdate(App):
         )
         self.layout.y_offset = 70
         self.task = None
+        self.channel = settings.get("update_channel", "latest")
         eventbus.on_async(ButtonDownEvent, self._button_handler, self)
 
     async def _button_handler(self, event):
@@ -119,7 +141,7 @@ class OtaUpdate(App):
             self.task = async_helpers.unblock(
                 requests.head,
                 render_update,
-                "https://github.com/emfcamp/badge-2024-software/releases/download/latest/micropython.bin",
+                f"https://github.com/emfcamp/badge-2024-software/releases/download/{self.channel}/micropython.bin",
                 allow_redirects=False,
             )
             response = await self.task
@@ -129,7 +151,7 @@ class OtaUpdate(App):
             self.task = async_helpers.unblock(
                 requests.get,
                 render_update,
-                "https://api.github.com/repos/emfcamp/badge-2024-software/releases/tags/latest",
+                f"https://api.github.com/repos/emfcamp/badge-2024-software/releases/tags/{self.channel}",
                 headers={"User-Agent": "Badge OTA"},
             )
             notes = await self.task
@@ -180,7 +202,7 @@ class OtaUpdate(App):
         if not self.confirmed:
             if len(version) > 0:
                 self.new_version.value = version
-                if version <= ota.get_version():
+                if parse_version(version) <= parse_version(ota.get_version()):
                     self.status.value = "No update needed"
                     return False
 
