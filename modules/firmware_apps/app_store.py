@@ -462,11 +462,12 @@ def find_app_py_file(prefix, tar) -> tarfile.TarInfo:
     print("Finding app.py...")
     found_app_py = False
     expected_path = f"{prefix}/app.py"
+    alternative_path = f"{prefix}/app.mpy"
     app_py_info = None
 
     for i, f in enumerate(tar):
         print(f"prefix: {i}, name: {f.name}")
-        if f.name == expected_path:
+        if f.name == expected_path or f.name == alternative_path:
             found_app_py = True
             app_py_info = f
     if not found_app_py:
