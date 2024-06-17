@@ -173,6 +173,7 @@ class SettingsApp(app.App):
             ("pattern", "LED Pattern", string_formatter, None),
             ("pattern_brightness", "Pattern brightness", pct_formatter, None),
             ("pattern_mirror_hexpansions", "Mirror pattern", string_formatter, None),
+            ("update_channel", "Update channel", string_formatter, None),
             ("wifi_tx_power", "WiFi TX power", string_formatter, None),
             (
                 "wifi_connection_timeout",

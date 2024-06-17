@@ -73,7 +73,7 @@ jobs:
             micropython/ports/esp32/build-tildagon/tildagon.txt
       - name: Create latest release for tags
         uses: "marvinpinto/action-automatic-releases@latest"
-        if: github.event_name == 'push'
+        if: ${{startsWith(github.event.ref, 'refs/tags/v')} && !contains(github.event.ref, 'rc')}
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "latest"
@@ -83,9 +83,19 @@ jobs:
             micropython/ports/esp32/build-tildagon/tildagon.txt
       - name: Create specific release for tags
         uses: "marvinpinto/action-automatic-releases@latest"
-        if: github.event_name == 'push'
+        if: ${{startsWith(github.event.ref, 'refs/tags/v')}}
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          files: |
+            micropython/ports/esp32/build-tildagon/micropython.bin
+            micropython/ports/esp32/build-tildagon/tildagon.txt
+      - name: Create latest release for tags
+        uses: "marvinpinto/action-automatic-releases@latest"
+        if: ${{startsWith(github.event.ref, 'refs/tags/v')} && contains(github.event.ref, 'rc')}
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "preview"
+          title: "Latest release build"
           files: |
             micropython/ports/esp32/build-tildagon/micropython.bin
             micropython/ports/esp32/build-tildagon/tildagon.txt
@@ -101,7 +111,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3 # or specific "vX.X.X" version tag for this action
         with:
           path: ./flasher
-        if: startsWith(github.event.ref, 'refs/tags/v')
+        if: ${{startsWith(github.event.ref, 'refs/tags/v')} && !contains(github.event.ref, 'rc')}
   deploy:
     if: startsWith(github.event.ref, 'refs/tags/v')
     needs: Build-Firmware
