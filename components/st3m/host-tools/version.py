@@ -16,10 +16,13 @@ import os
 def get_git_based_version():
     root = os.environ.get('GITHUB_WORKSPACE', '/firmware')
     os.chdir(root)
-    return subprocess.check_output(
+    version = subprocess.check_output(
         ["git", "describe", "--tags", "--always"]
     ).decode().strip()
-
+    if '-' in version:
+        version = version.replace("-", "+", 1)
+        version  = version.replace("-", ".")
+    return version
 
 fmt = None
 if len(sys.argv) > 1:

@@ -24,7 +24,7 @@ file(
         BASE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
 )
 execute_process(
-        COMMAND "${GIT_EXECUTABLE}" describe --tags --always
+        COMMAND "python" "components/st3m/host-tools/version.py"
         WORKING_DIRECTORY "${FIRMWARE_ROOT}"
         RESULT_VARIABLE res
         OUTPUT_VARIABLE TILDAGON_GIT_VERSION
