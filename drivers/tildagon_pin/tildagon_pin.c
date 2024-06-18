@@ -175,6 +175,7 @@ static mp_obj_t tildagon_pin_obj_init_helper(const tildagon_pin_obj_t *self, siz
         mp_int_t pin_io_mode = mp_obj_get_int(args[ARG_mode].u_obj);
         if ( pin_io_mode == EGPIO_MODE_PWM )
         {
+            aw9523b_pin_set_drive( dev, pin, 0 );
             aw9523b_pin_set_mode(dev, pin, AW9523B_PIN_MODE_LED);
         }
         else
@@ -329,6 +330,7 @@ MP_DEFINE_CONST_OBJ_TYPE(
 
 static const mp_rom_map_elem_t tildagon_pin_locals_dict_table[] = {
     // instance methods
+    { MP_ROM_QSTR(MP_QSTR___init__), MP_ROM_PTR(&tildagon_pin_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&tildagon_pin_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_value), MP_ROM_PTR(&tildagon_pin_value_obj) },
     { MP_ROM_QSTR(MP_QSTR_off), MP_ROM_PTR(&tildagon_pin_off_obj) },

@@ -38,6 +38,7 @@ void aw9523b_init(aw9523b_device_t *dev) {
     aw9523b_writeregs(dev, 0x06, (const uint8_t*)"\xff\xff", 2);
     aw9523b_writeregs(dev, 0x04, (const uint8_t*)"\xff\xff", 2);
     aw9523b_writeregs(dev, 0x11, (const uint8_t*)"\x10", 1);
+    aw9523b_writeregs(dev, 0x20, (const uint8_t*)"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 16);
 }
 
 
