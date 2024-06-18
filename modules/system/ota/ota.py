@@ -16,23 +16,28 @@ from events.input import BUTTON_TYPES, ButtonDownEvent
 
 
 def parse_version(version):
+    pre_components = ["final"]
+    build_components = ["0", "000000z"]
+    build = ""
+    components = []
+    if "+" in version:
+        version, build = version.split("+", 1)
+        build_components = build.split(".")
     if "-" in version:
-        version, ahead, _ = version.split("-")
-        ahead = int(ahead)
-    else:
-        ahead = 0
+        version, pre_release = version.split("-", 1)
+        if pre_release.startswith("rc"):
+            # Re-write rc as c, to support a1, b1, rc1, final ordering
+            pre_release = pre_release[1:]
+        pre_components = pre_release.split(".")
     version = version.strip("v").split(".")
-    major, minor, patch = version
-    if "rc" in patch:
-        patch, rc = patch.split("rc")
-        patch = int(patch) - 1
-        patch = patch + float(rc) / 10
-    else:
-        patch = int(patch)
-    major = int(major)
-    minor = int(minor)
-    patch = float(patch)
-    return major, minor, patch, ahead
+    components = [int(item) if item.isdigit() else item for item in version]
+    components.append(
+        [int(item) if item.isdigit() else item for item in pre_components]
+    )
+    components.append(
+        [int(item) if item.isdigit() else item for item in build_components]
+    )
+    return components
 
 
 class OtaUpdate(App):
@@ -202,9 +207,13 @@ class OtaUpdate(App):
         if not self.confirmed:
             if len(version) > 0:
                 self.new_version.value = version
-                if parse_version(version) <= parse_version(ota.get_version()):
-                    self.status.value = "No update needed"
-                    return False
+                try:
+                    if parse_version(version) <= parse_version(ota.get_version()):
+                        self.status.value = "No update needed"
+                        return False
+                except Exception:
+                    # Any problems parsing or getting version, allow the update
+                    pass
 
                 print("New version:")
                 print(version)
