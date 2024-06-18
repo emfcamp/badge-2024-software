@@ -73,7 +73,7 @@ jobs:
             micropython/ports/esp32/build-tildagon/tildagon.txt
       - name: Create latest release for tags
         uses: "marvinpinto/action-automatic-releases@latest"
-        if: ${{startsWith(github.event.ref, 'refs/tags/v')} && !contains(github.event.ref, 'rc')}
+        if: ${{startsWith(github.event.ref, 'refs/tags/v')} && !contains(github.event.ref, 'rc') }}
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "latest"
@@ -91,7 +91,7 @@ jobs:
             micropython/ports/esp32/build-tildagon/tildagon.txt
       - name: Create preview release for rc tags
         uses: "marvinpinto/action-automatic-releases@latest"
-        if: ${{startsWith(github.event.ref, 'refs/tags/v')} && contains(github.event.ref, 'rc')}
+        if: ${{startsWith(github.event.ref, 'refs/tags/v')} && contains(github.event.ref, 'rc') }}
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "preview"
@@ -111,7 +111,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3 # or specific "vX.X.X" version tag for this action
         with:
           path: ./flasher
-        if: ${{startsWith(github.event.ref, 'refs/tags/v')} && !contains(github.event.ref, 'rc')}
+        if: ${{startsWith(github.event.ref, 'refs/tags/v')} && !contains(github.event.ref, 'rc') }}
   deploy:
     if: startsWith(github.event.ref, 'refs/tags/v')
     needs: Build-Firmware
