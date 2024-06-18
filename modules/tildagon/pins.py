@@ -34,32 +34,10 @@ HEXPANSION_GPIOS = {
 }
 
 
-class Pin:
-    def __init__(self, pin_name, mode=-1):
+class Pin(ePin):
+    def __init__(self, pin_name, mode=None):
         self.OUT = ePin.OUT
         self.IN = ePin.IN
         self.PWM = ePin.PWM
         self.name = pin_name
-        self.pin = ePin(HEXPANSION_GPIOS[pin_name], mode)
-        self.mode = mode
-
-    def init(self, mode):
-        self.pin.init(mode)
-        self.mode = mode
-
-    def duty(self, value):
-        self.pin.duty(value & 0xFF)
-
-    def on(self):
-        self.pin.on()
-
-    def off(self):
-        self.pin.off()
-
-    def value(self, value=None, read=True):
-        if self.mode in (self.IN, -1) and value is None:
-            return self.pin.value()
-        elif self.mode in (self.OUT, -1):
-            return self.pin.value(value)
-        else:
-            raise ValueError("Wrong pin state")
+        super().__init__(HEXPANSION_GPIOS[pin_name], mode)

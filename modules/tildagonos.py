@@ -25,7 +25,6 @@ led_colours = [
 class _tildagonos:
     def __init__(self):
         self.leds = neopixel.NeoPixel(Pin(21), 19)
-        # self.gpiodata = {}
         self.spi = None
         self.tft = None
 
@@ -36,7 +35,10 @@ class _tildagonos:
         )
         self.tft.fill(gc9a01.MAGENTA)
 
-    def init_gpio(self): ...
+    def init_gpio(self):
+        print(
+            "Warning init_gpio has been depriciated use system.hexpansion.config HexpansionConfig or tildagon Pin instead"
+        )
 
     @staticmethod
     def convert_pin(pin):
@@ -48,6 +50,9 @@ class _tildagonos:
         return pin
 
     def set_pin_mode(self, pin, mode=Pin.IN):
+        print(
+            "Warning set_pin_mode has been depriciated use system.hexpansion.config HexpansionConfig or tildagon Pin instead"
+        )
         pin = self.convert_pin(pin)
         pin = ePin(pin)
         if mode == Pin.IN or mode == Pin.OUT or mode == ePin.PWM:
@@ -62,17 +67,22 @@ class _tildagonos:
         @param pin: tuple of (i2c addr, port number 0/1, bitmask) or (device 0-2, pin 0-15) selecting the pin to modify
         @param state: True to set the pin high, False to set the pin low
         """
+        print(
+            "Warning set_egpio_pin has been depriciated use system.hexpansion.config HexpansionConfig or tildagon Pin instead"
+        )
         pin = self.convert_pin(pin)
         pin = ePin(pin)
         pin(state)
 
     def read_egpios(self):
-        ...
-        # for i in [0x58, 0x59, 0x5A]:
-        #    portstates = list(map(int, self.system_i2c.readfrom_mem(i, 0x00, 2)))
-        #    self.gpiodata[i] = tuple(portstates)
+        print(
+            "Warning read_egpios has been depriciated use system.hexpansion.config HexpansionConfig or tildagon Pin instead"
+        )
 
     def check_egpio_state(self, pin, readgpios=True):
+        print(
+            "Warning check_egpio_state has been depriciated use system.hexpansion.config HexpansionConfig or tildagon Pin instead"
+        )
         pin = self.convert_pin(pin)
         pin = ePin(pin)
         return pin()

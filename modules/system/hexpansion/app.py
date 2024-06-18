@@ -226,13 +226,20 @@ class HexpansionManagerApp(app.App):
         tildagonos.set_led_power(True)
 
         hexpansion_plugin_states = [False] * 6
-
+        detect_pin = [
+            ePin(EPIN_ND_A),
+            ePin(EPIN_ND_B),
+            ePin(EPIN_ND_C),
+            ePin(EPIN_ND_D),
+            ePin(EPIN_ND_E),
+            ePin(EPIN_ND_F),
+        ]
         while True:
             with PerfTimer("indicate hexpansion insertion"):
                 for i, n in enumerate(
                     [EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F]
                 ):
-                    hexpansion_present = not ePin(n).value()
+                    hexpansion_present = not detect_pin[i].value()
                     if hexpansion_present:
                         if settings.get("pattern_mirror_hexpansions", False):
                             tildagonos.leds[13 + i] = tildagonos.leds[1 + (i * 2)]
