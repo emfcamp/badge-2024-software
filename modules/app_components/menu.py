@@ -117,7 +117,10 @@ class Menu:
 
         # Current menu item
         ctx.font_size = self.item_font_size + animation_progress * (
-            self.focused_item_font_size_arr[self.position % num_menu_items if num_menu_items > 0 else 1] - self.item_font_size
+            self.focused_item_font_size_arr[
+                self.position % num_menu_items if num_menu_items > 0 else 1
+            ]
+            - self.item_font_size
         )
 
         label = ""

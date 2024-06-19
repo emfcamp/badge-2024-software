@@ -1,5 +1,9 @@
 from machine import I2C
-from system.hexpansion.util import read_hexpansion_header, get_hexpansion_block_devices, detect_eeprom_addr
+from system.hexpansion.util import (
+    read_hexpansion_header,
+    get_hexpansion_block_devices,
+    detect_eeprom_addr,
+)
 import vfs
 import os
 

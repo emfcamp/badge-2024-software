@@ -196,7 +196,9 @@ class HexpansionManagerApp(app.App):
         # Try creating block devices, one for the whole eeprom,
         # one for the partition with the filesystem on it
         try:
-            eep, partition = get_hexpansion_block_devices(i2c, header, addr, addr_len=addr_len)
+            eep, partition = get_hexpansion_block_devices(
+                i2c, header, addr, addr_len=addr_len
+            )
         except RuntimeError as e:
             print(f"Could not initialize eeprom: {e}")
             eep = None

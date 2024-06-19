@@ -6,8 +6,7 @@ import math
 import time
 
 
-class led():
-
+class led:
     @staticmethod
     def _setup_leds():
         tildagonos.set_led_power(True)
@@ -24,8 +23,7 @@ class led():
         tildagonos.leds.write()
 
 
-class button():
-
+class button:
     @staticmethod
     def get(button_letter):
         button_letter = button_letter.lower()
@@ -41,11 +39,13 @@ class button():
             # Note the button must be flipped, as will return True when not pressed
             return not tildagonos.check_egpio_state(button_letters[button_letter])
         else:
-            raise ValueError("button_letter must be a string of a single letter from a to f")
+            raise ValueError(
+                "button_letter must be a string of a single letter from a to f"
+            )
 
 
-class imu():
-    class ImuData():
+class imu:
+    class ImuData:
         def __init__(self, x, y, z):
             self.x = x
             self.y = y
@@ -66,7 +66,7 @@ class imu():
 
     @staticmethod
     def _magnitude(acc_read):
-        return math.sqrt(sum(i ** 2 for i in acc_read))
+        return math.sqrt(sum(i**2 for i in acc_read))
 
     @staticmethod
     def is_tilted_forward():

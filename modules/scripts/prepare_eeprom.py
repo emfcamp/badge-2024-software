@@ -27,7 +27,7 @@ header_m24c16 = HexpansionHeader(
     vid=0xCA75,
     pid=0x1337,
     unique_id=0,
-    friendly_name="M24C16"
+    friendly_name="M24C16",
 )
 # use this template for the ZD24C64A
 header_zd24c64 = HexpansionHeader(

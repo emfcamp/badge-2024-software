@@ -434,7 +434,7 @@ class fusb302:
                 ("RXSOP", 0),
                 ("RXSOP1DB", 0),
                 ("RXSOP2DB", 0),
-                ("TOGSS", 0 ),
+                ("TOGSS", 0),
             ]
         )
         status["RXSOP"] = (read & self.rx_sop.mask) >> self.ocp.position
@@ -444,8 +444,8 @@ class fusb302:
         status["RXSOP2DB"] = (
             read & self.rx_sop_double_debug.mask
         ) >> self.rx_sop_double_debug.position
-        status["TOGSS"] = ( 
-            read & self.toggle_status.mask 
+        status["TOGSS"] = (
+            read & self.toggle_status.mask
         ) >> self.toggle_status.position
         return status
 
@@ -462,9 +462,9 @@ class fusb302:
         Interruptb = self.i2c.readfrom_mem(
             self.ADDRESS, self.good_crc_sent_int.register, 1
         )[0]
-        Interrupt = self.i2c.readfrom_mem(
-            self.ADDRESS, self.bc_level_int.register, 1
-        )[0]
+        Interrupt = self.i2c.readfrom_mem(self.ADDRESS, self.bc_level_int.register, 1)[
+            0
+        ]
         current_interrupts = dict(
             [
                 ("I_HARDRST", 0),
@@ -473,7 +473,7 @@ class fusb302:
                 ("I_HARDSENT", 0),
                 ("I_RETRYFAIL", 0),
                 ("I_SOFTFAIL", 0),
-                ("I_TOGDONE", 0 ),
+                ("I_TOGDONE", 0),
                 ("I_OCP_TEMP", 0),
                 ("I_GCRCSENT", 0),
                 ("I_BC_LVL", 0),
@@ -507,8 +507,8 @@ class fusb302:
         current_interrupts["I_OCP_TEMP"] = (
             Interrupta & self.ocp_temp_int.mask
         ) >> self.ocp_temp_int.position
-        current_interrupts['I_TOGDONE '] = (
-            Interrupta & self.toggle_done_int.mask 
+        current_interrupts["I_TOGDONE "] = (
+            Interrupta & self.toggle_done_int.mask
         ) >> self.toggle_done_int.position
         current_interrupts["I_GCRCSENT"] = (
             Interruptb & self.good_crc_sent_int.mask
@@ -798,7 +798,7 @@ class fusb302:
                 limited,
             )
 
-    def request_capability(self, msg_id = 0):
+    def request_capability(self, msg_id=0):
         """
         ask for the power supply options
         """
@@ -809,7 +809,7 @@ class fusb302:
             self.TX_SOP2,
             self.TX_PACKSYM | 0x02,
             0x47,
-            ( 0x00 | ( ( msg_id & 0x07 ) << 1 ) ),
+            (0x00 | ((msg_id & 0x07) << 1)),
             self.TX_JAM_CRC,
             self.TX_EOP,
             self.TX_OFF,
@@ -822,7 +822,9 @@ class fusb302:
         """
         reset the protocol layer on other port
         """
-        self.i2c.writeto_mem(self.ADDRESS, self.rxtx_fifo.register, bytes(self.TX_RESET1))
+        self.i2c.writeto_mem(
+            self.ADDRESS, self.rxtx_fifo.register, bytes(self.TX_RESET1)
+        )
 
 
 if __name__ == "__main__":

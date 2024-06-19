@@ -3,7 +3,7 @@ import app
 
 from events.input import Buttons, BUTTON_TYPES
 from system.eventbus import eventbus
-from system.patterndisplay.events import PatternEnable,PatternDisable
+from system.patterndisplay.events import PatternEnable, PatternDisable
 
 from tildagonos import tildagonos
 
@@ -18,7 +18,7 @@ class PatternInhibit(app.App):
     def _make_red(self):
         asyncio.sleep(0.5)
         for i in range(1, 13):
-            tildagonos.leds[i] = (int(i * (255/12)), 0, 0)
+            tildagonos.leds[i] = (int(i * (255 / 12)), 0, 0)
         tildagonos.leds.write()
 
     def update(self, delta):
