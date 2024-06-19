@@ -1,29 +1,36 @@
-
-
-
 class PowerEvent:
     def __init__(self, EventName):
         self.__str__ = EventName
 
+
 class RequestChargeEvent(PowerEvent): ...
+
 
 class RequestBatFaultEvent(PowerEvent): ...
 
+
 class RequestBoostFaultEvent(PowerEvent): ...
+
 
 class RequestChargeFaultEvent(PowerEvent): ...
 
+
 class RequestTimeoutFaultEvent(PowerEvent): ...
+
 
 class RequestHostAttachEvent(PowerEvent): ...
 
+
 class RequestHostDetachEvent(PowerEvent): ...
+
 
 class RequestDeviceAttachEvent(PowerEvent): ...
 
+
 class RequestDeviceDetachEvent(PowerEvent): ...
+
 
 class RequestLanyardAttachEvent(PowerEvent): ...
 
-class RequestLanyardDetachEvent(PowerEvent): ...
 
+class RequestLanyardDetachEvent(PowerEvent): ...

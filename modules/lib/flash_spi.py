@@ -22,10 +22,18 @@ _CE = const(0xC7)  # Chip erase (takes minutes)
 
 _SEC_SIZE = const(4096)  # Flash sector size 0x1000
 
+
 # Logical Flash device comprising one or more physical chips sharing an SPI bus.
 class FLASH(FlashDevice):
     def __init__(
-        self, spi, cspins, size=None, verbose=True, sec_size=_SEC_SIZE, block_size=9, cmd5=None
+        self,
+        spi,
+        cspins,
+        size=None,
+        verbose=True,
+        sec_size=_SEC_SIZE,
+        block_size=9,
+        cmd5=None,
     ):
         self._spi = spi
         self._cspins = cspins
@@ -67,7 +75,9 @@ class FLASH(FlashDevice):
             if size is None:
                 size = scansize  # Save size of 1st chip
             if size != scansize:  # Mismatch passed size or 1st chip.
-                raise ValueError(f"Flash size mismatch: expected {size}KiB, found {scansize}KiB")
+                raise ValueError(
+                    f"Flash size mismatch: expected {size}KiB, found {scansize}KiB"
+                )
             if not 0x10 < mvp[3] < 0x22:
                 raise ValueError(f"Invalid chip size {size}KiB. Specify size arg.")
 

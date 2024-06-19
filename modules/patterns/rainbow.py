@@ -1,5 +1,6 @@
 from patterns.base import BasePattern
 
+
 class RainbowPattern(BasePattern):
     def __init__(self):
         super().__init__()
@@ -11,7 +12,7 @@ class RainbowPattern(BasePattern):
         for j in range(num_frames):
             current_row = []
             for i in range(num_pixels):
-                rc_index = ((i * 256 // num_pixels) + int(j*(255/num_frames))) & 255
+                rc_index = ((i * 256 // num_pixels) + int(j * (255 / num_frames))) & 255
                 if rc_index < 0 or rc_index > 255:
                     current_row.append((0, 0, 0))
                 elif rc_index < 85:
