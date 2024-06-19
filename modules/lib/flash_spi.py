@@ -44,7 +44,7 @@ class FLASH(FlashDevice):
         super().__init__(block_size, len(cspins), size * 1024, sec_size)
 
         # Select the correct command set
-        if (cmd5 is None and size <= 4096) or (cmd5 == False):
+        if (cmd5 is None and size <= 4096) or (not cmd5):
             self._cmds = _CMDS3BA
             self._cmdlen = 4
         else:
