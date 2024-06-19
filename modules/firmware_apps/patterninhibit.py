@@ -3,7 +3,7 @@ import app
 
 from events.input import Buttons, BUTTON_TYPES
 from system.eventbus import eventbus
-from system.patterndisplay.events import *
+from system.patterndisplay.events import PatternEnable,PatternDisable
 
 from tildagonos import tildagonos
 

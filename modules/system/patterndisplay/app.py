@@ -2,7 +2,7 @@ from app import App
 from tildagonos import tildagonos
 import settings
 import asyncio
-from system.patterndisplay.events import *
+from system.patterndisplay.events import PatternEnable, PatternDisable, PatternReload
 from system.eventbus import eventbus
 
 
@@ -23,7 +23,7 @@ class PatternDisplay(App):
             _pmodule = __import__(_patternpath, globals(), locals(), [_patternclass])
             _pclass = getattr(_pmodule, _patternclass)
             self._p = _pclass()
-        except:
+        except ModuleNotFoundError:
             raise ImportError(f"Pattern {self.pattern} not found!")
 
     async def _enable(self, event: PatternEnable):
@@ -40,13 +40,13 @@ class PatternDisplay(App):
             brightness = settings.get("pattern_brightness", 0.1)
             next_frame = self._p.next()
             if self.enabled:
-                for l in range(12):
+                for led in range(12):
                     if brightness < 1.0:
-                        tildagonos.leds[l + 1] = tuple(
-                            int(i * brightness) for i in next_frame[l]
+                        tildagonos.leds[led + 1] = tuple(
+                            int(i * brightness) for i in next_frame[led]
                         )
                     else:
-                        tildagonos.leds[l + 1] = next_frame[l]
+                        tildagonos.leds[led + 1] = next_frame[led]
                 tildagonos.leds.write()
             if not self._p.fps:
                 break

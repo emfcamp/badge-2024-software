@@ -1,5 +1,4 @@
 from system.notification.app import NotificationService
-from tildagonos import tildagonos
 
 from system.scheduler import scheduler as sc
 from system.hexpansion.app import HexpansionManagerApp
