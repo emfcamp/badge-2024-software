@@ -107,7 +107,11 @@ class HexpansionManagerApp(app.App):
             self._cleanup_import_path(old_cwd, old_sys_path)
             return
 
-        App = package.__app_export__ if hasattr(package, "__app_export__") else None
+        try:
+            App = package.__app_export__ if hasattr(package, "__app_export__") else None
+        except ValueError as e:
+            print(e)
+            App = None
 
         if App is None:
             print("No exported app found")
