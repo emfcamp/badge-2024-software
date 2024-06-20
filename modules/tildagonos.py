@@ -40,11 +40,6 @@ class _tildagonos:
             "Warning init_gpio has been depriciated use system.hexpansion.config HexpansionConfig or tildagon Pin instead"
         )
 
-    def set_egpio_pin(self, pin, state):
-        pin = self.convert_pin(pin)
-        pin = tildagon.Pin(pin)
-        pin(state)
-
     @staticmethod
     def convert_pin(pin):
         if len(pin) == 3:
