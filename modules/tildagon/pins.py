@@ -33,6 +33,7 @@ HEXPANSION_GPIOS = {
     "6_LS_E": (0, 15),
 }
 
+
 class Pin(ePin):
     def __init__(self, pin_name, mode=None):
         self.OUT = ePin.OUT
