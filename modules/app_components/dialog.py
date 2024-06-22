@@ -95,6 +95,8 @@ class TextDialog:
         self._current_alphabet = LOWERCASE_ALPHABET
         self._keys = []
         self._caps = False
+        self._sym = False
+        self._shift = False
         self._layer = 0
         self._result = None
         eventbus.on(ButtonDownEvent, self._handle_buttondown, self.app)
@@ -222,16 +224,33 @@ class TextDialog:
                 self._layer = -1
             elif selected == SPECIAL_KEY_SYMBOL:
                 self._layer = 0
-                self._current_alphabet = SYMBOL_ALPHABET
-            elif selected == SPECIAL_KEY_SHIFT or selected == SPECIAL_KEY_CAPS:
+                if self._sym:
+                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._sym = False
+                    self._caps = False
+                else:
+                    self._current_alphabet = SYMBOL_ALPHABET
+                    self._sym = True
+            elif selected == SPECIAL_KEY_SHIFT:
                 self._layer = 0
-                self._current_alphabet = UPPERCASE_ALPHABET
-                if selected == SPECIAL_KEY_CAPS:
-                    self._caps = True
+                self._shift = not self._shift
+                if self._shift:
+                    self._current_alphabet = UPPERCASE_ALPHABET
+                else:
+                    self._current_alphabet = LOWERCASE_ALPHABET
+            elif selected == SPECIAL_KEY_CAPS:
+                self._layer = 0
+                self._caps = not self._caps
+                if self._caps:
+                    self._current_alphabet = UPPERCASE_ALPHABET
+                else:
+                    self._current_alphabet = LOWERCASE_ALPHABET
             else:
                 self.text += selected
+                if self._shift:
+                    self._shift = False
+                    self._current_alphabet = LOWERCASE_ALPHABET
                 self._layer = 0
-
                 if self._caps:
                     self._current_alphabet = UPPERCASE_ALPHABET
                 else:
