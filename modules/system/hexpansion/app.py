@@ -224,6 +224,12 @@ class HexpansionManagerApp(app.App):
             self.format_dialog = None
             eventbus.emit(RequestForegroundPopEvent(self))
 
+        for ls in HexpansionConfig(event.port).ls_pin:
+            ls.init(ls.IN)
+
+        for hs in HexpansionConfig(event.port).pin:
+            hs.init(hs.IN)
+
     async def background_task(self):
         tildagonos.set_led_power(True)
 
