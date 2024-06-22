@@ -69,7 +69,12 @@ class AppStoreApp(app.App):
         for widget in widgets:
             if widget:
                 widget._cleanup()
-                widget = None
+
+            self.menu = None
+            self.available_menu = None
+            self.installed_menu = None
+            self.update_menu = None
+            self.codeinstall = None
 
     def get_index(self):
         if not wifi.status():
@@ -106,10 +111,7 @@ class AppStoreApp(app.App):
     def install_app(self, app):
         try:
             install_app(app)
-            if self.available_menu:
-                self.update_state("available_menu")
-            else:
-                self.update_state("main_menu")
+            self.update_state("main_menu")
             eventbus.emit(InstallNotificationEvent())
             eventbus.emit(ShowNotificationEvent("Installed the app!"))
         except MemoryError:
@@ -137,6 +139,7 @@ class AppStoreApp(app.App):
         def on_select(_, i):
             self.to_install_app = self.app_store_index[i]
             self.update_state("installing_app")
+            self.cleanup_ui_widgets()
 
         def exit_available_menu():
             self.cleanup_ui_widgets()
@@ -153,11 +156,12 @@ class AppStoreApp(app.App):
 
     def prepare_main_menu(self):
         def on_cancel():
+            self.cleanup_ui_widgets()
             self.minimise()
 
         def on_select(value, idx):
+            self.cleanup_ui_widgets()
             if value == CODE_INSTALL:
-                self.cleanup_ui_widgets()
                 self.codeinstall = CodeInstall(
                     install_handler=lambda id: self.handle_code_input(id), app=self
                 )
