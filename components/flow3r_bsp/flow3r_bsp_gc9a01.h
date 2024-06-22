@@ -28,7 +28,7 @@ typedef struct {
     // Backlight control pin, if backlight_used.
     uint8_t pin_backlight;
 
-    // Nubmer of SPI host device (ie. bus) that the display will use.
+    // Number of SPI host device (ie. bus) that the display will use.
     spi_host_device_t host;
 } flow3r_bsp_gc9a01_config_t;
 

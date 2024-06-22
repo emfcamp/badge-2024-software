@@ -188,7 +188,7 @@ class FlashDevice(BlockDevice):
             addr += npage
         return mvb
 
-    # Cache the sector which contains a given byte addresss. Save sector
+    # Cache the sector which contains a given byte address. Save sector
     # start address.
     def _fill_cache(self, addr):
         addr &= self._fmask

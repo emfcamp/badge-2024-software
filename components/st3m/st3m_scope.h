@@ -15,7 +15,7 @@ typedef struct {
     // width).
     size_t buffer_size;
 
-    // Triple-buffering for lockless exhange between free-running writer and
+    // Triple-buffering for lockless exchange between free-running writer and
     // reader. The exchange buffer is swapped to/from by the reader/writer
     // whenever they're done with a whole sample buffer.
     int16_t *write_buffer;
@@ -31,7 +31,7 @@ typedef struct {
 // Initialize global scope. Must be performed before any other access to scope
 // is attempted.
 //
-// If initialization failes (eg. due to lack of memory) an error will be
+// If initialization fails (eg. due to lack of memory) an error will be
 // printed.
 void st3m_scope_init(void);
 
