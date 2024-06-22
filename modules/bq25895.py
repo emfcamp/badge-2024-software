@@ -196,7 +196,7 @@ class bq25895:
     # reg 14
     # device_revision = Register( 0x14, 0x03, 0 ) always reads 01
     # temperature profile not used
-    # part_no = Register( 0x14, 0x38, 3 ) alwyas reads 111
+    # part_no = Register( 0x14, 0x38, 3 ) always reads 111
     ICO_status = Register(0x14, 0x40, 3)
     register_reset = Register(0x14, 0x80, 7)
 
@@ -318,7 +318,7 @@ class bq25895:
         Start a one shot conversion of the ADCs or enable or disable the conversion at a 1Hz rate
 
         Args:
-            enable (bool): if True enable the converion.
+            enable (bool): if True enable the conversion.
                 if False disable the converter.
                 not used for if single is True.
             single (bool): if True start a single ADC conversion

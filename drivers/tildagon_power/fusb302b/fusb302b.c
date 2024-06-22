@@ -42,7 +42,7 @@ static void write_bits( fusb_state_t* state, fusb_register_t reg, uint8_t value 
 
 /** 
  * @brief Initialise the fusb302 to a device 
- * @details reset the device then set comparator threshold to 2.226V, enable Vbus measurment, 
+ * @details reset the device then set comparator threshold to 2.226V, enable Vbus measurement,
  * flush buffers, enable interrupts, 3 retries and Vbus, BC level and good crc interrupts, enable toggle
  * @param state the port object
  */
@@ -86,7 +86,7 @@ void fusb_set_cc( fusb_state_t* state, uint8_t cc_select )
 }
 
 /**
- * @brief disble toggle 
+ * @brief disable toggle
  * @param state the port object
  */
 void fusb_stop_toggle( fusb_state_t* state )

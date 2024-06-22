@@ -223,7 +223,7 @@ def full_test(eep=None):
 def help():
     st = """Available commands:
     help()  Print this text.
-    test()  Basic fuctional test.
+    test()  Basic functional test.
     full_test()  Read-write test of EEPROM chip(s).
     fstest()  Check or create a filesystem.
     cptest()  Check a filesystem by copying source files to it.

@@ -115,7 +115,7 @@ def color565(red, green=0, blue=0):
 
 
 def _encode_pos(x, y):
-    """Encode a postion into bytes."""
+    """Encode a position into bytes."""
     return struct.pack(_ENCODE_POS, x, y)
 
 
