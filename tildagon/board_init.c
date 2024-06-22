@@ -13,11 +13,16 @@ void tildagon_usb_init(void);
 // (some #define not set correctly?)
 void tildagon_i2c_init(void);
 
+void tildagon_pins_init(void);
+
 void tildagon_startup(void) {
     // call the micropy default startup - does VFS init on ESP32
     boardctrl_startup();
     
     tildagon_i2c_init();
+    
+    tildagon_pins_init();
+    
     tildagon_power_init();
 	
     tildagon_usb_init();
