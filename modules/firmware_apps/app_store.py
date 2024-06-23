@@ -218,15 +218,18 @@ class AppStoreApp(app.App):
                     self.apps_with_updates.append(ia)
             else:
                 print("No app in app store matching: ", ia)
-
-        self.update_menu = Menu(
-            self,
-            menu_items=[app["name"] for app in self.apps_with_updates],
-            select_handler=on_select,
-            back_handler=on_cancel,
-            focused_item_font_size=fourteen_pt,
-            item_font_size=ten_pt,
-        )
+        if len(self.apps_with_updates):
+            self.update_menu = Menu(
+                self,
+                menu_items=[app["name"] for app in self.apps_with_updates],
+                select_handler=on_select,
+                back_handler=on_cancel,
+                focused_item_font_size=fourteen_pt,
+                item_font_size=ten_pt,
+            )
+        else:
+            self.update_state("main_menu")
+            eventbus.emit(ShowNotificationEvent("All apps up to date!"))
 
     def prepare_installed_menu(self):
         def on_cancel():
