@@ -104,7 +104,8 @@ class DefinitionDisplay(Layoutable):
         # Draw label
         label_lines = utils.wrap_text(ctx, self.label, tokens.label_font_size)
         for line in label_lines:
-            ctx.move_to(0, self.height)
+            width = ctx.text_width(line)
+            ctx.move_to(115 - width / 2, self.height)
             ctx.text(line)
             self.height += ctx.font_size
 
@@ -114,7 +115,8 @@ class DefinitionDisplay(Layoutable):
         ctx.font_size = tokens.ten_pt
         value_lines = utils.wrap_text(ctx, self.value, tokens.label_font_size, 230)
         for line in value_lines:
-            ctx.move_to(10, self.height)
+            width = ctx.text_width(line)
+            ctx.move_to(115 - width / 2, self.height)
             ctx.text(line)
             self.height += ctx.font_size
 
