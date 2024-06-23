@@ -75,9 +75,12 @@ def list_user_apps():
                 "path": f"apps.{name}.app",
                 "callable": "__app_export__",
                 "name": name,
+                "folder": name,
                 "hidden": False,
             }
             metadata = load_info(APP_DIR, name)
+            if "version" not in metadata:
+                app["version"] = "0.0.0"
             app.update(metadata)
             if not app["hidden"]:
                 apps.append(app)
