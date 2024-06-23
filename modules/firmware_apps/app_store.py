@@ -56,6 +56,7 @@ class AppStoreApp(app.App):
         self.app_store_index = []
         self.to_install_app = None
         self.tarball = None
+        self.wait_one_cycle = False
 
     def cleanup_ui_widgets(self):
         widgets = [
@@ -91,8 +92,13 @@ class AppStoreApp(app.App):
                 return
             self.update_state("index_received")
         if self.to_install_app:
-            self.install_app(self.to_install_app)
-            self.to_install_app = None
+            # We wait one cycle after background_update is called to ensure the
+            # installation screen is drawn
+            if self.wait_one_cycle:
+                self.install_app(self.to_install_app)
+                self.to_install_app = None
+                self.wait_one_cycle = False
+            self.wait_one_cycle = True
 
     def handle_index(self):
         if not self.response:
