@@ -9,16 +9,6 @@
 #include "fusb302b/fusb302b_pd.h"
 #include "fusb302b/fusb302b.h"
 
-/* 
-    minimum input voltage for step down at max (4A) load. 
-    minimum input voltage = ( Rl(DCR) + Rdson ) * max current + output voltage
-    (0.078ohms * 4.0A) + 3.3V = 3.6V 
-    most users won't use 4A so badge will run lower than this so use 3.5V as minimum.
-*/
-#define VBATMAX 4.14F
-#define VBATMIN 3.5F
-#define IBAT_MAX 1.536F
-#define IBAT_TERM 0.064F
 typedef struct
 {
     fusb_state_t fusb;

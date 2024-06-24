@@ -4,6 +4,21 @@
 #include <stdint.h>
 #include "tildagon_power.h"
 
+/* 
+    minimum input voltage for step down at max (4A) load. 
+    minimum input voltage = ( Rl(DCR) + Rdson ) * max current + output voltage
+    (0.078ohms * 4.0A) + 3.3V = 3.6V 
+    most users won't use 4A so badge will run lower than this so use 3.5V as minimum.
+*/
+#define VBAT_DIS_MAX 4.14F
+#define VBAT_DIS_MIN 3.5F
+#define VBAT_CHG_MAX 4.2F
+#define VBAT_CHG_MIN 3.6F
+#define IBAT_MAX 1.536F
+#define IBAT_TERM 0.064F
+#define VBAT_CI_PERCENT 85.0F
+#define VBAT_CV_PERCENT ( 100.0F - VBAT_CI_PERCENT ) 
+
 static mp_obj_t power_enable5V( mp_obj_t a_obj )
 {
     bool enable = (bool)mp_obj_get_int(a_obj);
@@ -60,17 +75,17 @@ static mp_obj_t power_BatteryLevel( void )
     if( ( ( pmic.status & BQ_CHARGE_STAT_MASK ) == BQ_NOTCHARGING )
      || ( ( pmic.status & BQ_CHARGE_STAT_MASK ) == BQ_TERMINATED ) )
     {
-        level = ( ( pmic.vbat-VBATMIN ) / ( VBATMAX- VBATMIN ) ) * 100.0F;
+        level = ( ( pmic.vbat-VBAT_DIS_MIN ) / ( VBAT_DIS_MAX- VBAT_DIS_MIN ) ) * 100.0F;
     }
     else
     {
-        if ( pmic.vbat >= VBATMAX-0.1 )
+        if ( pmic.vbat < VBAT_CHG_MAX )
         {
-            level =  85.0F + ( 15.0F - ( ( pmic.ichrg / ( IBAT_MAX - IBAT_TERM ) ) * 15.0F ) );
+            level = ( ( pmic.vbat-VBAT_CHG_MIN ) / ( VBAT_CHG_MAX - VBAT_CHG_MIN ) ) * VBAT_CI_PERCENT;
         }
         else
         {
-            level = ( ( pmic.vbat-VBATMIN ) / ( 4.2F - VBATMIN ) ) * 85.0F;
+            level =  VBAT_CI_PERCENT + ( VBAT_CV_PERCENT - ( ( pmic.ichrg / ( IBAT_MAX - IBAT_TERM ) ) * VBAT_CV_PERCENT ) );
         }
     }    
     if ( level > 100.0F )
