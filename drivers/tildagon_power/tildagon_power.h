@@ -11,7 +11,7 @@
 
 
 #define VBATMAX 4.104F
-#define VBATMIN 3.000F
+#define VBATMIN 3.500F
 
 typedef struct
 {
