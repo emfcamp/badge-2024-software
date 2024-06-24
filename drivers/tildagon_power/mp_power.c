@@ -56,7 +56,32 @@ static MP_DEFINE_CONST_FUN_OBJ_0( Icharge_obj, power_Icharge);
 static mp_obj_t power_BatteryLevel( void ) 
 {
     bq_update_state( &pmic );
-    return mp_obj_new_float( ( ( pmic.vbat-VBATMIN ) / ( VBATMAX- VBATMIN ) ) * 100.0F );
+    float level = 0.0F;
+    if( ( ( pmic.status & BQ_CHARGE_STAT_MASK ) == BQ_NOTCHARGING )
+     || ( ( pmic.status & BQ_CHARGE_STAT_MASK ) == BQ_TERMINATED ) )
+    {
+        level = ( ( pmic.vbat-VBATMIN ) / ( VBATMAX- VBATMIN ) ) * 100.0F;
+    }
+    else
+    {
+        if ( pmic.vbat >= VBATMAX-0.1 )
+        {
+            level =  85.0F + ( 15.0F - ( ( pmic.ichrg / ( IBAT_MAX - IBAT_TERM ) ) * 15.0F ) );
+        }
+        else
+        {
+            level = ( ( pmic.vbat-VBATMIN ) / ( 4.2F - VBATMIN ) ) * 85.0F;
+        }
+    }    
+    if ( level > 100.0F )
+    {
+        level = 100.0F;
+    }
+    else if ( level < 0.0F )
+    {
+        level = 0.0F;
+    }
+    return mp_obj_new_float(level);
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_0( BatteryLevel_obj, power_BatteryLevel);
