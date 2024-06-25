@@ -36,8 +36,8 @@ HEXPANSION_GPIOS = {
 
 class Pin(ePin):
     def __init__(self, pin_name, mode=None):
-        self.OUT = ePin.OUT
-        self.IN = ePin.IN
-        self.PWM = ePin.PWM
         self.name = pin_name
         super().__init__(HEXPANSION_GPIOS[pin_name], mode)
+
+    def __repr__(self):
+        return f"Pin({self.name})"

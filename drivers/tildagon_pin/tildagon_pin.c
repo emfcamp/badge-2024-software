@@ -147,7 +147,7 @@ gpio_num_t tildagon_pin_get_id(mp_obj_t pin_in) {
 
 static void tildagon_pin_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     tildagon_pin_obj_t *self = self_in;
-    mp_printf(print, "Pin(%u)", PIN_OBJ_PTR_INDEX(self));
+    mp_printf(print, "ePin((%u, %u))", (PIN_OBJ_PTR_INDEX(self)/16), (PIN_OBJ_PTR_INDEX(self)%16));
 }
 
 // pin.init(mode=None, value)
