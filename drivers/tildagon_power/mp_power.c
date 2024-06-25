@@ -16,7 +16,6 @@
 #define VBAT_CHG_MIN 3.6F
 #define IBAT_TERM 0.064F
 #define VBAT_CI_PERCENT 85.0F
-#define VBAT_CV_PERCENT ( 100.0F - VBAT_CI_PERCENT ) 
 
 static mp_obj_t power_enable5V( mp_obj_t a_obj )
 {
@@ -78,22 +77,28 @@ static mp_obj_t power_BatteryLevel( void )
     }
     else
     {
+        float max_current = 1.536F;
+        float vbat_cv_percent = 20.0F;
+        float vbat_ci_percent = 100.0F - vbat_cv_percent;
+        if ( usb_in.fusb.input_current_limit == 1500U )
+        {
+            max_current = 1.3F;
+            vbat_cv_percent = 17.0F;
+            vbat_ci_percent = 100.0F - vbat_cv_percent;
+        }
+        else if ( usb_in.fusb.input_current_limit == 500 )
+        {
+            max_current = 0.4F;
+            vbat_cv_percent = 2.0F;
+            vbat_ci_percent = 100.0F - vbat_cv_percent;
+        }
         if ( pmic.vbat < VBAT_CHG_MAX )
         {
-            level = ( ( pmic.vbat-VBAT_CHG_MIN ) / ( VBAT_CHG_MAX - VBAT_CHG_MIN ) ) * VBAT_CI_PERCENT;
+            level = ( ( pmic.vbat-VBAT_CHG_MIN ) / ( VBAT_CHG_MAX - VBAT_CHG_MIN ) ) * vbat_ci_percent;
         }
         else
-        {
-            float max_current = 1.536F;
-            if ( usb_in.fusb.input_current_limit == 1500U )
-            {
-                max_current = 1.3F;
-            }
-            else if ( usb_in.fusb.input_current_limit == 500 )
-            {
-                max_current = 0.4F;
-            }
-            level =  VBAT_CI_PERCENT + ( VBAT_CV_PERCENT - ( ( pmic.ichrg / ( max_current - IBAT_TERM ) ) * VBAT_CV_PERCENT ) );
+        {    
+            level =  100.0F - ( ( pmic.ichrg / ( max_current - IBAT_TERM ) ) * vbat_cv_percent );
         }
     }    
     if ( level > 100.0F )
