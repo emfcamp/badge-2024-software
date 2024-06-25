@@ -22,7 +22,7 @@ from system.scheduler.events import (
 from tildagonos import EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F
 from tildagonos import led_colours
 from tildagonos import tildagonos
-
+from egpio import ePin
 from system.eventbus import eventbus
 from machine import I2C
 from events.input import Buttons
@@ -228,20 +228,30 @@ class HexpansionManagerApp(app.App):
             self.format_dialog = None
             eventbus.emit(RequestForegroundPopEvent(self))
 
+        for ls in HexpansionConfig(event.port).ls_pin:
+            ls.init(ls.IN)
+
+        for hs in HexpansionConfig(event.port).pin:
+            hs.init(hs.IN)
+
     async def background_task(self):
         tildagonos.set_led_power(True)
 
         hexpansion_plugin_states = [False] * 6
-
+        detect_pin = [
+            ePin(EPIN_ND_A),
+            ePin(EPIN_ND_B),
+            ePin(EPIN_ND_C),
+            ePin(EPIN_ND_D),
+            ePin(EPIN_ND_E),
+            ePin(EPIN_ND_F),
+        ]
         while True:
             with PerfTimer("indicate hexpansion insertion"):
-                tildagonos.read_egpios()
                 for i, n in enumerate(
                     [EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F]
                 ):
-                    hexpansion_present = not tildagonos.check_egpio_state(
-                        n, readgpios=False
-                    )
+                    hexpansion_present = not detect_pin[i].value()
                     if hexpansion_present:
                         if settings.get("pattern_mirror_hexpansions", False):
                             tildagonos.leds[13 + i] = tildagonos.leds[1 + (i * 2)]
