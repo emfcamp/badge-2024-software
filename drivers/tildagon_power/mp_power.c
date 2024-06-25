@@ -14,7 +14,6 @@
 #define VBAT_DIS_MIN 3.5F
 #define VBAT_CHG_MAX 4.2F
 #define VBAT_CHG_MIN 3.6F
-#define IBAT_MAX 1.536F
 #define IBAT_TERM 0.064F
 #define VBAT_CI_PERCENT 85.0F
 #define VBAT_CV_PERCENT ( 100.0F - VBAT_CI_PERCENT ) 
@@ -85,7 +84,16 @@ static mp_obj_t power_BatteryLevel( void )
         }
         else
         {
-            level =  VBAT_CI_PERCENT + ( VBAT_CV_PERCENT - ( ( pmic.ichrg / ( IBAT_MAX - IBAT_TERM ) ) * VBAT_CV_PERCENT ) );
+            float max_current = 1.536F;
+            if ( usb_in.fusb.input_current_limit == 1500U )
+            {
+                max_current = 1.3F;
+            }
+            else if ( usb_in.fusb.input_current_limit == 500 )
+            {
+                max_current = 0.4F;
+            }
+            level =  VBAT_CI_PERCENT + ( VBAT_CV_PERCENT - ( ( pmic.ichrg / ( max_current - IBAT_TERM ) ) * VBAT_CV_PERCENT ) );
         }
     }    
     if ( level > 100.0F )
