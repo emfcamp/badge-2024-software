@@ -144,6 +144,10 @@ class AppStoreApp(app.App):
         self.available_menu = Menu(
             self,
             menu_items=[app["manifest"]["app"]["name"] for app in self.app_store_index],
+            info_items=[
+                app["manifest"]["metadata"]["description"]
+                for app in self.app_store_index
+            ],
             select_handler=on_select,
             back_handler=exit_available_menu,
             focused_item_font_size=fourteen_pt,
