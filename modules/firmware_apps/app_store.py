@@ -4,10 +4,12 @@ import io
 import json
 import os
 import tarfile
+import time
 from tarfile import DIRTYPE, TarFile
 from typing import Any, Callable
 
 import app
+import async_helpers
 import wifi
 import shutil
 import machine
@@ -90,6 +92,7 @@ class AppStoreApp(app.App):
             return
         self.update_state("refreshing_index")
 
+<<<<<<< HEAD
     def background_update(self, delta):
         if self.state == "refreshing_index":
             try:
@@ -107,6 +110,21 @@ class AppStoreApp(app.App):
                 self.wait_one_cycle = False
             self.wait_one_cycle = True
 
+||||||| parent of 8df3d90 (Improve async compatibility of app store)
+    def background_update(self, delta):
+        if self.state == "refreshing_index":
+            try:
+                self.response = get(APP_STORE_LISTING_URL)
+            except Exception:
+                self.update_state("no_index")
+                return
+            self.update_state("index_received")
+        if self.to_install_app:
+            self.install_app(self.to_install_app)
+            self.to_install_app = None
+
+=======
+>>>>>>> 8df3d90 (Improve async compatibility of app store)
     def handle_index(self):
         if not self.response:
             print(self.response)
@@ -330,7 +348,17 @@ class AppStoreApp(app.App):
             ctx.gray(1).move_to(0, start_y + i * ctx.font_size).text(line)
         ctx.restore()
 
-    def update(self, delta):
+    async def run(self, render_update):
+        last_time = time.ticks_ms()
+        await render_update()
+        while True:
+            cur_time = time.ticks_ms()
+            delta_ticks = time.ticks_diff(cur_time, last_time)
+            await self.main_loop(delta_ticks, render_update)
+            await render_update()
+            last_time = cur_time
+
+    async def main_loop(self, delta, render_update):
         if self.state == "init":
             if not wifi.status():
                 self.update_state("wifi_init")
@@ -361,7 +389,25 @@ class AppStoreApp(app.App):
             self.prepare_installed_menu()
         elif self.state == "update_menu" and not self.update_menu:
             self.prepare_update_menu()
+        elif self.state == "refreshing_index":
+            try:
+                self.response = await async_helpers.unblock(
+                    get, render_update, APP_STORE_LISTING_URL
+                )
+            except Exception:
+                self.update_state("no_index")
+            self.update_state("index_received")
 
+            if self.to_install_app:
+                # We wait one cycle after background_update is called to ensure the
+                # installation screen is drawn
+                if self.wait_one_cycle:
+                    await async_helpers.unblock(
+                        self.install_app, render_update, self.to_install_app
+                    )
+                    self.to_install_app = None
+                    self.wait_one_cycle = False
+                self.wait_one_cycle = True
         if self.menu:
             self.menu.update(delta)
         if self.available_categories_menu:
