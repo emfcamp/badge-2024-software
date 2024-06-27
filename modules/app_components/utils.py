@@ -16,12 +16,10 @@ def fill_line(ctx, text, font_size, width_for_line):
 def wrap_text(ctx, text, font_size=None, width=None):
     if width is None:
         width = 240
-    remaining_text = text
-    lines = []
-    while remaining_text:
-        line, remaining_text = fill_line(ctx, remaining_text, font_size, width)
-        if "\n" in line:
-            lines += line.split("\n")
-        else:
-            lines.append(line)
-    return lines
+    lines = text.split("\n")
+    wrapped_lines = []
+    for line in lines:
+        lines = fill_line(ctx, line, font_size, width)
+        wrapped_lines.extend(lines)
+    print(wrapped_lines)
+    return wrapped_lines
