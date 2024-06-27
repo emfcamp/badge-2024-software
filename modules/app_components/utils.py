@@ -3,19 +3,19 @@ def fill_line(ctx, text, font_size, width_for_line):
     ctx.font_size = font_size
     lines = []
     line = ""
-    words = text.split(' ')
+    words = text.split(" ")
     for word in words:
         remaining_word = word
         while ctx.text_width(remaining_word) > width_for_line:
             word = word[:-1]
-            check_word = (line + ' ' + word + '-').strip()
+            check_word = (line + " " + word + '-').strip()
             if ctx.text_width(check_word) <= width_for_line:
                 lines.append(check_word)
                 line = ""
                 word = remaining_word[len(word) :]
                 remaining_word = word
 
-        new_line = line + ' ' + word
+        new_line = line + " " + word
         if ctx.text_width(new_line) > width_for_line:
             lines.append(line.strip())
             line = word
