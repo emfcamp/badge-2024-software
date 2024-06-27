@@ -34,5 +34,4 @@ def wrap_text(ctx, text, font_size=None, width=None):
     for line in lines:
         lines = fill_line(ctx, line, font_size, width)
         wrapped_lines.extend(lines)
-    print(wrapped_lines)
     return wrapped_lines
