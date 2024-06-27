@@ -1,27 +1,37 @@
 def fill_line(ctx, text, font_size, width_for_line):
     ctx.save()
     ctx.font_size = font_size
-    extra_text = ""
-    text_that_fits = text
-    text_width = ctx.text_width(text_that_fits)
-    while text_width > width_for_line:
-        character = text_that_fits[-1]
-        text_that_fits = text_that_fits[:-1]
-        extra_text = character + extra_text
-        text_width = ctx.text_width(text_that_fits)
+    lines = []
+    line = ""
+    words = text.split(" ")
+    for word in words:
+        remaining_word = word
+        while ctx.text_width(remaining_word) > width_for_line:
+            word = word[:-1]
+            check_word = (line + " " + word + "-").strip()
+            if ctx.text_width(check_word) <= width_for_line:
+                lines.append(check_word)
+                line = ""
+                word = remaining_word[len(word) :]
+                remaining_word = word
+
+        new_line = line + " " + word
+        if ctx.text_width(new_line) > width_for_line:
+            lines.append(line.strip())
+            line = word
+        else:
+            line = new_line.strip()
+    lines.append(line)
     ctx.restore()
-    return text_that_fits, extra_text
+    return lines
 
 
 def wrap_text(ctx, text, font_size=None, width=None):
     if width is None:
         width = 240
-    remaining_text = text
-    lines = []
-    while remaining_text:
-        line, remaining_text = fill_line(ctx, remaining_text, font_size, width)
-        if "\n" in line:
-            lines += line.split("\n")
-        else:
-            lines.append(line)
-    return lines
+    lines = text.split("\n")
+    wrapped_lines = []
+    for line in lines:
+        lines = fill_line(ctx, line, font_size, width)
+        wrapped_lines.extend(lines)
+    return wrapped_lines
