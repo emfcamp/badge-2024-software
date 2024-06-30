@@ -36,29 +36,26 @@ class _tildagonos:
         pass
         
     def init_gpio(self):
-        pass
+        print(
+            "Warning init_gpio has been depriciated use system.hexpansion.config HexpansionConfig or tildagon Pin instead"
+        )
         
     def set_egpio_pin(self, pin, state):
-        pass
+        print(
+            "Warning init_gpio has been depriciated use system.hexpansion.config HexpansionConfig or tildagon Pin instead"
+        )
         
     def read_egpios(self):
-        pass
+        print(
+            "Warning init_gpio has been depriciated use system.hexpansion.config HexpansionConfig or tildagon Pin instead"
+        )
         
     def check_egpio_state(self, pin, readgpios=True):
-        if pin == EPIN_BTN_1:
-            return not _sim.buttons.state()[0]
-        elif pin == EPIN_BTN_2:
-            return not _sim.buttons.state()[1]
-        elif pin == EPIN_BTN_3:
-            return not _sim.buttons.state()[2]
-        elif pin == EPIN_BTN_4:
-            return not _sim.buttons.state()[3]
-        elif pin == EPIN_BTN_5:
-            return not _sim.buttons.state()[4]
-        elif pin == EPIN_BTN_6:
-            return not _sim.buttons.state()[5]
-        else:
-            return 1
+        print(
+            "Warning init_gpio has been depriciated use system.hexpansion.config HexpansionConfig or tildagon Pin instead"
+        )
+
+        return 1
     
     def set_led_power(self, state):
         pass
