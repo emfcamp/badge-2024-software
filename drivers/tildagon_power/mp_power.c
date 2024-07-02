@@ -4,6 +4,19 @@
 #include <stdint.h>
 #include "tildagon_power.h"
 
+/* 
+    minimum input voltage for step down at max (4A) load. 
+    minimum input voltage = ( Rl(DCR) + Rdson ) * max current + output voltage
+    (0.078ohms * 4.0A) + 3.3V = 3.6V 
+    most users won't use 4A so badge will run lower than this so use 3.5V as minimum.
+*/
+#define VBAT_DIS_MAX 4.14F
+#define VBAT_DIS_MIN 3.5F
+#define VBAT_CHG_MAX 4.2F
+#define VBAT_CHG_MIN 3.6F
+#define IBAT_TERM 0.064F
+#define VBAT_CI_PERCENT 85.0F
+
 static mp_obj_t power_enable5V( mp_obj_t a_obj )
 {
     bool enable = (bool)mp_obj_get_int(a_obj);
@@ -56,7 +69,47 @@ static MP_DEFINE_CONST_FUN_OBJ_0( Icharge_obj, power_Icharge);
 static mp_obj_t power_BatteryLevel( void ) 
 {
     bq_update_state( &pmic );
-    return mp_obj_new_float( ( ( pmic.vbat-VBATMIN ) / ( VBATMAX- VBATMIN ) ) * 100.0F );
+    float level = 0.0F;
+    if( ( ( pmic.status & BQ_CHARGE_STAT_MASK ) == BQ_NOTCHARGING )
+     || ( ( pmic.status & BQ_CHARGE_STAT_MASK ) == BQ_TERMINATED ) )
+    {
+        level = ( ( pmic.vbat-VBAT_DIS_MIN ) / ( VBAT_DIS_MAX- VBAT_DIS_MIN ) ) * 100.0F;
+    }
+    else
+    {
+        float max_current = 1.536F;
+        float vbat_cv_percent = 20.0F;
+        float vbat_ci_percent = 100.0F - vbat_cv_percent;
+        if ( usb_in.fusb.input_current_limit == 1500U )
+        {
+            max_current = 1.3F;
+            vbat_cv_percent = 17.0F;
+            vbat_ci_percent = 100.0F - vbat_cv_percent;
+        }
+        else if ( usb_in.fusb.input_current_limit == 500 )
+        {
+            max_current = 0.4F;
+            vbat_cv_percent = 2.0F;
+            vbat_ci_percent = 100.0F - vbat_cv_percent;
+        }
+        if ( pmic.vbat < VBAT_CHG_MAX )
+        {
+            level = ( ( pmic.vbat-VBAT_CHG_MIN ) / ( VBAT_CHG_MAX - VBAT_CHG_MIN ) ) * vbat_ci_percent;
+        }
+        else
+        {    
+            level =  100.0F - ( ( pmic.ichrg / ( max_current - IBAT_TERM ) ) * vbat_cv_percent );
+        }
+    }    
+    if ( level > 100.0F )
+    {
+        level = 100.0F;
+    }
+    else if ( level < 0.0F )
+    {
+        level = 0.0F;
+    }
+    return mp_obj_new_float(level);
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_0( BatteryLevel_obj, power_BatteryLevel);
