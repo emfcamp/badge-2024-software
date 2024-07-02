@@ -40,10 +40,16 @@ class _EventBus:
         if app in self.handlers:
             if event_type in self.handlers[app]:
                 if event_handler in self.handlers[app][event_type]:
+                    print(
+                        f"Removed event handler for {event_type.__name__}: {app.__class__.__name__} - {event_handler.__name__}"
+                    )
                     self.handlers[app][event_type].remove(event_handler)
         if app in self.async_handlers:
             if event_type in self.async_handlers[app]:
                 if event_handler in self.async_handlers[app][event_type]:
+                    print(
+                        f"Removed event handler for {event_type.__name__}: {app.__class__.__name__} - {event_handler.__name__}"
+                    )
                     self.async_handlers[app][event_type].remove(event_handler)
 
     def deregister(self, app):

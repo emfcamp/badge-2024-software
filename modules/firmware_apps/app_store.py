@@ -56,6 +56,7 @@ class AppStoreApp(app.App):
         self.app_store_index = []
         self.to_install_app = None
         self.tarball = None
+        self.wait_one_cycle = False
 
     def cleanup_ui_widgets(self):
         widgets = [
@@ -69,7 +70,12 @@ class AppStoreApp(app.App):
         for widget in widgets:
             if widget:
                 widget._cleanup()
-                widget = None
+
+            self.menu = None
+            self.available_menu = None
+            self.installed_menu = None
+            self.update_menu = None
+            self.codeinstall = None
 
     def get_index(self):
         if not wifi.status():
@@ -86,8 +92,13 @@ class AppStoreApp(app.App):
                 return
             self.update_state("index_received")
         if self.to_install_app:
-            self.install_app(self.to_install_app)
-            self.to_install_app = None
+            # We wait one cycle after background_update is called to ensure the
+            # installation screen is drawn
+            if self.wait_one_cycle:
+                self.install_app(self.to_install_app)
+                self.to_install_app = None
+                self.wait_one_cycle = False
+            self.wait_one_cycle = True
 
     def handle_index(self):
         if not self.response:
@@ -134,8 +145,7 @@ class AppStoreApp(app.App):
         def on_select(_, i):
             self.to_install_app = self.app_store_index[i]
             self.update_state("installing_app")
-            if self.available_menu:
-                self.available_menu._cleanup()
+            self.cleanup_ui_widgets()
 
         def exit_available_menu():
             self.cleanup_ui_widgets()
@@ -152,11 +162,12 @@ class AppStoreApp(app.App):
 
     def prepare_main_menu(self):
         def on_cancel():
+            self.cleanup_ui_widgets()
             self.minimise()
 
         def on_select(value, idx):
+            self.cleanup_ui_widgets()
             if value == CODE_INSTALL:
-                self.cleanup_ui_widgets()
                 self.codeinstall = CodeInstall(
                     install_handler=lambda id: self.handle_code_input(id), app=self
                 )
