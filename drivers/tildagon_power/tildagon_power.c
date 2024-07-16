@@ -310,8 +310,7 @@ void device_unattached_handler( event_t event )
         determine_input_current_limit( &usb_in );
         if ( ( usb_in.fusb.input_current_limit >= 1500 ) && ( device_pd_state == NOT_STARTED ) )
         {
-            //todo enable device pd
-            //fusb_setup_pd( &usb_in.fusb );
+            fusb_setup_pd( &usb_in.fusb );
             device_pd_state = WAITING;
         }
         fusb_mask_interrupt_bclevel( &usb_in.fusb, 1 );
@@ -334,8 +333,7 @@ void device_attached_handler( event_t event )
         determine_input_current_limit( &usb_in );
         if ( ( usb_in.fusb.input_current_limit >= 1500 ) && ( device_pd_state == NOT_STARTED ) )
         {
-            //todo enable device pd
-            //fusb_setup_pd( &usb_in.fusb );
+            fusb_setup_pd( &usb_in.fusb );
             device_pd_state = WAITING;
         }
         fusb_mask_interrupt_bclevel( &usb_in.fusb, 1 );
@@ -365,7 +363,12 @@ void device_pd_machine ( event_t event )
                 if ( usb_in.pd.last_rx_data_msg_type == PD_DATA_SOURCE_CAPABILITIES )
                 {
                     uint8_t index = fusbpd_select_pdo( &usb_in.pd );
-                    fusbpd_request_power( &usb_in.pd, index, usb_in.pd.pdos[index].fixed.max_current * 10, usb_in.pd.pdos[index].fixed.max_current * 10 );
+                    uint32_t current = usb_in.pd.pdos[index].fixed.max_current * 10;
+                    if ( current > 3250 )
+                    {
+                        current = 3250;
+                    }
+                    fusbpd_request_power( &usb_in.pd, index, current, current );
                     fusb_send( &usb_in.fusb, usb_in.pd.tx_buffer, usb_in.pd.message_length );  
                     usb_in.pd.last_rx_data_msg_type = PD_DATA_DO_NOT_USE; 
                     device_pd_state = POWER_REQUESTED;

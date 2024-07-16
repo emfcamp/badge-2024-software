@@ -99,7 +99,7 @@ uint8_t fusbpd_select_pdo( pd_state_t* state )
         if (
             ( state->pdos[i].fixed.pdo_type == PD_FIXED_SUPPLY )
             && ( voltage > highest_voltage )
-            && ( voltage < 14000 )
+            && ( voltage <= 5000U )
         )
         {
             highest_voltage = voltage;
