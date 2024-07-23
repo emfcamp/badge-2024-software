@@ -48,7 +48,7 @@ static void write_scaled( bq_state_t* state, scaled_register_t scaledregister, f
 void bq_init( bq_state_t* state )
 {
     write_bits( state, register_reset, 1 );
-    uint8_t write_buffer[5] = { 0x02, 0x60, 0x1A, 0x18, 0x00 };
+    uint8_t write_buffer[5] = { 0x02, 0x60, 0x10, 0x18, 0x00 };
     mp_machine_i2c_buf_t buffer = { .len = 5, .buf = write_buffer };
     tildagon_mux_i2c_transaction( state->mux_port, ADDRESS, 1, &buffer, WRITE );
     write_buffer[0] = 0x07;

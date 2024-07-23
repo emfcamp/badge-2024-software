@@ -18,10 +18,8 @@ class PowerOff(app.App):
 
             # Wait for an answer from the dialogue, and if it was yes, randomise colour
             if await dialog.run(render_update):
-                import machine
-                import bq25895
-
-                bq25895.bq25895(machine.I2C(7)).disconnect_battery()
+                import power
+                power.Off()
                 self.off = True
             else:
                 self.minimise()
