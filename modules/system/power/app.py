@@ -5,7 +5,6 @@ import asyncio
 
 class PowerManager(App):
     def __init__(self): ...
-        
 
     async def background_task(self):
         while True:

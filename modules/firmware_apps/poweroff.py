@@ -19,6 +19,7 @@ class PowerOff(app.App):
             # Wait for an answer from the dialogue, and if it was yes, randomise colour
             if await dialog.run(render_update):
                 import power
+
                 power.Off()
                 self.off = True
             else:
