@@ -54,6 +54,8 @@ class AppStoreApp(app.App):
         self.codeinstall = None
         self.response = None
         self.app_store_index = []
+        self.apps_with_updates = []
+        self.apps_available_dict = {}
         self.to_install_app = None
         self.tarball = None
         self.wait_one_cycle = False
@@ -186,12 +188,59 @@ class AppStoreApp(app.App):
             menu_items=[
                 CODE_INSTALL,
                 AVAILABLE,
-                # UPDATE,
+                UPDATE,
                 INSTALLED,
             ],
             select_handler=on_select,
             back_handler=on_cancel,
         )
+
+    def prepare_update_menu(self):
+        def on_cancel():
+            self.cleanup_ui_widgets()
+            self.update_state("main_menu")
+
+        def on_select(_, i):
+            app_name = self.apps_with_updates[i]["folder"]
+            self.to_install_app = self.apps_available_dict[app_name]
+            self.update_state("installing_app")
+            self.cleanup_ui_widgets()
+
+        def compare_version(v1, v2):
+            # compare format v0.0.0
+            return v1.split(".") > v2.split(".")
+
+        installed_apps = list_user_apps()
+        self.apps_available_dict = {}
+        for a in self.app_store_index:
+            folder_name = a["id"]["owner"] + "_" + a["id"]["title"]
+            folder_name = folder_name.replace("-", "_")
+            self.apps_available_dict[folder_name] = a
+        self.apps_with_updates = []
+        for ia in installed_apps:
+            if ia["folder"] in self.apps_available_dict:
+                app_dict = self.apps_available_dict[ia["folder"]]
+                latest_version = app_dict["manifest"]["metadata"]["version"]
+                print("App: " + ia["name"])
+                print(f"Latest version: {latest_version}")
+                print("Installed version: " + ia["version"])
+
+                if compare_version(latest_version, ia["version"]):
+                    self.apps_with_updates.append(ia)
+            else:
+                print("No app in app store matching: ", ia)
+        if len(self.apps_with_updates):
+            self.update_menu = Menu(
+                self,
+                menu_items=[app["name"] for app in self.apps_with_updates],
+                select_handler=on_select,
+                back_handler=on_cancel,
+                focused_item_font_size=fourteen_pt,
+                item_font_size=ten_pt,
+            )
+        else:
+            self.update_state("main_menu")
+            eventbus.emit(ShowNotificationEvent("All apps up to date!"))
 
     def prepare_installed_menu(self):
         def on_cancel():
@@ -266,6 +315,8 @@ class AppStoreApp(app.App):
             self.prepare_available_menu()
         elif self.state == "installed_menu" and not self.installed_menu:
             self.prepare_installed_menu()
+        elif self.state == "update_menu" and not self.update_menu:
+            self.prepare_update_menu()
 
         if self.menu:
             self.menu.update(delta)
@@ -429,6 +480,7 @@ def install_app(app):
         internal_manifest = {
             "name": app["manifest"]["app"]["name"],
             "hidden": False,
+            "version": app["manifest"]["metadata"]["version"],
         }
         json_path = f"{APP_DIR}/{app_module_name}/metadata.json"
         print(f"Json path: {json_path}")
