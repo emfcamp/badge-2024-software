@@ -42,7 +42,7 @@ static void write_scaled( bq_state_t* state, scaled_register_t scaledregister, f
  * @details reset then setup 500mA Iin limit, boost disabled, charging enabled,
  * ADC at 1Hz, disable unused features and disable watchdog to reduce interruptions
  * charge current limit to be 0.85C for the 1800mAh and 0.77C for 2000mAh batteries
- * termination and precharge current to 64mA. min Vbat 3.5V
+ * termination and precharge current to 64mA. min Vsys to 3.0V
  * @param state pmic object
  */
 void bq_init( bq_state_t* state )
