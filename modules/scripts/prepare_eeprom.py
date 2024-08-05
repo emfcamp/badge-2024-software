@@ -41,6 +41,17 @@ header_zd24c64 = HexpansionHeader(
     friendly_name="ZD24C64A",
 )
 
+header_cat24c512 = HexpansionHeader(
+    manifest_version="2024",
+    fs_offset=128,
+    eeprom_page_size=128,
+    eeprom_total_size=1024 * (512 // 8),
+    vid=0xCA75,
+    pid=0x1337,
+    unique_id=0x0,
+    friendly_name="CAT24C512",
+)
+
 # pick which one to use here
 header = header_m24c16
 
