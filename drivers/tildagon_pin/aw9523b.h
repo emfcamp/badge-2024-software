@@ -12,23 +12,22 @@ typedef enum{
 
 } aw9523b_pin_mode_t;
 typedef bool aw9523b_pin_state_t;
-typedef void (*aw9523b_irq_callback_t)(void*);
+typedef void (*aw9523b_irq_callback_t)(void*,uint8_t);
 
-struct aw9523b_irq_handler{
+typedef struct 
+{
   aw9523b_irq_callback_t callback;
   void* args;
-};
+} aw9523b_irq_handler_t;
 
-typedef struct aw9523b_device{
+typedef struct aw9523b_device
+{
   const tca9548a_i2c_mux_t *mux;
   tca9548a_i2c_port_t i2c_port;
   uint16_t i2c_addr;
   uint8_t last_input_values[2];
-  uint8_t last_port_values[2];
-  uint8_t direction[2];
   uint8_t irq_enables[2];
-  uint8_t irq_got[2]; // 1 if input value is cached
-  struct aw9523b_irq_handler irq_handlers[2][8];
+  aw9523b_irq_handler_t irq_handlers[2][8];
 } aw9523b_device_t;
 
 void aw9523b_init(aw9523b_device_t *dev);

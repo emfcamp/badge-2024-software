@@ -34,11 +34,17 @@ static esp_err_t aw9523b_writeregs(aw9523b_device_t *dev, uint8_t reg, const uin
     return tildagon_mux_i2c_transaction(mux, dev->i2c_addr, 1, (mp_machine_i2c_buf_t*)&buffer, WRITE);
 }
 
-void aw9523b_init(aw9523b_device_t *dev) {
+void aw9523b_init(aw9523b_device_t *dev) 
+{
+    aw9523b_writeregs(dev, 0x7F, (const uint8_t*)"\x00", 2);
     aw9523b_writeregs(dev, 0x06, (const uint8_t*)"\xff\xff", 2);
     aw9523b_writeregs(dev, 0x04, (const uint8_t*)"\xff\xff", 2);
     aw9523b_writeregs(dev, 0x11, (const uint8_t*)"\x10", 1);
     aw9523b_writeregs(dev, 0x20, (const uint8_t*)"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 16);
+    dev->irq_enables[0] = 0xFFU;
+    dev->irq_enables[1] = 0xFFU;
+    aw9523b_pin_get_input(dev, 0);
+    aw9523b_pin_get_input(dev, 8);
 }
 
 
@@ -53,6 +59,7 @@ bool aw9523b_pin_get_input(aw9523b_device_t *dev, aw9523b_pin_t pin) {
     if (err < 0) {
         return false;
     }
+    dev->last_input_values[port] = reg_val;
     bool pin_val = (reg_val & pin_mask) != 0;
     return pin_val;
 }
@@ -102,7 +109,6 @@ bool aw9523b_pin_get_direction(aw9523b_device_t *dev, aw9523b_pin_t pin) {
     if (err < 0) {
         return false;
     }
-    dev->last_input_values[port] = reg_val;
     bool pin_val = (reg_val & pin_mask) != 0;
     return pin_val;
 }
@@ -165,7 +171,7 @@ void aw9523b_irq_register(aw9523b_device_t *dev, aw9523b_pin_t pin, aw9523b_irq_
     uint8_t port = aw9523b_portnum(pin);
     uint8_t pin_index = aw9523b_portpin(pin);
 
-    dev->irq_handlers[port][pin_index] = (struct aw9523b_irq_handler) {
+    dev->irq_handlers[port][pin_index] = (aw9523b_irq_handler_t) {
         .callback = callback,
         .args = args
     };
@@ -174,7 +180,7 @@ void aw9523b_irq_register(aw9523b_device_t *dev, aw9523b_pin_t pin, aw9523b_irq_
 void aw9523b_irq_unregister(aw9523b_device_t *dev, aw9523b_pin_t pin) {
     aw9523b_check_valid_pin(pin);
     uint8_t port = aw9523b_portnum(pin);
-    dev->irq_handlers[port][pin] = (struct aw9523b_irq_handler) {
+    dev->irq_handlers[port][pin] = (aw9523b_irq_handler_t) {
         .callback = NULL,
         .args = NULL
     };
@@ -184,54 +190,45 @@ void aw9523b_irq_enable(aw9523b_device_t *dev, aw9523b_pin_t pin) {
     aw9523b_check_valid_pin(pin);
     uint8_t port = aw9523b_portnum(pin);
     uint8_t pin_mask = 1 << aw9523b_portpin(pin);
-
     uint8_t reg = 0x06 + port;
-    uint8_t reg_val = 0;
-    esp_err_t err = aw9523b_readregs(dev, reg, &reg_val, 1);
-    if (err < 0) {
-        return;
-    }
-    reg_val |= pin_mask;
-    reg_val = ~reg_val;
-    err = aw9523b_writeregs(dev, reg, &reg_val, 1);
-    reg_val = ~reg_val;
-    dev->irq_enables[port] = reg_val;
-    dev->irq_got[port] &= ~pin_mask;
+    dev->irq_enables[port] &= ~pin_mask;
+    aw9523b_writeregs(dev, reg, &dev->irq_enables[port], 1);
 }
 
 void aw9523b_irq_disable(aw9523b_device_t *dev, aw9523b_pin_t pin) {
     aw9523b_check_valid_pin(pin);
     uint8_t port = aw9523b_portnum(pin);
     uint8_t pin_mask = 1 << aw9523b_portpin(pin);
-
     uint8_t reg = 0x06 + port;
-    uint8_t reg_val = 0;
-    esp_err_t err = aw9523b_readregs(dev, reg, &reg_val, 1);
-    if (err < 0) {
-        return;
-    }
-    reg_val &= ~pin_mask;
-    reg_val = ~reg_val;
-    err = aw9523b_writeregs(dev, reg, &reg_val, 1);
-    reg_val = ~reg_val;
-    dev->irq_enables[port] = reg_val;
+    dev->irq_enables[port] |= pin_mask;
+    aw9523b_writeregs(dev, reg, &dev->irq_enables[port], 1);
 }
 
-void aw9523b_irq_handler(aw9523b_device_t *dev) {
-    uint8_t irq_enables[2];
+void aw9523b_irq_handler(aw9523b_device_t *dev) 
+{
     uint8_t input_values[2];
-    if (aw9523b_readregs(dev, 0x06, irq_enables, 2) != ESP_OK
-     || aw9523b_readregs(dev, 0x00, input_values, 2) != ESP_OK) {
-        return;
-    }
-    for (uint8_t port = 0; port < 2; port++) {
-        uint8_t changed = input_values[port] ^ dev->last_input_values[port];
-        dev->last_input_values[port] = input_values[port];
-        for (uint8_t pin = 0; pin < 8; pin++) {
-            uint8_t pin_mask = 1 << pin;
-            if (((~irq_enables[port]) & pin_mask & changed) 
-                && dev->irq_handlers[port][pin].callback ) {
-                dev->irq_handlers[port][pin].callback(dev->irq_handlers[port][pin].args);
+    esp_err_t err = aw9523b_readregs(dev, 0x00, input_values, 2);
+
+    if ( err >= 0 )
+    {
+        for (uint8_t port = 0; port < 2; port++) 
+        {
+            uint8_t changed = input_values[port] ^ dev->last_input_values[port];
+            dev->last_input_values[port] = input_values[port];
+            for (uint8_t pin = 0; pin < 8; pin++) 
+            {
+                uint8_t pin_mask = 1 << pin;
+                if ((~dev->irq_enables[port] & pin_mask & changed) 
+                    && dev->irq_handlers[port][pin].callback ) 
+                {
+                    
+                    uint8_t event = GPIO_INTR_NEGEDGE;
+                    if ( input_values[port] & pin_mask )
+                    {
+                        event = GPIO_INTR_POSEDGE;
+                    }
+                    dev->irq_handlers[port][pin].callback(dev->irq_handlers[port][pin].args, event);
+                }
             }
         }
     }
