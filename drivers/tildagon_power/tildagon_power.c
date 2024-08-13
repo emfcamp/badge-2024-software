@@ -430,6 +430,7 @@ void generate_events( void )
     }
     while ( gpio_get_level( GPIO_NUM_10 ) == 0 )
     {
+        tildagon_pins_generate_isr();
         if ( gpio_get_level( GPIO_NUM_10 ) == 0 )
         {
             uint16_t interruptab = fusb_get_interruptab( &usb_in.fusb );
