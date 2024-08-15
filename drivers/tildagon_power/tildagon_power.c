@@ -362,20 +362,29 @@ void device_pd_machine ( event_t event )
                 fusbpd_decode( &usb_in.pd, &usb_in.fusb );
                 if ( usb_in.pd.last_rx_data_msg_type == PD_DATA_SOURCE_CAPABILITIES )
                 {
-                    uint8_t index = fusbpd_select_pdo( &usb_in.pd );
-                    uint32_t current = usb_in.pd.pdos[index].fixed.max_current * 10;
-                    if ( current > 3250 )
+                    /*
+                        We only need 5V so can use the first object, from the usb 3 standard:
+                        The vSafe5V Fixed Supply Object Shall always be the first object.
+                        A Source Shall Not offer multiple Power Data Objects of the same 
+                        type (fixed, variable, Battery) and the same Voltage but Shall 
+                        instead offer one Power Data Object with the highest available 
+                        current for that Source capability and Voltage. 
+                        
+                    */
+                    uint32_t current = usb_in.pd.pdos[0].fixed.max_current * 10;
+                    /* limit current to the maximum current of a non active cable */
+                    if ( current > 3000 )
                     {
-                        current = 3250;
+                        current = 3000;
                     }
-                    fusbpd_request_power( &usb_in.pd, index, current, current );
+                    fusbpd_request_power( &usb_in.pd, 0, current, current );
                     fusb_send( &usb_in.fusb, usb_in.pd.tx_buffer, usb_in.pd.message_length );  
                     usb_in.pd.last_rx_data_msg_type = PD_DATA_DO_NOT_USE; 
                     device_pd_state = POWER_REQUESTED;
                 }          
                 else if( usb_in.pd.last_rx_data_msg_type == PD_DATA_VENDOR_DEFINED )
                 {
-                    /* if vendor pdo received decide on badge to badge and callback? */    
+                    /* ToDo: if vendor pdo received decide on badge to badge and callback? */    
                 }
             }
             break;
