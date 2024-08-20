@@ -165,12 +165,6 @@ typedef struct
  */
 extern void fusbpd_decode( pd_state_t* state, fusb_state_t* fusb );
 /**
- * @brief select the highest voltage pdo up to 14V
- * @param state the comms state onject
- * @return the index of the pdo object
- */
-extern uint8_t fusbpd_select_pdo( pd_state_t* state );
-/**
  * @brief creat a request power message 
  * @param state the comms state onject
  * @param num the index of the pdo list sent from the source
