@@ -9,6 +9,13 @@ from . import FrontBoard
 from system.hexpansion.events import HexpansionInsertionEvent, HexpansionRemovalEvent
 import time
 
+try:
+    from _sim import _sim
+
+    sim = True
+except ImportError:
+    sim = False
+
 
 BUTTONS = {
     "A": Button("A", "TwentyTwentyFour", BUTTON_TYPES["UP"]),
@@ -58,19 +65,18 @@ class TwentyTwentyFour(FrontBoard):
     hexpansion_states = {1: None, 2: None, 3: None, 4: None, 5: None, 6: None}
 
     async def background_task(self):
+        global sim
         display.gfx_init()
         for key in TwentyTwentyFour.pin_assignment:
             gpio = self.BUTTON_PINS[BUTTONS[key]]
             TwentyTwentyFour.pin_assignment[key] = ePin(gpio)
-            TwentyTwentyFour.pin_assignment[key].irq(
-                trigger=ePin.IRQ_FALLING | ePin.IRQ_RISING
-            )
-            TwentyTwentyFour.pin_assignment[key].irq(
-                handler=buttondown, trigger=ePin.IRQ_FALLING
-            )
-            TwentyTwentyFour.pin_assignment[key].irq(
-                handler=buttonup, trigger=ePin.IRQ_RISING
-            )
+            if not sim:
+                TwentyTwentyFour.pin_assignment[key].irq(
+                    handler=buttondown, trigger=ePin.IRQ_FALLING
+                )
+                TwentyTwentyFour.pin_assignment[key].irq(
+                    handler=buttonup, trigger=ePin.IRQ_RISING
+                )
 
         while True:
             booped = not machine.Pin(0, mode=machine.Pin.IN).value()
@@ -84,12 +90,25 @@ class TwentyTwentyFour(FrontBoard):
                         TwentyTwentyFour.hexpansion_states[i + 1] = None
                         await eventbus.emit_async(HexpansionRemovalEvent(port=i + 1))
             else:
-                for key in TwentyTwentyFour.button_states.keys():
-                    if TwentyTwentyFour.button_states[key][0]:
-                        if TwentyTwentyFour.button_states[key][1] > 4:
+                if sim:
+                    for i, key in enumerate(TwentyTwentyFour.button_states.keys()):
+                        button_down = not _sim.buttons.state()[i]
+                        if button_down and not TwentyTwentyFour.button_states[key][0]:
+                            await eventbus.emit_async(
+                                ButtonUpEvent(button=BUTTONS[key])
+                            )
+                        if not button_down and TwentyTwentyFour.button_states[key][0]:
                             await eventbus.emit_async(
                                 ButtonDownEvent(button=BUTTONS[key])
                             )
-                        else:
-                            TwentyTwentyFour.button_states[key][1] += 1
-            await asyncio.sleep(0.2)
+                        TwentyTwentyFour.button_states[key][0] = button_down
+                else:
+                    for key in TwentyTwentyFour.button_states.keys():
+                        if TwentyTwentyFour.button_states[key][0]:
+                            if TwentyTwentyFour.button_states[key][1] > 4:
+                                await eventbus.emit_async(
+                                    ButtonDownEvent(button=BUTTONS[key])
+                                )
+                            else:
+                                TwentyTwentyFour.button_states[key][1] += 1
+            await asyncio.sleep(0.1)

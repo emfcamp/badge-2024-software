@@ -207,8 +207,11 @@ void aw9523b_irq_disable(aw9523b_device_t *dev, aw9523b_pin_t pin) {
 void aw9523b_irq_handler(aw9523b_device_t *dev) 
 {
     uint8_t input_values[2];
-    esp_err_t err = aw9523b_readregs(dev, 0x00, input_values, 2);
-
+    esp_err_t err = aw9523b_readregs(dev, 0x00, &input_values[0], 1);
+    if ( err >= 0 )
+    {
+        err = aw9523b_readregs(dev, 0x01, &input_values[1], 1);
+    }
     if ( err >= 0 )
     {
         for (uint8_t port = 0; port < 2; port++) 
