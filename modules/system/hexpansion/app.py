@@ -30,7 +30,7 @@ import settings
 
 
 def Hexspansion_inserted(epin):
-    for i, nPin in enumerate(HexpansionManagerApp.detect_pin):
+    for i, nPin in enumerate(HexpansionManagerApp.hexpansion_pins):
         if nPin is epin:
             if settings.get("pattern_mirror_hexpansions", False):
                 tildagonos.leds[13 + i] = tildagonos.leds[1 + (i * 2)]
@@ -41,7 +41,7 @@ def Hexspansion_inserted(epin):
 
 
 def Hexspansion_removed(epin):
-    for i, nPin in enumerate(HexpansionManagerApp.detect_pin):
+    for i, nPin in enumerate(HexpansionManagerApp.hexpansion_pins):
         if nPin is epin:
             tildagonos.leds[13 + i] = (0, 0, 0)
             eventbus.emit(HexpansionRemovalEvent(port=i + 1))
@@ -49,7 +49,14 @@ def Hexspansion_removed(epin):
 
 
 class HexpansionManagerApp(app.App):
-    detect_pin = [None] * 6
+    hexpansion_pins = [
+        ePin(EPIN_ND_A),
+        ePin(EPIN_ND_B),
+        ePin(EPIN_ND_C),
+        ePin(EPIN_ND_D),
+        ePin(EPIN_ND_E),
+        ePin(EPIN_ND_F),
+    ]
 
     def __init__(self, autolaunch=True):
         super().__init__()
@@ -66,23 +73,10 @@ class HexpansionManagerApp(app.App):
         self.autolaunch = autolaunch
         tildagonos.set_led_power(True)
 
-        hexpansion_pins = [
-            EPIN_ND_A,
-            EPIN_ND_B,
-            EPIN_ND_C,
-            EPIN_ND_D,
-            EPIN_ND_E,
-            EPIN_ND_F,
-        ]
-        for i, pin in enumerate(hexpansion_pins):
-            HexpansionManagerApp.detect_pin[i] = ePin(pin)
-            HexpansionManagerApp.detect_pin[i].irq(
-                handler=Hexspansion_inserted, trigger=ePin.IRQ_FALLING
-            )
-            HexpansionManagerApp.detect_pin[i].irq(
-                handler=Hexspansion_removed, trigger=ePin.IRQ_RISING
-            )
-            if not HexpansionManagerApp.detect_pin[i].value():
+        for i, pin in enumerate(HexpansionManagerApp.hexpansion_pins):
+            pin.irq(handler=Hexspansion_inserted, trigger=pin.IRQ_FALLING)
+            pin.irq(handler=Hexspansion_removed, trigger=pin.IRQ_RISING)
+            if not pin.value():
                 if settings.get("pattern_mirror_hexpansions", False):
                     tildagonos.leds[13 + i] = tildagonos.leds[1 + (i * 2)]
                 else:
@@ -274,6 +268,7 @@ class HexpansionManagerApp(app.App):
 
         for ls in HexpansionConfig(event.port).ls_pin:
             ls.init(ls.IN)
+            ls.irq()
 
         for hs in HexpansionConfig(event.port).pin:
             hs.init(hs.IN)
