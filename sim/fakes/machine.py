@@ -18,6 +18,11 @@ class Pin:
     def off(self):
         pass
 
+
+class Timer:
+
+    def __init__(self, *args, **kwargs):
+        pass
 class PWM:
 
     def __init__(self, *args, **kwargs):
