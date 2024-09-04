@@ -1,4 +1,5 @@
 # THIS FORK OF THE BADGE-2024-SOFTWARE IS BEING USED TO PROVIDE A TEST ENVIRONMENT FOR THE BADGEBOT APP
+[![Build Micropython](https://github.com/emfcamp/badge-2024-software/actions/workflows/build.yml/badge.svg)](https://github.com/emfcamp/badge-2024-software/actions/workflows/build.yml)
 
 [![Build Micropython](https://github.com/emfcamp/badge-2024-software/actions/workflows/build.yml/badge.svg)](https://github.com/emfcamp/badge-2024-software/actions/workflows/build.yml)
 
