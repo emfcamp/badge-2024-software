@@ -32,6 +32,21 @@ class PowerOff(app.App):
         if not self.off:
             clear_background(ctx)
         if self.off:
+            from egpio import ePin
+
+            HEXPANSION_POWER = {
+                (2, 12),
+                (2, 13),
+                (1, 8),
+                (1, 9),
+                (1, 10),
+                (1, 11),
+            }
+            for epin in HEXPANSION_POWER:
+                pin = ePin(epin, ePin.OUT)
+                pin.on()
+            pin = ePin((2, 2), ePin.OUT)
+            pin.off()
             ctx.rgb(0, 0, 0).rectangle(-120, -120, 240, 240).fill()
             ctx.font_size = 22
             ctx.text_align = ctx.CENTER
