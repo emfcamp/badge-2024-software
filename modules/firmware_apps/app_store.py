@@ -48,6 +48,7 @@ class AppStoreApp(app.App):
     def __init__(self):
         super().__init__()
         self.menu = None
+        self.available_categories_menu = None
         self.available_menu = None
         self.installed_menu = None
         self.update_menu = None
@@ -56,6 +57,8 @@ class AppStoreApp(app.App):
         self.app_store_index = []
         self.apps_with_updates = []
         self.apps_available_dict = {}
+        self.app_categories = []
+        self.category_filter = None
         self.to_install_app = None
         self.tarball = None
         self.wait_one_cycle = False
@@ -63,6 +66,7 @@ class AppStoreApp(app.App):
     def cleanup_ui_widgets(self):
         widgets = [
             self.menu,
+            self.available_categories_menu,
             self.available_menu,
             self.installed_menu,
             self.update_menu,
@@ -74,6 +78,7 @@ class AppStoreApp(app.App):
                 widget._cleanup()
 
             self.menu = None
+            self.available_categories_menu = None
             self.available_menu = None
             self.installed_menu = None
             self.update_menu = None
@@ -114,6 +119,14 @@ class AppStoreApp(app.App):
             self.update_state("no_index")
             return
 
+        # build list of categories from index
+        self.app_categories = []
+
+        for item in self.app_store_index:
+            app_category = item["manifest"]["app"].get("category")
+            if app_category not in self.app_categories:
+                self.app_categories.append(app_category)
+
         self.update_state("main_menu")
 
     def install_app(self, app):
@@ -143,19 +156,45 @@ class AppStoreApp(app.App):
             # TODO notify user of invalid code
             self.update_state("main_menu")
 
-    def prepare_available_menu(self):
+    def prepare_available_categories_menu(self):
         def on_select(_, i):
-            self.to_install_app = self.app_store_index[i]
+            self.category_filter = self.app_categories[i]
+            self.update_state("available_menu")
+            self.cleanup_ui_widgets()
+
+        def exit_available_categories_menu():
+            self.cleanup_ui_widgets()
+            self.update_state("main_menu")
+
+        self.available_categories_menu = Menu(
+            self,
+            menu_items=self.app_categories,
+            select_handler=on_select,
+            back_handler=exit_available_categories_menu,
+            focused_item_font_size=fourteen_pt,
+            item_font_size=ten_pt,
+        )
+
+    def prepare_available_menu(self):
+        def filtered_index():
+            return [
+                app
+                for app in self.app_store_index
+                if app["manifest"]["app"].get("category") == self.category_filter
+            ]
+
+        def on_select(_, i):
+            self.to_install_app = filtered_index()[i]
             self.update_state("installing_app")
             self.cleanup_ui_widgets()
 
         def exit_available_menu():
             self.cleanup_ui_widgets()
-            self.update_state("main_menu")
+            self.update_state("available_categories_menu")
 
         self.available_menu = Menu(
             self,
-            menu_items=[app["manifest"]["app"]["name"] for app in self.app_store_index],
+            menu_items=[app["manifest"]["app"]["name"] for app in filtered_index()],
             select_handler=on_select,
             back_handler=exit_available_menu,
             focused_item_font_size=fourteen_pt,
@@ -175,7 +214,7 @@ class AppStoreApp(app.App):
                 )
                 self.update_state("code_install_input")
             elif value == AVAILABLE:
-                self.update_state("available_menu")
+                self.update_state("available_categories_menu")
             elif value == INSTALLED:
                 self.update_state("installed_menu")
             elif value == UPDATE:
@@ -311,6 +350,11 @@ class AppStoreApp(app.App):
             self.handle_index()
         elif self.state == "main_menu" and not self.menu:
             self.prepare_main_menu()
+        elif (
+            self.state == "available_categories_menu"
+            and not self.available_categories_menu
+        ):
+            self.prepare_available_categories_menu()
         elif self.state == "available_menu" and not self.available_menu:
             self.prepare_available_menu()
         elif self.state == "installed_menu" and not self.installed_menu:
@@ -320,6 +364,8 @@ class AppStoreApp(app.App):
 
         if self.menu:
             self.menu.update(delta)
+        if self.available_categories_menu:
+            self.available_categories_menu.update(delta)
         if self.available_menu:
             self.available_menu.update(delta)
         if self.installed_menu:
@@ -336,6 +382,10 @@ class AppStoreApp(app.App):
             self.menu.draw(ctx)
         elif self.state == "main_menu" and not self.menu:
             self.error_screen(ctx, "Loading...")
+        elif (
+            self.state == "available_categories_menu" and self.available_categories_menu
+        ):
+            self.available_categories_menu.draw(ctx)
         elif self.state == "available_menu" and self.available_menu:
             self.available_menu.draw(ctx)
         elif self.state == "installed_menu" and self.installed_menu:
