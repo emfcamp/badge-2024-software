@@ -14,6 +14,8 @@ class ePin:
         self.OUT = 3
         self.PWM = 8
         self.pin = pin
+        self.IRQ_RISING = 1
+        self.IRQ_FALLING = 2
     
     def init(self, mode):
         pass
@@ -43,3 +45,6 @@ class ePin:
                 return not _sim.buttons.state()[5]
             else:
                 return 1
+                
+    def irq(self, handler, trigger):
+        pass
