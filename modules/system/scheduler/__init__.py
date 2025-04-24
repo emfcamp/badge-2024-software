@@ -212,7 +212,7 @@ class _Scheduler:
             self.render_needed.clear()
 
             with PerfTimer("render"):
-                ctx = display.get_ctx()
+                ctx = display.start_frame()
                 for app in self.foreground_stack[-1:] + self.on_top_stack:
                     with PerfTimer(f"rendering {app}"):
                         ctx.save()

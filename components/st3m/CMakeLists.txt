@@ -6,9 +6,7 @@ endif()
 
 idf_component_register(
     SRCS
-        st3m_gfx.c
         st3m_counter.c
-        st3m_scope.c
         st3m_imu.c
         "${ST3M_VERSION_PATH}"
     INCLUDE_DIRS

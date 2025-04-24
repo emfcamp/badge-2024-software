@@ -8,6 +8,7 @@ from system.eventbus import eventbus
 
 class PatternDisplay(App):
     def __init__(self):
+        super().__init__()
         eventbus.on_async(PatternEnable, self._enable, self)
         eventbus.on_async(PatternDisable, self._disable, self)
         eventbus.on_async(PatternReload, self._reload, self)

@@ -188,7 +188,7 @@ foo = app_components.layout.ButtonDisplay("foo")
 bar = app_components.layout.DefinitionDisplay("Wifi", "emfcamp")
 layout = app_components.layout.LinearLayout([text, foo, bar])
 
-ctx=display.get_ctx()
+ctx=display.start_frame()
 app_components.clear_background(ctx)
 ctx.rgb(1,1,1)
 layout.draw(ctx)
@@ -198,7 +198,7 @@ display.end_frame(ctx)
 """
 def scroll():
     for i in range(20):
-        ctx=display.get_ctx()
+        ctx=display.start_frame()
         app_components.clear_background(ctx)
         ctx.rgb(1,1,1)
         layout.draw(ctx)

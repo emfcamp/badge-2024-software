@@ -23,11 +23,11 @@ To build with a consistent toolchain, use docker.
 
 Pull the firmware build image:
 
-    docker pull matthewwilkes/esp_idf:5.2.1
+    docker pull matthewwilkes/esp_idf:5.2.3
 
 (Or build it yourself, if you prefer):
 
-    docker build . -t matthewwilkes/esp_idf:5.2.1
+    docker build . -t matthewwilkes/esp_idf:5.2.3
 
 Initialize submodules:
 
@@ -41,12 +41,12 @@ Before you build the first time, apply any patches to vendored content:
 
 Then to build the images run:
 
-    docker run -it --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware matthewwilkes/esp_idf:5.2.1
+    docker run -it --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware matthewwilkes/esp_idf:5.2.3
 
 Alternatively, to flash a badge:
     put the badge into bootloader by disconnecting the usb in, press and hold bat and boop buttons for 20 seconds  then reconnect the usb in and run:
 
-    docker run -it --rm --device /dev/ttyACM0:/dev/ttyUSB0 --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware matthewwilkes/esp_idf:5.2.1 deploy
+    docker run -it --rm --device /dev/ttyACM0:/dev/ttyUSB0 --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware matthewwilkes/esp_idf:5.2.3 deploy
 
 where /dev/ttyACM0 is the device's endpoint. This value is correct on Linux.
 
