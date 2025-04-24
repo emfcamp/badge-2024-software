@@ -1,5 +1,5 @@
 diff --git a/ports/esp32/esp32_common.cmake b/ports/esp32/esp32_common.cmake
-index e928fb439..fde5160a5 100644
+index 565f6feec..abca80a72 100644
 --- a/ports/esp32/esp32_common.cmake
 +++ b/ports/esp32/esp32_common.cmake
 @@ -11,6 +11,9 @@ endif()
@@ -12,7 +12,7 @@ index e928fb439..fde5160a5 100644
  # CMAKE_BUILD_EARLY_EXPANSION is set during the component-discovery phase of
  # `idf.py build`, so none of the extmod/usermod (and in reality, most of the
  # micropython) rules need to happen. Specifically, you cannot invoke add_library.
-@@ -69,7 +72,7 @@ list(APPEND MICROPY_SOURCE_PORT
+@@ -101,7 +104,7 @@ list(APPEND MICROPY_SOURCE_PORT
      machine_pin.c
      machine_touchpad.c
      machine_dac.c
@@ -21,3 +21,18 @@ index e928fb439..fde5160a5 100644
      network_common.c
      network_lan.c
      network_ppp.c
+diff --git a/ports/esp32/mpconfigport.h b/ports/esp32/mpconfigport.h
+index e36d12bc0..7fff5a767 100644
+--- a/ports/esp32/mpconfigport.h
++++ b/ports/esp32/mpconfigport.h
+@@ -12,6 +12,10 @@
+ #include "driver/i2s_std.h"
+ #include "esp_wifi_types.h"
+ 
++#ifndef USB_SERIAL_JTAG_PACKET_SZ_BYTES
++#define USB_SERIAL_JTAG_PACKET_SZ_BYTES (64)
++#endif
++
+ #ifndef MICROPY_CONFIG_ROM_LEVEL
+ #define MICROPY_CONFIG_ROM_LEVEL            (MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES)
+ #endif

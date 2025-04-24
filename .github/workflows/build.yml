@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: espressif/esp-idf
-          ref: v5.2.1
+          ref: v5.2.3
           path: esp-idf
           submodules: true
       - name: Submodules
