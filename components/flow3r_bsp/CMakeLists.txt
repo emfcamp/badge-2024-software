@@ -10,5 +10,5 @@ idf_component_register(
     REQUIRES
 		driver
 		vfs
-		main_esp32s3
+		main
 )
