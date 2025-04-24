@@ -2,7 +2,7 @@
 
 First, create a merged firmware binary. This can be done by building as normal, then using:
 
-    docker run -it --entrypoint /firmware/scripts/merge-firmwares.sh --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware -u $UID -e HOME=/tmp matthewwilkes/esp_idf:5.2.3
+    docker run -it --entrypoint /firmware/scripts/merge-firmwares.sh --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware -u $UID -e HOME=/tmp matthewwilkes/esp_idf:5.4.1
 
 Then, copy the merged firmware to this directory:
 
