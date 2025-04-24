@@ -2,6 +2,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_task.h"
 
 #define DEBUG_LED GPIO_NUM_35
 
