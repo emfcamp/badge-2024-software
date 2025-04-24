@@ -1,5 +1,5 @@
 diff --git a/python-ecosys/requests/requests/__init__.py b/python-ecosys/requests/requests/__init__.py
-index a9a1836..555d5d2 100644
+index 7401029..e55840b 100644
 --- a/python-ecosys/requests/requests/__init__.py
 +++ b/python-ecosys/requests/requests/__init__.py
 @@ -43,6 +43,7 @@ def request(
@@ -8,9 +8,9 @@ index a9a1836..555d5d2 100644
      parse_headers=True,
 +    allow_redirects=True,
  ):
-     if headers is None:
-         headers = {}
-@@ -178,7 +179,7 @@ def request(
+     redirect = None  # redirection url, None means no redirection
+     chunked_data = data and getattr(data, "__next__", None) and not getattr(data, "__len__", None)
+@@ -159,7 +160,7 @@ def request(
          s.close()
          raise
  
