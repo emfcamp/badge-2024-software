@@ -160,7 +160,7 @@ static mp_obj_t power_SupplyCapabilities( void )
                 {
                     tuple[0] = mp_obj_new_str( "fixed", 5 );
                     tuple[1] = mp_obj_new_int( usb_in.pd.pdos[i].fixed.max_current * 10 );
-                    tuple[2] = mp_obj_new_int( ( usb_in.pd.pdos[i].fixed.voltage * 50 ) / 1000 );
+                    tuple[2] = mp_obj_new_float( ( usb_in.pd.pdos[i].fixed.voltage * 50 ) / 1000 );
                     mp_obj_t capability = mp_obj_new_tuple(3, tuple);
                     mp_obj_list_append(capabilities, capability);
                     break;
@@ -169,7 +169,7 @@ static mp_obj_t power_SupplyCapabilities( void )
                 {
                     tuple[0] = mp_obj_new_str( "battery", 7 );
                     tuple[1] = mp_obj_new_int( ( usb_in.pd.pdos[i].battery.min_volt * 50 ) / 1000 );
-                    tuple[2] = mp_obj_new_int( ( usb_in.pd.pdos[i].battery.max_volt * 50 ) / 1000 );
+                    tuple[2] = mp_obj_new_float( ( usb_in.pd.pdos[i].battery.max_volt * 50 ) / 1000 );
                     mp_obj_t capability = mp_obj_new_tuple(3, tuple);
                     mp_obj_list_append(capabilities, capability);
                     break;
@@ -178,7 +178,7 @@ static mp_obj_t power_SupplyCapabilities( void )
                 {
                     tuple[0] = mp_obj_new_str( "variable", 8 );
                     tuple[1] = mp_obj_new_int( usb_in.pd.pdos[i].variable.max_current * 10 );
-                    tuple[2] = mp_obj_new_int( ( usb_in.pd.pdos[i].variable.max_voltage * 50 ) / 1000 );
+                    tuple[2] = mp_obj_new_float( ( usb_in.pd.pdos[i].variable.max_voltage * 50 ) / 1000 );
                     mp_obj_t capability = mp_obj_new_tuple(3, tuple);
                     mp_obj_list_append(capabilities, capability);
                     break;
@@ -200,7 +200,7 @@ static mp_obj_t power_SupplyCapabilities( void )
             mp_obj_t tuple[3];
             tuple[0] = mp_obj_new_str( "non-pd", 6 );
             tuple[1] = mp_obj_new_int( usb_in.fusb.input_current_limit );
-            tuple[2] = mp_obj_new_int( (int)pmic.vbus );
+            tuple[2] = mp_obj_new_float( pmic.vbus );
             mp_obj_t capability = mp_obj_new_tuple(3, tuple);
             mp_obj_list_append(capabilities, capability);
         }
@@ -208,8 +208,8 @@ static mp_obj_t power_SupplyCapabilities( void )
         {
             mp_obj_t tuple[3];
             tuple[0] = mp_obj_new_str( "disconnected", 12 );
-            tuple[1] = mp_obj_new_str( "0", 1 );
-            tuple[2] = mp_obj_new_str( "0", 1 );
+            tuple[1] = mp_obj_new_int( 0 );
+            tuple[2] = mp_obj_new_float( 0 );
             mp_obj_t capability = mp_obj_new_tuple(3, tuple);
             mp_obj_list_append(capabilities, capability);
         }
