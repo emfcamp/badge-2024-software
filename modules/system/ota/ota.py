@@ -180,9 +180,6 @@ class OtaUpdate(App):
             """
             try:
                 eventbus.emit(PatternDisable())
-                print("TEST")
-                # for i in range(1, 13):
-                #     tildagonos.leds[i] = (255, 0, 0)
                 result = await async_helpers.unblock(
                     ota.update,
                     render_update,
@@ -199,11 +196,11 @@ class OtaUpdate(App):
                     else:
                         self.status.value = "Retrying with HTTP"
                 else:
-                    eventbus.emit(PatternDisable())
+                    eventbus.emit(PatternEnable())
                     self.status.value = f"Failed: {e}"
                 result = False
             except Exception as e:
-                eventbus.emit(PatternDisable())
+                eventbus.emit(PatternEnable())
                 print("Error:" + str(e))
                 raise
 
@@ -255,14 +252,6 @@ class OtaUpdate(App):
         self.progress_pct = val
         self.status.value = f"Downloading ({val} %)"
 
-        # for i in range(1, 13):
-        #     print(int(val / 100 * 12))
-        #     if i <= int(val / 100 * 12):
-        #         if tildagonos.leds[i] != (0, 255, 255):
-        #             tildagonos.leds[i] = (0, 255, 255)
-        #             tildagonos.leds.write()
-        #             print(f"Set LED Green {i} - {val}")
-
         num_leds = 12
         progress_leds = int(val / 100 * num_leds) + 1
         remainder = (val / 100 * num_leds) - progress_leds
@@ -273,7 +262,7 @@ class OtaUpdate(App):
         if utime.ticks_diff(current_time, last_update) >= 1000:
 
             last_update = current_time
-            print("PROGRESS UPDATE")
+
             for i in range(1, num_leds + 1):
                 if i < progress_leds:
                     tildagonos.leds[i] = (0, 255, 0)  # Set to green
