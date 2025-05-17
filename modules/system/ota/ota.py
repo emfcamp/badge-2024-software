@@ -260,7 +260,6 @@ class OtaUpdate(App):
         current_time = utime.ticks_ms()
 
         if utime.ticks_diff(current_time, last_update) >= 1000:
-
             last_update = current_time
 
             for i in range(1, num_leds + 1):
