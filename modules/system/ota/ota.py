@@ -135,7 +135,7 @@ class OtaUpdate(App):
         # window.println()
         # line = window.get_next_line()
         self.confirmed = False
-
+        self.tryHttps = True
         retry = True
         self.status.value = "Searching for OTA"
 
@@ -151,6 +151,9 @@ class OtaUpdate(App):
             )
             response = await self.task
             url = response.headers["Location"]
+
+            if not self.tryHttps:
+                url = url.replace("https://", "http://")
 
             """
             self.task = async_helpers.unblock(
@@ -179,11 +182,18 @@ class OtaUpdate(App):
                 )
                 retry = False
             except OSError as e:
-                print("Error:" + str(e))
-                self.status.value = f"Failed: {e}"
+                print("OSError:" + str(e))
+                if e.args[1] == "ESP_ERR_HTTP_CONNECT":
+                    self.tryHttps = not self.tryHttps
+                    if self.tryHttps:
+                        self.status.value = "Retrying with HTTPS"
+                    else:
+                        self.status.value = "Retrying with HTTP"
+                else:
+                    self.status.value = f"Failed: {e}"
                 result = False
             except Exception as e:
-                print(e)
+                print("Error:" + str(e))
                 raise
 
         if result:
