@@ -10,6 +10,7 @@ from tildagonos import tildagonos
 
 class PatternInhibit(app.App):
     def __init__(self):
+        super().__init__()
         self.button_states = Buttons(self)
         eventbus.emit(PatternDisable())
         self._make_red()

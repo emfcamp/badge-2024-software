@@ -67,12 +67,7 @@ esp_err_t flow3r_bsp_gc9a01_init(flow3r_bsp_gc9a01_t *gc9a01,
 //
 // if overlay is provided we want it composited in, the pixel format of overlay
 // depends on bits - it is presumed to be the same size as fb.
-esp_err_t flow3r_bsp_gc9a01_blit_full(flow3r_bsp_gc9a01_t *gc9a01,
-                                      const void *fb, int bits);
-esp_err_t flow3r_bsp_gc9a01_blit_osd(flow3r_bsp_gc9a01_t *gc9a01,
-                                     const void *fb, int bits, int scale,
-                                     const void *osd_fb, int osd_x0, int osd_y0,
-                                     int osd_x1, int osd_y1);
+esp_err_t flow3r_bsp_gc9a01_blit_full(flow3r_bsp_gc9a01_t *gc9a01, const void *fb, int i);
 
 // Set backlight for display, using integer percent value (0-100, clamped).
 esp_err_t flow3r_bsp_gc9a01_backlight_set(flow3r_bsp_gc9a01_t *gc9a01,

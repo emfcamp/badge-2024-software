@@ -41,6 +41,7 @@ class Hexagon:
 
 class IntroApp(app.App):
     def __init__(self, text="EMF Camp", n_hexagons=5):
+        super().__init__()
         self.text = text
         self.hexagons = [Hexagon() for _ in range(n_hexagons)]
         self.time_elapsed = 0

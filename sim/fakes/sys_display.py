@@ -34,7 +34,7 @@ def fps():
 
 
 update = _sim.display_update
-get_ctx = _sim.get_ctx
+start_frame = _sim.start_frame
 get_overlay_ctx = _sim.get_overlay_ctx
 overlay_clip = _sim.set_overlay_clip
 osd = 256
@@ -43,7 +43,7 @@ osd = 256
 def ctx(foo):
     if foo == osd:
         return _sim.get_overlay_ctx()
-    return _sim.get_ctx()
+    return _sim.start_frame()
 
 
 def set_backlight(a):

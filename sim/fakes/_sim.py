@@ -497,7 +497,7 @@ def set_overlay_clip(x, y, x2, y2):
     overlay_clip = (x, y, x2 - x, y2 - y)
 
 
-def get_ctx():
+def start_frame():
     dctx = ctx._wasm.ctx_new_drawlist(240, 240)
     return ctx.Context(dctx)
 
