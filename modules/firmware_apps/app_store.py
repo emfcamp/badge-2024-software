@@ -6,17 +6,25 @@ import os
 import tarfile
 from tarfile import DIRTYPE, TarFile
 from typing import Any, Callable
+from perf_timer import PerfTimer
 
 import app
 import wifi
 import shutil
 import machine
-from app_components import Menu, clear_background, fourteen_pt, sixteen_pt, ten_pt
+from app_components import Menu, fourteen_pt, sixteen_pt, ten_pt
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from requests import get
 from system.eventbus import eventbus
-from system.launcher.app import APP_DIR, list_user_apps, InstallNotificationEvent
+from system.launcher.app import (
+    APP_DIR,
+    list_user_apps,
+    load_info,
+    InstallNotificationEvent,
+)
 from system.notification.events import ShowNotificationEvent
+from app_components.background import Background as bg
+from firmware_apps.settings_app import BG_DIR
 
 
 def dir_exists(filename):
@@ -40,6 +48,35 @@ AVAILABLE = "StoreInstall"
 INSTALLED = "Uninstall"
 UPDATE = "Update"
 REFRESH = "Refresh Apps"
+
+
+def list_user_backgrounds():
+    with PerfTimer("List user apps"):
+        apps = []
+        try:
+            contents = os.listdir(BG_DIR)
+        except OSError:
+            # No apps dir full stop
+            try:
+                os.mkdir(BG_DIR)
+            except OSError:
+                pass
+            return []
+
+        for name in contents:
+            app = {
+                "path": f"backgrounds.{name}.app",
+                "callable": "__Background__",
+                "name": name,
+                "folder": name,
+                "hidden": False,
+            }
+            metadata = load_info(BG_DIR, name)
+            if "version" not in metadata:
+                app["version"] = "0.0.0"
+            app.update(metadata)
+            apps.append(app)
+        return apps
 
 
 class AppStoreApp(app.App):
@@ -249,7 +286,7 @@ class AppStoreApp(app.App):
             # compare format v0.0.0
             return v1.split(".") > v2.split(".")
 
-        installed_apps = list_user_apps()
+        installed_apps = list_user_apps() + list_user_backgrounds()
         self.apps_available_dict = {}
         for a in self.app_store_index:
             folder_name = a["id"]["owner"] + "_" + a["id"]["title"]
@@ -291,7 +328,7 @@ class AppStoreApp(app.App):
             self.cleanup_ui_widgets()
             self.update_state("main_menu")
 
-        installed_apps = list_user_apps()
+        installed_apps = list_user_apps() + list_user_backgrounds()
 
         self.installed_menu = Menu(
             self,
@@ -303,7 +340,7 @@ class AppStoreApp(app.App):
         )
 
     def uninstall_app(self, app):
-        user_apps = list_user_apps()
+        user_apps = list_user_apps() + list_user_backgrounds()
         selected_app = list(filter(lambda x: x["name"] == app, user_apps))
         if len(selected_app) == 0:
             raise RuntimeError(f"app not found: {app}")
@@ -331,6 +368,7 @@ class AppStoreApp(app.App):
         ctx.restore()
 
     def update(self, delta):
+        bg.update(delta)
         if self.state == "init":
             if not wifi.status():
                 self.update_state("wifi_init")
@@ -377,7 +415,7 @@ class AppStoreApp(app.App):
         ctx.save()
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
-        clear_background(ctx)
+        bg.draw(ctx)
         if self.state == "main_menu" and self.menu:
             self.menu.draw(ctx)
         elif self.state == "main_menu" and not self.menu:
@@ -492,10 +530,13 @@ def install_app(app):
 
         # TODO: Check we have enough storage in advance
         # TODO: Does the app already exist? Delete it
-
+        if app["manifest"]["app"].get("category") == "Background":
+            TARGET_DIR = "/backgrounds"
+        else:
+            TARGET_DIR = APP_DIR
         # Make sure apps dir exists
         try:
-            os.mkdir(APP_DIR)
+            os.mkdir(TARGET_DIR)
         except OSError:
             pass
 
@@ -507,7 +548,7 @@ def install_app(app):
                 if not i.name.startswith(prefix):
                     continue
                 if i.type == DIRTYPE:
-                    dirname = f"{APP_DIR}/{i.name}"
+                    dirname = f"{TARGET_DIR}/{i.name}"
                     dirname = dirname.replace(prefix, app_module_name, 1)
                     print(f"Dirname: {dirname}")
                     if not dir_exists(dirname):
@@ -518,7 +559,7 @@ def install_app(app):
                             print(f"Failed to create {dirname}")
                             pass
                 else:
-                    filename = f"{APP_DIR}/{i.name}"
+                    filename = f"{TARGET_DIR}/{i.name}"
                     filename = filename.replace(prefix, app_module_name, 1)
                     print(f"Filename: {filename}")
                     f = t.extractfile(i)

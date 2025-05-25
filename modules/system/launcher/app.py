@@ -13,20 +13,13 @@ from system.scheduler.events import (
     RequestStopAppEvent,
 )
 from system.notification.events import ShowNotificationEvent
+from app_components.background import Background as bg
 
 APP_DIR = "/apps"
 
 
 class InstallNotificationEvent(Event):
     pass
-
-
-def path_isfile(path):
-    # Wow totally an elegant way to do os.path.isfile...
-    try:
-        return (os.stat(path)[0] & 0x8000) != 0
-    except OSError:
-        return False
 
 
 def path_isdir(path):
@@ -187,7 +180,9 @@ class Launcher(App):
 
     def draw(self, ctx):
         clear_background(ctx)
+        bg.draw(ctx)
         self.menu.draw(ctx)
 
     def update(self, delta):
+        bg.update(delta)
         self.menu.update(delta)
