@@ -426,6 +426,8 @@ class AppStoreApp(app.App):
             self.available_categories_menu.draw(ctx)
         elif self.state == "available_menu" and self.available_menu:
             self.available_menu.draw(ctx)
+        elif self.state == "available_menu" and not self.available_menu:
+            pass
         elif self.state == "installed_menu" and self.installed_menu:
             self.installed_menu.draw(ctx)
         elif self.state == "update_menu" and self.update_menu:
@@ -459,6 +461,7 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Loading...")
         else:
             self.error_screen(ctx, "Unknown error")
+            print("Unkown error " + self.state)
         ctx.restore()
 
         self.draw_overlays(ctx)
