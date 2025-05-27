@@ -139,6 +139,21 @@ class SettingsApp(app.App):
                         "Toggle", button_handler=_button_event_pattern_toggle
                     )
                     self.layout.items.append(entry)
+                if id == "pattern_mirror_hexpansions":
+
+                    async def _button_event_pattern_mirror(event):
+                        print(event)
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            settings.set("pattern_mirror_hexpansions", not settings.get("pattern_mirror_hexpansions", False))
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry = layout.ButtonDisplay(
+                        "Toggle", button_handler=_button_event_pattern_mirror
+                    )
+                    self.layout.items.append(entry)
 
             async def _button_event_w(event):
                 print(event)
@@ -172,7 +187,7 @@ class SettingsApp(app.App):
             ("name", "Name", string_formatter, self.string_editor),
             ("pattern", "LED Pattern", string_formatter, None),
             ("pattern_brightness", "Pattern brightness", pct_formatter, None),
-            ("pattern_mirror_hexpansions", "Mirror pattern", string_formatter, None),
+            ("pattern_mirror_hexpansions", "Pattern on Hxp LEDs", string_formatter, None),
             ("update_channel", "Update channel", string_formatter, None),
             ("wifi_tx_power", "WiFi TX power", string_formatter, None),
             (
