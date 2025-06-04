@@ -50,6 +50,9 @@ Alternatively, to flash a badge:
 
 where /dev/ttyACM0 is the device's endpoint. This value is correct on Linux.
 
+> [!IMPORTANT]  
+> On macOS, Docker does not have access to the host's USB devices. You will need to use a different method to flash the badge, such as [using the web flasher](flasher/README.md).
+
 ## Contributing
 
 Please install pre-commit to ensure ruff is run:
