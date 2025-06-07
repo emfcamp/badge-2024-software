@@ -14,6 +14,7 @@ words_menu_items = ["emfcamp", "bodgeham-on-wye", "hackers", "hexpansions", "til
 
 class MenuDemo(App):
     def __init__(self):
+        super().__init__()
         self.current_menu = "main"
         self.menu = Menu(
             self,

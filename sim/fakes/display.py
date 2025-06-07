@@ -13,8 +13,8 @@ def end_frame(ctx):
     times = [time for time in times if time > now - 1000]
     _sim.display_update(ctx)
 
-def get_ctx():
-    return _sim.get_ctx()
+def start_frame():
+    return _sim.start_frame()
 
 def hexagon(ctx, x, y, dim):
     return ctx.round_rectangle(x-dim, y-dim, 2*dim, 2*dim, dim).fill()
