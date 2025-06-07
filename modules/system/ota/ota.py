@@ -13,6 +13,11 @@ import settings
 from system.eventbus import eventbus
 from system.scheduler.events import RequestStopAppEvent
 from events.input import BUTTON_TYPES, ButtonDownEvent
+from tildagonos import tildagonos
+from system.patterndisplay.events import PatternDisable, PatternEnable
+import utime
+
+last_update = utime.ticks_ms()
 
 
 def parse_version(version):
@@ -171,6 +176,7 @@ class OtaUpdate(App):
                 self.layout.items.append(self.notes)
             """
             try:
+                eventbus.emit(PatternDisable())
                 result = await async_helpers.unblock(
                     ota.update,
                     render_update,
@@ -179,11 +185,13 @@ class OtaUpdate(App):
                 )
                 retry = False
             except OSError as e:
-                print("Error:" + str(e))
+                eventbus.emit(PatternEnable())
+                print("OS Error:" + str(e))
                 self.status.value = f"Failed: {e}"
                 result = False
             except Exception as e:
-                print(e)
+                eventbus.emit(PatternEnable())
+                print("Error:" + str(e))
                 raise
 
         if result:
@@ -233,6 +241,30 @@ class OtaUpdate(App):
 
         self.progress_pct = val
         self.status.value = f"Downloading ({val} %)"
+
+        num_leds = 12
+        progress_leds = int(val / 100 * num_leds) + 1
+        remainder = (val / 100 * num_leds) - progress_leds
+
+        global last_update
+        current_time = utime.ticks_ms()
+
+        if utime.ticks_diff(current_time, last_update) >= 1000:
+            last_update = current_time
+
+            for i in range(1, num_leds + 1):
+                if i < progress_leds:
+                    tildagonos.leds[i] = (0, 255, 0)  # Set to green
+                elif i == progress_leds:
+                    tildagonos.leds[i] = (
+                        int(255 * (1 - remainder)),
+                        int(255 * remainder),
+                        0,
+                    )  # Gradient color
+                else:
+                    tildagonos.leds[i] = (255, 0, 0)  # Set to red
+            tildagonos.leds.write()
+
         return True
 
     def draw(self, ctx):
