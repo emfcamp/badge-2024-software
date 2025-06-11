@@ -170,9 +170,9 @@ static mp_obj_t power_SupplyCapabilities( void )
                 {
                     mp_obj_t tuple[4];
                     tuple[0] = mp_obj_new_str( "battery", 7 );
-                    tuple[1] = mp_obj_new_float( ( usb_in.pd.pdos[i].battery.min_volt * 50 ) / 1000.0F );
-                    tuple[2] = mp_obj_new_float( ( usb_in.pd.pdos[i].battery.max_volt * 50 ) / 1000.0F );
-                    tuple[3] = mp_obj_new_float( ( usb_in.pd.pdos[i].battery.max_power * 250 ) / 1000.0F );
+                    tuple[1] = mp_obj_new_float( ( usb_in.pd.pdos[i].battery.max_power * 250 ) / 1000.0F );
+                    tuple[2] = mp_obj_new_float( ( usb_in.pd.pdos[i].battery.min_volt * 50 ) / 1000.0F );
+                    tuple[3] = mp_obj_new_float( ( usb_in.pd.pdos[i].battery.max_volt * 50 ) / 1000.0F );
                     mp_obj_t capability = mp_obj_new_tuple(3, tuple);
                     mp_obj_list_append(capabilities, capability);
                     break;
@@ -182,8 +182,8 @@ static mp_obj_t power_SupplyCapabilities( void )
                     mp_obj_t tuple[4];
                     tuple[0] = mp_obj_new_str( "variable", 8 );
                     tuple[1] = mp_obj_new_int( usb_in.pd.pdos[i].variable.max_current * 10 );
-                    tuple[2] = mp_obj_new_float( ( usb_in.pd.pdos[i].variable.max_voltage * 50 ) / 1000.0F );
-                    tuple[3] = mp_obj_new_float( ( usb_in.pd.pdos[i].variable.min_voltage * 50 ) / 1000.0F );
+                    tuple[2] = mp_obj_new_float( ( usb_in.pd.pdos[i].variable.min_voltage * 50 ) / 1000.0F );
+                    tuple[3] = mp_obj_new_float( ( usb_in.pd.pdos[i].variable.max_voltage * 50 ) / 1000.0F );
                     mp_obj_t capability = mp_obj_new_tuple(3, tuple);
                     mp_obj_list_append(capabilities, capability);
                     break;
