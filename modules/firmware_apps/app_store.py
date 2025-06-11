@@ -576,7 +576,7 @@ def install_app(app):
             "hidden": False,
             "version": app["manifest"]["metadata"]["version"],
         }
-        json_path = f"{APP_DIR}/{app_module_name}/metadata.json"
+        json_path = f"{TARGET_DIR}/{app_module_name}/metadata.json"
         print(f"Json path: {json_path}")
         with open(json_path, "w+") as internal_manifest_file_handler:
             json.dump(internal_manifest, internal_manifest_file_handler)
