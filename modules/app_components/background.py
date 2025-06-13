@@ -48,7 +48,9 @@ class _Background:
 
     def draw(self, ctx):
         if self.runner:
+            ctx.save()
             self.runner.draw(ctx)
+            ctx.restore()
         else:
             clear_background(ctx)
 
