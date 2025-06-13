@@ -3,7 +3,7 @@ import async_helpers
 from app import App
 from esp32 import Partition
 import machine
-from app_components import layout, tokens
+from app_components import layout
 import network
 import ota
 import ntptime
@@ -13,6 +13,7 @@ import settings
 from system.eventbus import eventbus
 from system.scheduler.events import RequestStopAppEvent
 from events.input import BUTTON_TYPES, ButtonDownEvent
+from app_components.background import Background as bg
 
 
 def parse_version(version):
@@ -236,6 +237,5 @@ class OtaUpdate(App):
         return True
 
     def draw(self, ctx):
-        # print("draw")
-        tokens.clear_background(ctx)
+        bg.draw(ctx)
         self.layout.draw(ctx)
