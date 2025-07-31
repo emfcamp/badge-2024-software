@@ -1,6 +1,6 @@
 import app
-from app_components.tokens import clear_background
 from app_components.dialog import YesNoDialog
+from app_components.background import Background as bg
 
 
 class PowerOff(app.App):
@@ -30,7 +30,7 @@ class PowerOff(app.App):
     def draw(self, ctx):
         ctx.save()
         if not self.off:
-            clear_background(ctx)
+            bg.draw(ctx)
         if self.off:
             from egpio import ePin
 
