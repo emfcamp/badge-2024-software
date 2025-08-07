@@ -35,7 +35,7 @@ static tildagon_mux_i2c_obj_t* mux;
 #define READ ( MP_MACHINE_I2C_FLAG_WRITE1 | MP_MACHINE_I2C_FLAG_READ | MP_MACHINE_I2C_FLAG_STOP )
 #define WRITE MP_MACHINE_I2C_FLAG_STOP
 
-static BMI2_INTF_RETURN_TYPE bmi2_i2c_read(uint8_t reg_addr, uint8_t *reg_data,
+BMI2_INTF_RETURN_TYPE bmi2_i2c_read(uint8_t reg_addr, uint8_t *reg_data,
                                            uint32_t len, void *intf_ptr) {
     flow3r_bsp_imu_t *imu = (flow3r_bsp_imu_t *)intf_ptr;
 
@@ -55,7 +55,7 @@ static BMI2_INTF_RETURN_TYPE bmi2_i2c_read(uint8_t reg_addr, uint8_t *reg_data,
     return BMI2_OK;
 }
 
-static BMI2_INTF_RETURN_TYPE bmi2_i2c_write(uint8_t reg_addr,
+BMI2_INTF_RETURN_TYPE bmi2_i2c_write(uint8_t reg_addr,
                                             const uint8_t *reg_data,
                                             uint32_t len, void *intf_ptr) {
     flow3r_bsp_imu_t *imu = (flow3r_bsp_imu_t *)intf_ptr;
@@ -235,6 +235,20 @@ esp_err_t flow3r_bsp_imu_read_steps(flow3r_bsp_imu_t *imu, uint32_t *steps) {
         return ESP_OK;
     }
     return ESP_ERR_NOT_FOUND;
+}
+
+/*!
+ * @brief get the temperature of the device
+ */
+esp_err_t flow3r_bsp_imu_read_temperature(flow3r_bsp_imu_t *imu, float *temperature) {
+    uint16_t temp_data;
+    int8_t rslt = bmi2_get_temperature_data(&temp_data, &(imu->bmi));
+    bmi2_error_codes_print_result(rslt);
+    if (rslt != BMI2_OK) return ESP_FAIL;
+    const float scaling = 0.001953125F;
+    const float offset = 23.0F; 
+    *temperature = ((float)temp_data * scaling ) + offset; 
+    return ESP_OK;
 }
 
 /*!
@@ -565,10 +579,6 @@ static int8_t set_accel_config(flow3r_bsp_imu_t *imu) {
         /* Set the accel configurations. */
         rslt = bmi2_set_sensor_config(&config, 1, &imu->bmi);
         bmi2_error_codes_print_result(rslt);
-
-        /* Map data ready interrupt to interrupt pin. */
-        rslt = bmi2_map_data_int(BMI2_DRDY_INT, BMI2_INT1, &imu->bmi);
-        bmi2_error_codes_print_result(rslt);
     }
 
     return rslt;
@@ -615,10 +625,6 @@ static int8_t set_gyro_config(flow3r_bsp_imu_t *imu) {
         config.cfg.gyr.noise_perf = BMI2_POWER_OPT_MODE;
 
         rslt = bmi2_set_sensor_config(&config, 1, &imu->bmi);
-        bmi2_error_codes_print_result(rslt);
-
-        /* Map data ready interrupt to interrupt pin. */
-        rslt = bmi2_map_data_int(BMI2_DRDY_INT, BMI2_INT1, &imu->bmi);
         bmi2_error_codes_print_result(rslt);
     }
 
