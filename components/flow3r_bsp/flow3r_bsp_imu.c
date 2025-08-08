@@ -132,11 +132,6 @@ esp_err_t flow3r_bsp_imu_init(flow3r_bsp_imu_t *imu) {
     bmi2_error_codes_print_result(rslt);
     if (rslt != BMI2_OK) return ESP_FAIL;
 
-    struct bmi2_sens_int_config sens_int = { .type = BMI2_STEP_COUNTER, .hw_int_pin = BMI2_INT1 };
-    rslt = bmi270_map_feat_int(&sens_int, 1, &(imu->bmi));
-    bmi2_error_codes_print_result(rslt);
-    if (rslt != BMI2_OK) return ESP_FAIL;
-
     struct bmi2_sens_config config;
     config.type = BMI2_ACCEL;
 
@@ -565,10 +560,6 @@ static int8_t set_accel_config(flow3r_bsp_imu_t *imu) {
         /* Set the accel configurations. */
         rslt = bmi2_set_sensor_config(&config, 1, &imu->bmi);
         bmi2_error_codes_print_result(rslt);
-
-        /* Map data ready interrupt to interrupt pin. */
-        rslt = bmi2_map_data_int(BMI2_DRDY_INT, BMI2_INT1, &imu->bmi);
-        bmi2_error_codes_print_result(rslt);
     }
 
     return rslt;
@@ -615,10 +606,6 @@ static int8_t set_gyro_config(flow3r_bsp_imu_t *imu) {
         config.cfg.gyr.noise_perf = BMI2_POWER_OPT_MODE;
 
         rslt = bmi2_set_sensor_config(&config, 1, &imu->bmi);
-        bmi2_error_codes_print_result(rslt);
-
-        /* Map data ready interrupt to interrupt pin. */
-        rslt = bmi2_map_data_int(BMI2_DRDY_INT, BMI2_INT1, &imu->bmi);
         bmi2_error_codes_print_result(rslt);
     }
 
