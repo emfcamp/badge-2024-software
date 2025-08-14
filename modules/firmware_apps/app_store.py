@@ -92,39 +92,6 @@ class AppStoreApp(app.App):
             return
         self.update_state("refreshing_index")
 
-<<<<<<< HEAD
-    def background_update(self, delta):
-        if self.state == "refreshing_index":
-            try:
-                self.response = get(APP_STORE_LISTING_URL)
-            except Exception:
-                self.update_state("no_index")
-                return
-            self.update_state("index_received")
-        if self.to_install_app:
-            # We wait one cycle after background_update is called to ensure the
-            # installation screen is drawn
-            if self.wait_one_cycle:
-                self.install_app(self.to_install_app)
-                self.to_install_app = None
-                self.wait_one_cycle = False
-            self.wait_one_cycle = True
-
-||||||| parent of 8df3d90 (Improve async compatibility of app store)
-    def background_update(self, delta):
-        if self.state == "refreshing_index":
-            try:
-                self.response = get(APP_STORE_LISTING_URL)
-            except Exception:
-                self.update_state("no_index")
-                return
-            self.update_state("index_received")
-        if self.to_install_app:
-            self.install_app(self.to_install_app)
-            self.to_install_app = None
-
-=======
->>>>>>> 8df3d90 (Improve async compatibility of app store)
     def handle_index(self):
         if not self.response:
             print(self.response)
@@ -398,17 +365,13 @@ class AppStoreApp(app.App):
                 self.update_state("no_index")
             else:
                 self.update_state("index_received")
-
-            if self.to_install_app:
-                # We wait one cycle after background_update is called to ensure the
-                # installation screen is drawn
-                if self.wait_one_cycle:
-                    await async_helpers.unblock(
-                        self.install_app, render_update, self.to_install_app
-                    )
-                    self.to_install_app = None
-                    self.wait_one_cycle = False
-                self.wait_one_cycle = True
+        elif self.state == "installing_app":
+            # We wait one cycle after background_update is called to ensure the
+            # installation screen is drawn
+            await async_helpers.unblock(
+                self.install_app, render_update, self.to_install_app
+            )
+            self.to_install_app = None
         if self.menu:
             self.menu.update(delta)
         if self.available_categories_menu:
