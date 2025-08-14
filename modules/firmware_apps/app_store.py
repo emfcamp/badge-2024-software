@@ -396,7 +396,8 @@ class AppStoreApp(app.App):
                 )
             except Exception:
                 self.update_state("no_index")
-            self.update_state("index_received")
+            else:
+                self.update_state("index_received")
 
             if self.to_install_app:
                 # We wait one cycle after background_update is called to ensure the
