@@ -1,7 +1,7 @@
 {
     "name": "Tildagon",
     "version": "Latest",
-    "new_install_prompt_erase": false,
+    "new_install_prompt_erase": true,
     "builds": [
       {
         "improv": false,
