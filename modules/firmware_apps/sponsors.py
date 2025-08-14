@@ -13,6 +13,7 @@ main_menu_items = [
 
 class Sponsors(App):
     def __init__(self):
+        super().__init__()
         self.current_menu = "main"
         self.menu = Menu(
             self,
