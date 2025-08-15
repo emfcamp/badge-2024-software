@@ -116,9 +116,9 @@ jobs:
           path: ./flasher
         if: ${{startsWith(github.event.ref, 'refs/tags/v') && !contains(github.event.ref, '-') }}
   deploy:
-    if: startsWith(github.event.ref, 'refs/tags/v')
+    if: ${{startsWith(github.event.ref, 'refs/tags/v') && !contains(github.event.ref, '-') }}
     needs: Build-Firmware
-        
+
     permissions:
       pages: write      # to deploy to Pages
       id-token: write   # to verify the deployment originates from an appropriate source

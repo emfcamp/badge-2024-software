@@ -81,30 +81,44 @@ static const tildagon_pin_obj_t *tildagon_pin_find_named(const mp_obj_dict_t *na
     return NULL;
 }
 
-void tildagon_pins_init(void) {
-    static bool did_install = false;
-    if (!did_install) {
-        for (int i = 0; i < 3; i++){
-            ext_pin[i].mux = tildagon_get_i2c_mux();
-            aw9523b_init(&ext_pin[i]);
-        }
-        // setup outputs mux [2] 2, 4 and 5. 5v sw, usb mux and led sw 
-        aw9523b_pin_set_direction( &ext_pin[2], 2,  false );
-        aw9523b_pin_set_output( &ext_pin[2], 2,  false );
-        aw9523b_pin_set_direction( &ext_pin[2], 4,  false );
-        aw9523b_pin_set_output( &ext_pin[2], 4,  false );
-        aw9523b_pin_set_direction( &ext_pin[2], 5,  false );
-        aw9523b_pin_set_output( &ext_pin[2], 5,  false );
-        did_install = true;
+void tildagon_pins_init(void) 
+{
+    for (int i = 0; i < 3; i++)
+    {
+        ext_pin[i].mux = tildagon_get_i2c_mux();
+        aw9523b_init(&ext_pin[i]);
     }
-    memset(&MP_STATE_PORT(tildagon_pin_irq_handler[0]), 0, sizeof(MP_STATE_PORT(tildagon_pin_irq_handler)));
+    // setup outputs mux [2] 2, 4 and 5. 5v sw, usb mux and led sw 
+    aw9523b_pin_set_direction( &ext_pin[2], 2,  false );
+    aw9523b_pin_set_output( &ext_pin[2], 2,  false );
+    aw9523b_pin_set_direction( &ext_pin[2], 4,  false );
+    aw9523b_pin_set_output( &ext_pin[2], 4,  false );
+    aw9523b_pin_set_direction( &ext_pin[2], 5,  false );
+    aw9523b_pin_set_output( &ext_pin[2], 5,  false );
+    //memset(&MP_STATE_PORT(tildagon_pin_irq_handler[0]), 0, sizeof(MP_STATE_PORT(tildagon_pin_irq_handler)));
 }
 
-static void tildagon_pin_isr_handler(void *arg) {
+void tildagon_pins_generate_isr( void )
+{
+    for( uint8_t i = 0; i < 3; i++ )
+    {
+        if ( gpio_get_level( GPIO_NUM_10 ) == 0 )
+        {
+            aw9523b_irq_handler(&ext_pin[i]);
+        }
+    }
+}
+
+static void tildagon_pin_isr_handler(void *arg, uint8_t event)
+{
     tildagon_pin_obj_t *self = arg;
-    mp_obj_t handler = MP_STATE_PORT(tildagon_pin_irq_handler)[PIN_OBJ_PTR_INDEX(self)];
+    uint8_t index = PIN_OBJ_PTR_INDEX(self);
+    if ( event == GPIO_INTR_NEGEDGE )
+    {
+        index += GPIO_PIN_COUNT;
+    }
+    mp_obj_t handler = MP_STATE_PORT(tildagon_pin_irq_handler)[index];
     mp_sched_schedule(handler, MP_OBJ_FROM_PTR(self));
-    mp_hal_wake_main_task_from_isr();
 }
 
 static const tildagon_pin_obj_t *tildagon_pin_find(mp_obj_t pin_in) {
@@ -263,9 +277,11 @@ static mp_obj_t tildagon_pin_on(mp_obj_t self_in) {
 static MP_DEFINE_CONST_FUN_OBJ_1(tildagon_pin_on_obj, tildagon_pin_on);
 
 // pin.irq(handler=None, trigger=IRQ_FALLING|IRQ_RISING)
-static mp_obj_t tildagon_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+static mp_obj_t tildagon_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) 
+{
     enum { ARG_handler, ARG_trigger };
-    static const mp_arg_t allowed_args[] = {
+    static const mp_arg_t allowed_args[] = 
+    {
         { MP_QSTR_handler, MP_ARG_OBJ, {.u_obj = mp_const_none} },
         { MP_QSTR_trigger, MP_ARG_INT, {.u_int = GPIO_INTR_POSEDGE | GPIO_INTR_NEGEDGE} },
     };
@@ -273,30 +289,44 @@ static mp_obj_t tildagon_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
-    if (n_args > 1 || kw_args->used != 0) {
+    if (n_args > 1 || kw_args->used != 0) 
+    {
         // configure irq
         aw9523b_device_t *dev = PIN_OBJ_PTR_DEVICE(self);
         aw9523b_pin_t pin = PIN_OBJ_PTR_PORTPIN(self);
         uint8_t index = PIN_OBJ_PTR_INDEX(self);
         mp_obj_t handler = args[ARG_handler].u_obj;
-        //mp_obj_t trigger = args[ARG_trigger].u_obj;
-
-        if (handler != mp_const_none) {
+        mp_uint_t trigger = args[ARG_trigger].u_int;
+        
+        if (handler != mp_const_none) 
+        {
             aw9523b_irq_register(dev, pin, tildagon_pin_isr_handler, self);
             aw9523b_irq_enable(dev, pin);
-        } else {
-            aw9523b_irq_unregister(dev, pin);
-            aw9523b_irq_disable(dev, pin);
+        } 
+        else 
+        {
             handler = MP_OBJ_NULL;
         }
-        MP_STATE_PORT(tildagon_pin_irq_handler)[index] = handler;
-
+        if ( trigger & GPIO_INTR_POSEDGE )
+        {
+            MP_STATE_PORT(tildagon_pin_irq_handler)[index] = handler;
+        }
+        if ( trigger & GPIO_INTR_NEGEDGE )
+        {
+            MP_STATE_PORT(tildagon_pin_irq_handler)[index + GPIO_PIN_COUNT] = handler;
+        }
+        if (
+              ( MP_STATE_PORT(tildagon_pin_irq_handler)[index + GPIO_PIN_COUNT] == MP_OBJ_NULL )
+           && (  MP_STATE_PORT(tildagon_pin_irq_handler)[index] == MP_OBJ_NULL )
+        )
+        {
+            aw9523b_irq_unregister(dev, pin);
+            aw9523b_irq_disable(dev, pin); 
+        }
     }
-
-    // return the irq object
-    return MP_OBJ_FROM_PTR(&self->irq);
+    return mp_const_none;
 }
-//static MP_DEFINE_CONST_FUN_OBJ_KW(tildagon_pin_irq_obj, 1, tildagon_pin_irq);
+static MP_DEFINE_CONST_FUN_OBJ_KW(tildagon_pin_irq_obj, 1, tildagon_pin_irq);
 
 static mp_obj_t tildagon_pin_duty(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_duty };
@@ -335,8 +365,7 @@ static const mp_rom_map_elem_t tildagon_pin_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_value), MP_ROM_PTR(&tildagon_pin_value_obj) },
     { MP_ROM_QSTR(MP_QSTR_off), MP_ROM_PTR(&tildagon_pin_off_obj) },
     { MP_ROM_QSTR(MP_QSTR_on), MP_ROM_PTR(&tildagon_pin_on_obj) },
-    //todo reinstate once triggers can be split into rising/falling edge
-    //{ MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&tildagon_pin_irq_obj) },
+    { MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&tildagon_pin_irq_obj) },
     { MP_ROM_QSTR(MP_QSTR_duty), MP_ROM_PTR(&tildagon_pin_duty_obj) },
 
     // class attributes
@@ -346,8 +375,8 @@ static const mp_rom_map_elem_t tildagon_pin_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_IN), MP_ROM_INT(GPIO_MODE_INPUT) },
     { MP_ROM_QSTR(MP_QSTR_OUT), MP_ROM_INT(GPIO_MODE_INPUT_OUTPUT) },
     { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_INT(EGPIO_MODE_PWM) },
-    //{ MP_ROM_QSTR(MP_QSTR_IRQ_RISING), MP_ROM_INT(GPIO_INTR_POSEDGE) },
-    //{ MP_ROM_QSTR(MP_QSTR_IRQ_FALLING), MP_ROM_INT(GPIO_INTR_NEGEDGE) },
+    { MP_ROM_QSTR(MP_QSTR_IRQ_RISING), MP_ROM_INT(GPIO_INTR_POSEDGE) },
+    { MP_ROM_QSTR(MP_QSTR_IRQ_FALLING), MP_ROM_INT(GPIO_INTR_NEGEDGE) },
 };
 
 static mp_uint_t tildagon_pin_ioctl(mp_obj_t self_in, mp_uint_t request, uintptr_t arg, int *errcode) {
@@ -385,40 +414,4 @@ MP_DEFINE_CONST_OBJ_TYPE(
     locals_dict, &tildagon_pin_locals_dict
     );
 
-/******************************************************************************/
-// Pin IRQ object
-
-static mp_obj_t tildagon_pin_irq_call(mp_obj_t self_in, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    tildagon_pin_irq_obj_t *self = self_in;
-    mp_arg_check_num(n_args, n_kw, 0, 0, false);
-    tildagon_pin_isr_handler((void *)PIN_OBJ_PTR_FROM_IRQ_OBJ_PTR(self));
-    return mp_const_none;
-}
-
-static mp_obj_t tildagon_pin_irq_trigger(size_t n_args, const mp_obj_t *args) {
-    tildagon_pin_irq_obj_t *self = args[0];
-    gpio_num_t index = PIN_OBJ_PTR_INDEX(PIN_OBJ_PTR_FROM_IRQ_OBJ_PTR(self));
-    uint32_t orig_trig = GPIO.pin[index].int_type;
-    if (n_args == 2) {
-        // set trigger
-        gpio_set_intr_type(index, mp_obj_get_int(args[1]));
-    }
-    // return original trigger value
-    return MP_OBJ_NEW_SMALL_INT(orig_trig);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(tildagon_pin_irq_trigger_obj, 1, 2, tildagon_pin_irq_trigger);
-
-static const mp_rom_map_elem_t tildagon_pin_irq_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR_trigger), MP_ROM_PTR(&tildagon_pin_irq_trigger_obj) },
-};
-static MP_DEFINE_CONST_DICT(tildagon_pin_irq_locals_dict, tildagon_pin_irq_locals_dict_table);
-
-MP_DEFINE_CONST_OBJ_TYPE(
-    tildagon_pin_irq_type,
-    MP_QSTR_IRQ,
-    MP_TYPE_FLAG_NONE,
-    call, tildagon_pin_irq_call,
-    locals_dict, &tildagon_pin_irq_locals_dict
-    );
-
-MP_REGISTER_ROOT_POINTER(mp_obj_t tildagon_pin_irq_handler[GPIO_PIN_COUNT]);
+MP_REGISTER_ROOT_POINTER(mp_obj_t tildagon_pin_irq_handler[GPIO_PIN_COUNT*2]);
