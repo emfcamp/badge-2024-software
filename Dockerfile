@@ -1,4 +1,5 @@
-FROM espressif/idf:v5.2.1
+ARG IDF_VERSION=v5.2.1
+FROM espressif/idf:$IDF_VERSION
 
 # Mark the firmware as a safe include directory for git
 RUN git config --global --add safe.directory "*"
