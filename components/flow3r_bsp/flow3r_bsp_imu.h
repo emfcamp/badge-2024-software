@@ -67,3 +67,20 @@ esp_err_t flow3r_bsp_imu_read_gyro_dps(flow3r_bsp_imu_t *imu, float *x,
 // Returns ESP_FAIL if the sensor could not be read (e.g. I2C unavailable).
 // Retrurns the number of steps counted.
 esp_err_t flow3r_bsp_imu_read_steps(flow3r_bsp_imu_t *imu, uint32_t *steps);
+
+// Get temperature
+//
+// Returns ESP_FAIL if the sensor could not be read (e.g. I2C unavailable).
+// Returns temperature in 'C
+esp_err_t flow3r_bsp_imu_read_temperature(flow3r_bsp_imu_t *imu, float *temperature);
+
+// i2c write
+// writes buffer to register address
+// Returns bmi fault code
+BMI2_INTF_RETURN_TYPE bmi2_i2c_write(uint8_t reg_addr,const uint8_t *reg_data,
+                                            uint32_t len, void *intf_ptr);
+// i2c read
+// reads buffer from register address
+// Returns bmi fault code                                            
+BMI2_INTF_RETURN_TYPE bmi2_i2c_read(uint8_t reg_addr, uint8_t *reg_data,
+                                           uint32_t len, void *intf_ptr);
