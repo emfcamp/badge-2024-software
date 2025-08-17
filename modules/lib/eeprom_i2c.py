@@ -98,10 +98,20 @@ class EEPROM(EepromDevice):
             # Offset address into chip: one or two bytes
             vaddr = self._addrbuf[1:] if self._onebyte else self._addrbuf
             if read:
-                self._i2c.writeto(self._i2c_addr, vaddr)
-                self._i2c.readfrom_into(self._i2c_addr, mvb[start : start + npage])
+                try:
+                    self._i2c.writeto(self._i2c_addr, vaddr)
+                    self._i2c.readfrom_into(self._i2c_addr, mvb[start : start + npage])
+                except OSError:
+                    # failure - possibly a hexpansion has been removed
+                    nbytes = 0
             else:
-                self._i2c.writevto(self._i2c_addr, (vaddr, buf[start : start + npage]))
+                try:
+                    self._i2c.writevto(
+                        self._i2c_addr, (vaddr, buf[start : start + npage])
+                    )
+                except OSError:
+                    # failure - possibly a hexpansion has been removed
+                    nbytes = 0
                 self._wait_rdy()
             nbytes -= npage
             start += npage
