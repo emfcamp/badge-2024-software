@@ -6,6 +6,7 @@ from events.input import Buttons, BUTTON_TYPES
 
 class ExampleApp(app.App):
     def __init__(self):
+        super().__init__()
         self.button_states = Buttons(self)
 
     def update(self, delta):

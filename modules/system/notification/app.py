@@ -6,6 +6,7 @@ from system.eventbus import eventbus
 
 class NotificationService(app.App):
     def __init__(self):
+        super().__init__()
         eventbus.on_async(
             ShowNotificationEvent, self._handle_incoming_notification, self
         )

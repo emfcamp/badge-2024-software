@@ -89,6 +89,7 @@ def list_user_apps():
 
 class Launcher(App):
     def __init__(self):
+        super().__init__()
         self.update_menu()
         self._apps = {}
         eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)

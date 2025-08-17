@@ -32,7 +32,7 @@ void st3m_imu_init() {
         return;
     }
 
-    xTaskCreate(&_task, "imu", 4096, NULL, configMAX_PRIORITIES - 2, NULL);
+    xTaskCreatePinnedToCore(&_task, "imu", 4096, NULL, configMAX_PRIORITIES - 2, NULL, 0);
     ESP_LOGI(TAG, "IMU task started");
 }
 
