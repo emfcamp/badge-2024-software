@@ -62,9 +62,11 @@ class Menu:
                     self.menu_items[self.position % len(self.menu_items)]
                 )
         if BUTTON_TYPES["CANCEL"] in event.button:
+            self._cleanup()
             if self.back_handler is not None:
                 self.back_handler()
         if BUTTON_TYPES["CONFIRM"] in event.button:
+            self._cleanup()
             if self.select_handler is not None:
                 self.select_handler(
                     self.menu_items[self.position % len(self.menu_items)],
