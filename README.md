@@ -62,7 +62,7 @@ to the QEMU container using the USB devices button on the VM's frame.
 
 The command to flash the badge using docker must be slightly modified on macOS:
 
-    docker run -it --rm --device /dev/ttyACM0:/dev/ttyUSB0  --group-add keep-groups --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware matthewwilkes/esp_idf:5.2.1 deploy
+    docker run -it --rm --device /dev/ttyACM0:/dev/ttyUSB0 --group-add keep-groups --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.2.1 deploy
 
 ## Contributing
 
