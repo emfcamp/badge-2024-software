@@ -7,6 +7,7 @@
 #include "esp_random.h"
 #include "driver/i2c_master.h"
 #include "modmachine.h"
+#include "tildagon_pin.h"
 
 #include "tildagon_power.h"
 #include "mp_power_event.h"
@@ -90,30 +91,6 @@ static pd_machine_state_t device_pd_state = NOT_STARTED;
 static TaskHandle_t tildagon_power_task_handle = NULL;
 static QueueHandle_t event_queue;
 bool lanyard_mode = false;
-//todo integrate with port expanders
-#include "tildagon_i2c.h"
-#define READ ( MP_MACHINE_I2C_FLAG_WRITE1 | MP_MACHINE_I2C_FLAG_READ | MP_MACHINE_I2C_FLAG_STOP )
-#define WRITE MP_MACHINE_I2C_FLAG_STOP
-void dev_5v_sw( bool enable )
-{
-    uint8_t state = 0x00;
-    uint8_t regVal = 0;
-    uint8_t regAddr = 0x02;
-    if ( enable )
-    {
-        state = 0x10;
-    }
-    mp_machine_i2c_buf_t buffer[2] = { { .len = 1, .buf = &regAddr },
-                                       { .len = 1, .buf = &regVal } };
-    tildagon_mux_i2c_transaction( usb_in.fusb.mux_port, 0x5A, 2, buffer, READ );
-    regVal = regVal & 0xEF;
-    regVal = regVal | state;
-    uint8_t write_buffer[2] = { 0x02, regVal };
-    buffer[0].len = 2;
-    buffer[0].buf = write_buffer;  
-    tildagon_mux_i2c_transaction( usb_in.fusb.mux_port, 0x5A, 1, buffer, WRITE );
-}
-
 
 /**
  * @brief fast rate task to handle the interrupt generated events
@@ -125,8 +102,7 @@ void tildagon_power_fast_task(void *param __attribute__((__unused__)))
     usb_out.fusb.mux_port = tildagon_get_mux_obj( 0 );
     pmic.mux_port = tildagon_get_mux_obj( 7 );
     // turn off 5V switch before setting up PMIC as the reset will enable the boost.
-    dev_5v_sw(false);
-    //todo replace when port expander interface available
+    aw9523b_pin_set_output( &ext_pin[2], 4, false);
     bq_init( &pmic );
     
     /* initialise isr */ 
@@ -216,8 +192,7 @@ void tildagon_power_interrupt_event( void* param )
  */
 void tildagon_power_off( void )
 {
-    //todo replace 5v off.
-    dev_5v_sw(false);
+    aw9523b_pin_set_output( &ext_pin[2], 4, false);
     bq_disconnect_battery( &pmic );
 }
 
@@ -226,16 +201,15 @@ void tildagon_power_off( void )
  */
 void tildagon_power_enable_5v( bool enable )
 {
-    //todo replace when port expander interface available
     if ( enable )
     {
         bq_enable_boost( &pmic, 1 );
-        dev_5v_sw(true);
+        aw9523b_pin_set_output( &ext_pin[2], 4, true);
     }
     else
     {
         /* open switch then disable 5V */
-        dev_5v_sw(false);
+        aw9523b_pin_set_output( &ext_pin[2], 4, false);
         bq_enable_boost( &pmic, 0 );
         bq_enable_HiZ_input( &pmic, 0 );
     }    
@@ -336,8 +310,7 @@ void device_unattached_handler( event_t event )
         determine_input_current_limit( &usb_in );
         if ( ( usb_in.fusb.input_current_limit >= 1500 ) && ( device_pd_state == NOT_STARTED ) )
         {
-            //todo enable device pd
-            //fusb_setup_pd( &usb_in.fusb );
+            fusb_setup_pd( &usb_in.fusb );
             device_pd_state = WAITING;
         }
         fusb_mask_interrupt_bclevel( &usb_in.fusb, 1 );
@@ -360,8 +333,7 @@ void device_attached_handler( event_t event )
         determine_input_current_limit( &usb_in );
         if ( ( usb_in.fusb.input_current_limit >= 1500 ) && ( device_pd_state == NOT_STARTED ) )
         {
-            //todo enable device pd
-            //fusb_setup_pd( &usb_in.fusb );
+            fusb_setup_pd( &usb_in.fusb );
             device_pd_state = WAITING;
         }
         fusb_mask_interrupt_bclevel( &usb_in.fusb, 1 );
@@ -390,15 +362,29 @@ void device_pd_machine ( event_t event )
                 fusbpd_decode( &usb_in.pd, &usb_in.fusb );
                 if ( usb_in.pd.last_rx_data_msg_type == PD_DATA_SOURCE_CAPABILITIES )
                 {
-                    uint8_t index = fusbpd_select_pdo( &usb_in.pd );
-                    fusbpd_request_power( &usb_in.pd, index, usb_in.pd.pdos[index].fixed.max_current * 10, usb_in.pd.pdos[index].fixed.max_current * 10 );
+                    /*
+                        We only need 5V so can use the first object, from the usb 3 standard:
+                        The vSafe5V Fixed Supply Object Shall always be the first object.
+                        A Source Shall Not offer multiple Power Data Objects of the same 
+                        type (fixed, variable, Battery) and the same Voltage but Shall 
+                        instead offer one Power Data Object with the highest available 
+                        current for that Source capability and Voltage. 
+                        
+                    */
+                    uint32_t current = usb_in.pd.pdos[0].fixed.max_current * 10;
+                    /* limit current to the maximum current of a non active cable */
+                    if ( current > 3000 )
+                    {
+                        current = 3000;
+                    }
+                    fusbpd_request_power( &usb_in.pd, 0, current, current );
                     fusb_send( &usb_in.fusb, usb_in.pd.tx_buffer, usb_in.pd.message_length );  
                     usb_in.pd.last_rx_data_msg_type = PD_DATA_DO_NOT_USE; 
                     device_pd_state = POWER_REQUESTED;
                 }          
                 else if( usb_in.pd.last_rx_data_msg_type == PD_DATA_VENDOR_DEFINED )
                 {
-                    /* if vendor pdo received decide on badge to badge and callback? */    
+                    /* ToDo: if vendor pdo received decide on badge to badge and callback? */    
                 }
             }
             break;
@@ -456,6 +442,7 @@ void generate_events( void )
     }
     while ( gpio_get_level( GPIO_NUM_10 ) == 0 )
     {
+        tildagon_pins_generate_isr();
         if ( gpio_get_level( GPIO_NUM_10 ) == 0 )
         {
             uint16_t interruptab = fusb_get_interruptab( &usb_in.fusb );

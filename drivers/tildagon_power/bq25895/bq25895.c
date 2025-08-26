@@ -41,13 +41,15 @@ static void write_scaled( bq_state_t* state, scaled_register_t scaledregister, f
  * @brief initialise the bq25895
  * @details reset then setup 500mA Iin limit, boost disabled, charging enabled,
  * ADC at 1Hz, disable unused features and disable watchdog to reduce interruptions
+ * charge current limit to be 0.85C for the 1800mAh and 0.77C for 2000mAh batteries
+ * termination and precharge current to 64mA. min Vsys to 3.0V
  * @param state pmic object
  */
 void bq_init( bq_state_t* state )
 {
     write_bits( state, register_reset, 1 );
-    uint8_t write_buffer[3] = { 0x02, 0x60, 0x1A };
-    mp_machine_i2c_buf_t buffer = { .len = 3, .buf = write_buffer };
+    uint8_t write_buffer[5] = { 0x02, 0x60, 0x10, 0x18, 0x00 };
+    mp_machine_i2c_buf_t buffer = { .len = 5, .buf = write_buffer };
     tildagon_mux_i2c_transaction( state->mux_port, ADDRESS, 1, &buffer, WRITE );
     write_buffer[0] = 0x07;
     write_buffer[1] = 0x8C;

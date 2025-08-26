@@ -18,10 +18,9 @@ class PowerOff(app.App):
 
             # Wait for an answer from the dialogue, and if it was yes, randomise colour
             if await dialog.run(render_update):
-                import machine
-                import bq25895
+                import power
 
-                bq25895.bq25895(machine.I2C(7)).disconnect_battery()
+                power.Off()
                 self.off = True
             else:
                 self.minimise()
@@ -33,6 +32,21 @@ class PowerOff(app.App):
         if not self.off:
             clear_background(ctx)
         if self.off:
+            from egpio import ePin
+
+            HEXPANSION_POWER = {
+                (2, 12),
+                (2, 13),
+                (1, 8),
+                (1, 9),
+                (1, 10),
+                (1, 11),
+            }
+            for epin in HEXPANSION_POWER:
+                pin = ePin(epin, ePin.OUT)
+                pin.on()
+            pin = ePin((2, 2), ePin.OUT)
+            pin.off()
             ctx.rgb(0, 0, 0).rectangle(-120, -120, 240, 240).fill()
             ctx.font_size = 22
             ctx.text_align = ctx.CENTER

@@ -20,6 +20,16 @@
 #define TILDAGON_HOST_I2C_PORT (0)
 #define TILDAGON_HOST_I2C_TIMEOUT (50000)
 
+#define TILDAGON_TOP_I2C_PORT (0)
+#define TILDAGON_HX0_I2C_PORT (1)
+#define TILDAGON_HX1_I2C_PORT (2)
+#define TILDAGON_HX2_I2C_PORT (3)
+#define TILDAGON_HX3_I2C_PORT (4)
+#define TILDAGON_HX4_I2C_PORT (5)
+#define TILDAGON_HX5_I2C_PORT (6)
+#define TILDAGON_SYS_I2C_PORT (7)
+
+
 typedef struct _tildagon_mux_i2c_obj_t {
     mp_obj_base_t base;
     const tca9548a_i2c_mux_t *mux;

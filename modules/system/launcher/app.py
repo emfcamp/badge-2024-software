@@ -75,9 +75,12 @@ def list_user_apps():
                 "path": f"apps.{name}.app",
                 "callable": "__app_export__",
                 "name": name,
+                "folder": name,
                 "hidden": False,
             }
             metadata = load_info(APP_DIR, name)
+            if "version" not in metadata:
+                app["version"] = "0.0.0"
             app.update(metadata)
             if not app["hidden"]:
                 apps.append(app)
@@ -86,6 +89,7 @@ def list_user_apps():
 
 class Launcher(App):
     def __init__(self):
+        self.menu = None
         self.update_menu()
         self._apps = {}
         eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)
@@ -136,6 +140,8 @@ class Launcher(App):
 
     def update_menu(self):
         self.menu_items = self.list_core_apps() + list_user_apps()
+        if self.menu:
+            self.menu._cleanup()
         self.menu = Menu(
             self,
             [app["name"] for app in self.menu_items],

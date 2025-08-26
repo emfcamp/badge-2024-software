@@ -28,9 +28,9 @@ typedef struct
     uint8_t host;
 } fusb_state_t;
 
-/** 
- * @brief Initialise the fusb302 to a device 
- * @details reset the device then set comparator threshold to 2.226V, enable Vbus measurment, 
+/**
+ * @brief Initialise the fusb302 to a device
+ * @details reset the device then set comparator threshold to 2.226V, enable Vbus measurement,
  * flush buffers, enable interrupts, 3 retries and Vbus, BC level and good crc interrupts, enable toggle
  * @param state the port object
  */
@@ -49,7 +49,7 @@ extern void fusb_setup_host( fusb_state_t* state );
  */
 extern void fusb_set_cc( fusb_state_t* state, uint8_t cc_select );
 /**
- * @brief disble toggle 
+ * @brief disable toggle
  * @param state the port object
  */
 extern void fusb_stop_toggle( fusb_state_t* state );

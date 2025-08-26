@@ -85,31 +85,6 @@ void fusbpd_decode( pd_state_t* state, fusb_state_t* fusb )
 }
 
 /**
- * @brief select the highest voltage pdo up to 14V
- * @param state the comms state onject
- * @return the index of the pdo object
- */
-uint8_t fusbpd_select_pdo( pd_state_t* state )
-{
-    uint16_t highest_voltage = 5000U;
-    uint8_t index = 0U;
-    for ( uint8_t i = 0U; i < state->last_rx_header.sop.number_objects; i++ )
-    {
-        const uint16_t voltage = state->pdos[i].fixed.voltage * 50;
-        if (
-            ( state->pdos[i].fixed.pdo_type == PD_FIXED_SUPPLY )
-            && ( voltage > highest_voltage )
-            && ( voltage < 14000 )
-        )
-        {
-            highest_voltage = voltage;
-            index = i;
-        }
-    }
-    return index;
-}
-
-/**
  * @brief creat a request power message 
  * @param state the comms state onject
  * @param num the index of the pdo list sent from the source

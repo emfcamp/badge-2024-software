@@ -9,10 +9,6 @@
 #include "fusb302b/fusb302b_pd.h"
 #include "fusb302b/fusb302b.h"
 
-
-#define VBATMAX 4.104F
-#define VBATMIN 2.500F
-
 typedef struct
 {
     fusb_state_t fusb;

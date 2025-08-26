@@ -4,10 +4,12 @@ import io
 import json
 import os
 import tarfile
+import time
 from tarfile import DIRTYPE, TarFile
 from typing import Any, Callable
 
 import app
+import async_helpers
 import wifi
 import shutil
 import machine
@@ -48,18 +50,25 @@ class AppStoreApp(app.App):
     def __init__(self):
         super().__init__()
         self.menu = None
+        self.available_categories_menu = None
         self.available_menu = None
         self.installed_menu = None
         self.update_menu = None
         self.codeinstall = None
         self.response = None
         self.app_store_index = []
+        self.apps_with_updates = []
+        self.apps_available_dict = {}
+        self.app_categories = []
+        self.category_filter = None
         self.to_install_app = None
         self.tarball = None
+        self.wait_one_cycle = False
 
     def cleanup_ui_widgets(self):
         widgets = [
             self.menu,
+            self.available_categories_menu,
             self.available_menu,
             self.installed_menu,
             self.update_menu,
@@ -69,25 +78,19 @@ class AppStoreApp(app.App):
         for widget in widgets:
             if widget:
                 widget._cleanup()
-                widget = None
+
+            self.menu = None
+            self.available_categories_menu = None
+            self.available_menu = None
+            self.installed_menu = None
+            self.update_menu = None
+            self.codeinstall = None
 
     def get_index(self):
         if not wifi.status():
             self.update_state("no_wifi")
             return
         self.update_state("refreshing_index")
-
-    def background_update(self, delta):
-        if self.state == "refreshing_index":
-            try:
-                self.response = get(APP_STORE_LISTING_URL)
-            except Exception:
-                self.update_state("no_index")
-                return
-            self.update_state("index_received")
-        if self.to_install_app:
-            self.install_app(self.to_install_app)
-            self.to_install_app = None
 
     def handle_index(self):
         if not self.response:
@@ -100,6 +103,14 @@ class AppStoreApp(app.App):
             print(self.response)
             self.update_state("no_index")
             return
+
+        # build list of categories from index
+        self.app_categories = []
+
+        for item in self.app_store_index:
+            app_category = item["manifest"]["app"].get("category")
+            if app_category not in self.app_categories:
+                self.app_categories.append(app_category)
 
         self.update_state("main_menu")
 
@@ -130,23 +141,48 @@ class AppStoreApp(app.App):
             # TODO notify user of invalid code
             self.update_state("main_menu")
 
-    def prepare_available_menu(self):
+    def prepare_available_categories_menu(self):
         def on_select(_, i):
-            self.to_install_app = self.app_store_index[i]
-            self.update_state("installing_app")
-            if self.available_menu:
-                self.available_menu._cleanup()
+            self.category_filter = self.app_categories[i]
+            self.update_state("available_menu")
+            self.cleanup_ui_widgets()
 
-        def exit_available_menu():
+        def exit_available_categories_menu():
             self.cleanup_ui_widgets()
             self.update_state("main_menu")
 
+        self.available_categories_menu = Menu(
+            self,
+            menu_items=self.app_categories,
+            select_handler=on_select,
+            back_handler=exit_available_categories_menu,
+            focused_item_font_size=fourteen_pt,
+            item_font_size=ten_pt,
+        )
+
+    def prepare_available_menu(self):
+        def filtered_index():
+            return [
+                app
+                for app in self.app_store_index
+                if app["manifest"]["app"].get("category") == self.category_filter
+            ]
+
+        def on_select(_, i):
+            self.to_install_app = filtered_index()[i]
+            self.update_state("installing_app")
+            self.cleanup_ui_widgets()
+
+        def exit_available_menu():
+            self.cleanup_ui_widgets()
+            self.update_state("available_categories_menu")
+
         self.available_menu = Menu(
             self,
-            menu_items=[app["manifest"]["app"]["name"] for app in self.app_store_index],
+            menu_items=[app["manifest"]["app"]["name"] for app in filtered_index()],
             info_items=[
                 app["manifest"]["metadata"]["description"]
-                for app in self.app_store_index
+                for app in filtered_index()
             ],
             select_handler=on_select,
             back_handler=exit_available_menu,
@@ -156,17 +192,18 @@ class AppStoreApp(app.App):
 
     def prepare_main_menu(self):
         def on_cancel():
+            self.cleanup_ui_widgets()
             self.minimise()
 
         def on_select(value, idx):
+            self.cleanup_ui_widgets()
             if value == CODE_INSTALL:
-                self.cleanup_ui_widgets()
                 self.codeinstall = CodeInstall(
                     install_handler=lambda id: self.handle_code_input(id), app=self
                 )
                 self.update_state("code_install_input")
             elif value == AVAILABLE:
-                self.update_state("available_menu")
+                self.update_state("available_categories_menu")
             elif value == INSTALLED:
                 self.update_state("installed_menu")
             elif value == UPDATE:
@@ -179,12 +216,59 @@ class AppStoreApp(app.App):
             menu_items=[
                 CODE_INSTALL,
                 AVAILABLE,
-                # UPDATE,
+                UPDATE,
                 INSTALLED,
             ],
             select_handler=on_select,
             back_handler=on_cancel,
         )
+
+    def prepare_update_menu(self):
+        def on_cancel():
+            self.cleanup_ui_widgets()
+            self.update_state("main_menu")
+
+        def on_select(_, i):
+            app_name = self.apps_with_updates[i]["folder"]
+            self.to_install_app = self.apps_available_dict[app_name]
+            self.update_state("installing_app")
+            self.cleanup_ui_widgets()
+
+        def compare_version(v1, v2):
+            # compare format v0.0.0
+            return v1.split(".") > v2.split(".")
+
+        installed_apps = list_user_apps()
+        self.apps_available_dict = {}
+        for a in self.app_store_index:
+            folder_name = a["id"]["owner"] + "_" + a["id"]["title"]
+            folder_name = folder_name.replace("-", "_")
+            self.apps_available_dict[folder_name] = a
+        self.apps_with_updates = []
+        for ia in installed_apps:
+            if ia["folder"] in self.apps_available_dict:
+                app_dict = self.apps_available_dict[ia["folder"]]
+                latest_version = app_dict["manifest"]["metadata"]["version"]
+                print("App: " + ia["name"])
+                print(f"Latest version: {latest_version}")
+                print("Installed version: " + ia["version"])
+
+                if compare_version(latest_version, ia["version"]):
+                    self.apps_with_updates.append(ia)
+            else:
+                print("No app in app store matching: ", ia)
+        if len(self.apps_with_updates):
+            self.update_menu = Menu(
+                self,
+                menu_items=[app["name"] for app in self.apps_with_updates],
+                select_handler=on_select,
+                back_handler=on_cancel,
+                focused_item_font_size=fourteen_pt,
+                item_font_size=ten_pt,
+            )
+        else:
+            self.update_state("main_menu")
+            eventbus.emit(ShowNotificationEvent("All apps up to date!"))
 
     def prepare_installed_menu(self):
         def on_cancel():
@@ -235,7 +319,17 @@ class AppStoreApp(app.App):
             ctx.gray(1).move_to(0, start_y + i * ctx.font_size).text(line)
         ctx.restore()
 
-    def update(self, delta):
+    async def run(self, render_update):
+        last_time = time.ticks_ms()
+        await render_update()
+        while True:
+            cur_time = time.ticks_ms()
+            delta_ticks = time.ticks_diff(cur_time, last_time)
+            await self.main_loop(delta_ticks, render_update)
+            await render_update()
+            last_time = cur_time
+
+    async def main_loop(self, delta, render_update):
         if self.state == "init":
             if not wifi.status():
                 self.update_state("wifi_init")
@@ -255,13 +349,37 @@ class AppStoreApp(app.App):
             self.handle_index()
         elif self.state == "main_menu" and not self.menu:
             self.prepare_main_menu()
+        elif (
+            self.state == "available_categories_menu"
+            and not self.available_categories_menu
+        ):
+            self.prepare_available_categories_menu()
         elif self.state == "available_menu" and not self.available_menu:
             self.prepare_available_menu()
         elif self.state == "installed_menu" and not self.installed_menu:
             self.prepare_installed_menu()
-
+        elif self.state == "update_menu" and not self.update_menu:
+            self.prepare_update_menu()
+        elif self.state == "refreshing_index":
+            try:
+                self.response = await async_helpers.unblock(
+                    get, render_update, APP_STORE_LISTING_URL
+                )
+            except Exception:
+                self.update_state("no_index")
+            else:
+                self.update_state("index_received")
+        elif self.state == "installing_app":
+            # We wait one cycle after background_update is called to ensure the
+            # installation screen is drawn
+            await async_helpers.unblock(
+                self.install_app, render_update, self.to_install_app
+            )
+            self.to_install_app = None
         if self.menu:
             self.menu.update(delta)
+        if self.available_categories_menu:
+            self.available_categories_menu.update(delta)
         if self.available_menu:
             self.available_menu.update(delta)
         if self.installed_menu:
@@ -278,6 +396,10 @@ class AppStoreApp(app.App):
             self.menu.draw(ctx)
         elif self.state == "main_menu" and not self.menu:
             self.error_screen(ctx, "Loading...")
+        elif (
+            self.state == "available_categories_menu" and self.available_categories_menu
+        ):
+            self.available_categories_menu.draw(ctx)
         elif self.state == "available_menu" and self.available_menu:
             self.available_menu.draw(ctx)
         elif self.state == "installed_menu" and self.installed_menu:
@@ -422,6 +544,7 @@ def install_app(app):
         internal_manifest = {
             "name": app["manifest"]["app"]["name"],
             "hidden": False,
+            "version": app["manifest"]["metadata"]["version"],
         }
         json_path = f"{APP_DIR}/{app_module_name}/metadata.json"
         print(f"Json path: {json_path}")
