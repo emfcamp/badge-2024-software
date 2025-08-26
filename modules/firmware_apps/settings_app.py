@@ -35,6 +35,7 @@ def reset_wifi_settings():
 
 PATTERNS = ["rainbow", "cylon", "flash", "off"]
 BRIGHTNESSES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+CHANNELS = ["latest", "preview"]
 
 
 class SettingsApp(app.App):
@@ -137,6 +138,28 @@ class SettingsApp(app.App):
 
                     entry = layout.ButtonDisplay(
                         "Toggle", button_handler=_button_event_pattern_toggle
+                    )
+                    self.layout.items.append(entry)
+
+                if id == "update_channel":
+
+                    async def _button_event_channel_toggle(event):
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            channel = settings.get("update_channel")
+                            if not channel:
+                                channel = "latest"
+                            idx = CHANNELS.index(channel) + 1
+                            if idx >= len(CHANNELS):
+                                idx = 0
+                            print(f"{CHANNELS} {idx}")
+                            settings.set("update_channel", CHANNELS[idx])
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry = layout.ButtonDisplay(
+                        "Toggle", button_handler=_button_event_channel_toggle
                     )
                     self.layout.items.append(entry)
 
