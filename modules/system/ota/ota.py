@@ -259,6 +259,7 @@ class OtaUpdate(App):
         global last_update
         current_time = utime.ticks_ms()
 
+        brightness = settings.get("pattern_brightness", 0.1)
         if utime.ticks_diff(current_time, last_update) >= 1000:
             last_update = current_time
 
@@ -273,6 +274,11 @@ class OtaUpdate(App):
                     )  # Gradient color
                 else:
                     tildagonos.leds[i] = (255, 0, 0)  # Set to red
+
+                if brightness < 1.0:
+                    tildagonos.leds[i] = tuple(
+                        int(j * brightness) for j in tildagonos.leds[i]
+                    )
             tildagonos.leds.write()
 
         return True
