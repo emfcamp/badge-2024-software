@@ -185,7 +185,7 @@ class TextDialog:
         key = -1
         final = None
 
-        kbd_button = event.button.find_parent_in_group('Keyboard')
+        kbd_button = event.button.find_parent_in_group("Keyboard")
 
         if BUTTON_TYPES["UP"] in event.button:
             key = 0

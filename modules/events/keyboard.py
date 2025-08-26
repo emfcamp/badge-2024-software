@@ -1,16 +1,14 @@
-
 from .input import Button, BUTTON_TYPES
 
 letters = {
-    letter: Button(letter, "Keyboard") for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    letter: Button(letter, "Keyboard") for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 }
 
-numbers = {
-    number: Button(number, "Keyboard") for number in '0123456789'
-}
+numbers = {number: Button(number, "Keyboard") for number in "0123456789"}
 
 symbols = {
-    symbol: Button(symbol, "Keyboard") for symbol in '''!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'''
+    symbol: Button(symbol, "Keyboard")
+    for symbol in """!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~"""
 }
 
 modifiers = {

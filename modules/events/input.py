@@ -47,6 +47,7 @@ class Button:
                 parent = parent.parent
         return None
 
+
 BUTTON_TYPES = {
     "UNDEFINED": Button("UNDEFINED", "System"),
     "CANCEL": Button("CANCEL", "System"),
