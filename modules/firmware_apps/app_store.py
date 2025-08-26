@@ -181,8 +181,7 @@ class AppStoreApp(app.App):
             self,
             menu_items=[app["manifest"]["app"]["name"] for app in filtered_index()],
             info_items=[
-                app["manifest"]["metadata"]["description"]
-                for app in filtered_index()
+                app["manifest"]["metadata"]["description"] for app in filtered_index()
             ],
             select_handler=on_select,
             back_handler=exit_available_menu,
