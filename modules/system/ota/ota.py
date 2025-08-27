@@ -75,6 +75,7 @@ class OtaUpdate(App):
             except Exception:
                 pass
         eventbus.emit(RequestStopAppEvent(self))
+        eventbus.emit(PatternEnable())
 
     async def run(self, render_update):
         self.status.value = "Checking version"
