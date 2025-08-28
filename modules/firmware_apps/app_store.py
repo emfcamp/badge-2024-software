@@ -156,12 +156,12 @@ class AppStoreApp(app.App):
             install_app(app)
             self.update_state("main_menu")
             eventbus.emit(InstallNotificationEvent())
-            eventbus.emit(ShowNotificationEvent("Installed the app!"))
+            eventbus.emit(ShowNotificationEvent("Installed\nthe app!"))
         except MemoryError:
             self.update_state("install_oom")
         except Exception as e:
             print(e)
-            eventbus.emit(ShowNotificationEvent("Couldn't install app"))
+            eventbus.emit(ShowNotificationEvent("Couldn't\ninstall app"))
             self.update_state("main_menu")
 
     def update_state(self, state):
