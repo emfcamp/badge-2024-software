@@ -3,7 +3,6 @@ import time
 
 from system.eventbus import eventbus
 from system.scheduler.events import RequestForegroundPopEvent
-from system.patterndisplay.events import PatternEnable
 
 
 class App:
@@ -52,4 +51,3 @@ class App:
 
     def minimise(self):
         eventbus.emit(RequestForegroundPopEvent(self))
-        eventbus.emit(PatternEnable())
