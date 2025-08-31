@@ -337,7 +337,6 @@ class AppStoreApp(app.App):
         else:
             selected_app = selected_app[0]
         selected_app_module = selected_app["path"]
-        print(selected_app_module)
         selected_app_fs_path = "/" + "/".join(selected_app_module.split(".")[0:-1])
         print(f"Selected app fs path: {selected_app_fs_path}")
         shutil.rmtree(selected_app_fs_path)
