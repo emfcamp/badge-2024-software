@@ -8,6 +8,7 @@ from system.eventbus import eventbus
 from system.patterndisplay.events import PatternReload
 from app_components.background import Background as bg
 from system.launcher.app import load_info
+from system.scheduler.events import RequestForegroundPushEvent
 
 BG_DIR = "/backgrounds"
 
@@ -56,6 +57,12 @@ class SettingsApp(app.App):
         self.layout = layout.LinearLayout(items=[layout.DefinitionDisplay("", "")])
         self.overlays = []
         self.dialog = None
+        self.load_background_options()
+        self.ctx = None
+        eventbus.on_async(ButtonDownEvent, self._button_handler, self)
+        eventbus.on(RequestForegroundPushEvent, self.load_background_options, self)
+
+    def load_background_options(self, event=None):
         self.backgrounds = [("None", None), ("hexagons", None), ("emf logo", None)]
         try:
             contents = os.listdir(BG_DIR)
@@ -72,9 +79,6 @@ class SettingsApp(app.App):
             if "name" in metadata:
                 name = metadata["name"]
             self.backgrounds.append((name, path))
-        self.ctx = None
-        eventbus.on_async(ButtonDownEvent, self._button_handler, self)
-        # eventbus.on(RequestForegroundPushEvent, self.make_layout_children, self)
 
     async def string_editor(self, label, id, render_update):
         self.dialog = TextDialog(label, self)
