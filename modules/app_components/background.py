@@ -49,7 +49,16 @@ class _Background:
     def draw(self, ctx):
         if self.runner:
             ctx.save()
-            self.runner.draw(ctx)
+            try:
+                self.runner.draw(ctx)
+            except Exception as e:
+                print(f"Error creating background: {e}")
+                eventbus.emit(
+                    ShowNotificationEvent(
+                        message=f"Background {self.selection[0]} has crashed"
+                    )
+                )
+                self.runner = None
             ctx.restore()
         else:
             clear_background(ctx)
