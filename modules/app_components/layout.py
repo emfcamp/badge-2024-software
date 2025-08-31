@@ -1,5 +1,6 @@
 from events.input import BUTTON_TYPES
 from . import tokens, utils
+from perf_timer import PerfTimer
 
 
 class Layoutable:
@@ -84,6 +85,9 @@ class DefinitionDisplay(Layoutable):
         self.height = 0
         self.button_handler = button_handler
 
+    def __repr__(self):
+        return f"<DefinitionDisplay {self.label}={self.value}>"
+
     async def button_event(self, event):
         if self.button_handler:
             return await self.button_handler(event)
@@ -146,11 +150,32 @@ class LinearLayout(Layoutable):
         ctx.scale(self.scale_factor, self.scale_factor)
         ctx.translate(12, 0)
 
-        # Draw each item in turn
-        for item in self.items:
-            item.draw(ctx, focused=item == focused_child)
-            ctx.translate(0, item.height)
-            self.height += item.height
+        with PerfTimer("Layout draw"):
+            # Draw each item in turn
+            draw_progressive = True
+            progressive_y = progressive_y_last = 120
+            for item in self.items:
+                if draw_progressive:
+                    if item.height:
+                        progressive_y -= item.height
+                    else:
+                        draw_progressive = False
+                        item.draw(ctx, focused=item == focused_child)
+
+                    if progressive_y_last < (self.y_offset + 150) and progressive_y > (
+                        self.y_offset - 300
+                    ):
+                        with PerfTimer(f"Draw element {item}"):
+                            item.draw(ctx, focused=item == focused_child)
+                    else:
+                        # item.draw(ctx, focused=item == focused_child)
+                        pass  # print("Skipping draw of ", item, progressive_y_last, self.y_offset, progressive_y)
+
+                    progressive_y_last = progressive_y
+                else:
+                    item.draw(ctx, focused=item == focused_child)
+                ctx.translate(0, item.height)
+                self.height += item.height
 
         ctx.restore()
 
