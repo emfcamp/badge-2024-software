@@ -8,24 +8,34 @@ on:
 env:
   TARGET: esp32s3
   IDF_TARGET: esp32s3
+  ESP_IDF_VERSION: v5.2.1
 jobs:
   Build-Firmware:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential python3-pip python3-pillow libusb-1.0-0-dev cmake
+      - name: Install Dependencies
+        uses: daaku/gh-action-apt-install@v4
+        with:
+          packages: build-essential python3-pip python3-pillow libusb-1.0-0-dev cmake
+          version: 1
       - name: Check out driver code
         uses: actions/checkout@v4
         with:
           submodules: true
+      - name: ESP IDF Cache
+        id: esp-idf-cache
+        uses: actions/cache@v4
+        with:
+          path: esp-idf
+          key: esp-idf-${{ env.ESP_IDF_VERSION }}
       - name: Check out ESP IDF
+        if: steps.esp-idf-cache.outputs.cache-hit != 'true'
+        id: esp-idf
         uses: actions/checkout@v4
         with:
           repository: espressif/esp-idf
-          ref: v5.2.1
+          ref: ${{ env.ESP_IDF_VERSION }}
           path: esp-idf
           submodules: true
       - name: Submodules
@@ -33,7 +43,17 @@ jobs:
           cd micropython/lib
           git submodule init
           git submodule update micropython-lib
+      - name: SDK Cache
+        id: sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /home/runner/.espressif
+            /home/runner/work/badge-2024-software/badge-2024-software/esp-idf
+          key: esp-sdk-${{ env.ESP_IDF_VERSION }}
       - name: Install SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        id: install-sdk
         run: |
           cd esp-idf
           ./install.sh
@@ -42,7 +62,14 @@ jobs:
       - name: Patch submodule dependencies
         run: |
           ./scripts/firstTime.sh
+      - name: Cache cross compiler
+        id: cross-compiler-cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/work/badge-2024-software/badge-2024-software/micropython/mpy-cross
+          key: cross-compiler-${{ hashFiles('micropython/.git') }}
       - name: Build cross compiler
+        if: steps.cross-compiler-cache.outputs.cache-hit != 'true'
         run: |
           source esp-idf/export.sh
           cd micropython
