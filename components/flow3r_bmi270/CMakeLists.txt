@@ -6,5 +6,5 @@ idf_component_register(
         .
         ../st3m
     REQUIRES
-		main_esp32s3
+		main
 )
