@@ -12,6 +12,7 @@ from system.patterndisplay.events import (
 from system.eventbus import eventbus
 from app_components.utils import path_isfile
 from firmware_apps.settings_app import PAT_DIR
+from system.notification.events import ShowNotificationEvent
 
 
 class PatternDisplay(App):
@@ -89,20 +90,30 @@ class PatternDisplay(App):
     async def background_task(self):
         while True:
             if self._p:
-                brightness = settings.get("pattern_brightness", 0.1)
-                next_frame = self._p.next()
-                if self.enabled:
-                    for led in range(12):
-                        if brightness < 1.0:
-                            tildagonos.leds[led + 1] = tuple(
-                                int(i * brightness) for i in next_frame[led]
-                            )
-                        else:
-                            tildagonos.leds[led + 1] = next_frame[led]
-                    tildagonos.leds.write()
-                if not self._p.fps:
-                    break
-                await asyncio.sleep(1 / self._p.fps)
+                try:
+                    brightness = settings.get("pattern_brightness", 0.1)
+                    next_frame = self._p.next()
+                    if self.enabled:
+                        for led in range(12):
+                            if brightness < 1.0:
+                                tildagonos.leds[led + 1] = tuple(
+                                    int(i * brightness) for i in next_frame[led]
+                                )
+                            else:
+                                tildagonos.leds[led + 1] = next_frame[led]
+                        tildagonos.leds.write()
+                    if not self._p.fps:
+                        break
+                    await asyncio.sleep(1 / self._p.fps)
+                except Exception as e:
+                    print(f"Error creating pattern: {e}")
+                    eventbus.emit(
+                        ShowNotificationEvent(
+                            message=f"Pattern {self.pattern[0]} has crashed"
+                        )
+                    )
+                    self._p = None
+                    await asyncio.sleep(1)
             else:
                 await asyncio.sleep(1)
 
