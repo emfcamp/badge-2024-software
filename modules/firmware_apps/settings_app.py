@@ -39,6 +39,8 @@ def tuple_formatter(value):
     if value is None:
         return "Default"
     else:
+        if len(value) != 2:
+            value = (value, None)
         # first entry is name
         return value[0]
 
@@ -49,7 +51,6 @@ def reset_wifi_settings():
         settings.set(s, None)
 
 
-PATTERNS = ["rainbow", "cylon", "flash", "off"]
 BRIGHTNESSES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
 
