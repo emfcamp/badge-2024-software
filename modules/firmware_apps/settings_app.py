@@ -149,6 +149,8 @@ class SettingsApp(app.App):
                             pattern = settings.get("pattern", ("rainbow", None))
                             if len(pattern) != 2:
                                 pattern = (pattern, None)
+                            else:
+                                pattern = (pattern[0], pattern[1])
                             if pattern not in self.patterns:
                                 pattern = ("rainbow", None)
                                 idx = 0
