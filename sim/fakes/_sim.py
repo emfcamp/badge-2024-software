@@ -528,7 +528,11 @@ def display_update(subctx):
 
     fbm.draw(fbp)
 
-    fb = ctx._wasm._i.exports.memory.uint8_view(fbm.get_output(fbp)[0])
+    # Get framebuffer from WASM memory using wasmtime API
+    fb_offset = fbm.get_output(fbp)[0]
+    mem_data = ctx._wasm._memory.data_ptr(ctx._wasm._store)
+    fb_size = 240 * 240 * 4  # BGRA8 format: 4 bytes per pixel
+    fb = mem_data[fb_offset:fb_offset + fb_size]
 
     _sim.render_display(fb)
     _sim.render_gui_now()
