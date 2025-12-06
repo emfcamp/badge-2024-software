@@ -17,17 +17,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
-      # - name: Submodules
-      #   run: |
-      #     cd micropython/lib
-      #     git submodule init
-      #     git submodule update micropython-lib
+      - name: Submodules
+        run: |
+          cd micropython/lib
+          git submodule init
+          git submodule update micropython-lib
       - name: Patch submodule dependencies
         run: |
           ./scripts/firstTime.sh
       - name: Build firmware
         run: |
-          docker run --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.2.1
+          docker run -q --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.2.1
       - name: Archive firmware
         uses: actions/upload-artifact@v4
         with:
