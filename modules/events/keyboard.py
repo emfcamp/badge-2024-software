@@ -17,7 +17,7 @@ modifiers = {
     "CTRL": Button("CTRL", "Keyboard"),
     "ALT": Button("ALT", "Keyboard"),
     "ESCAPE": Button("ESCAPE", "Keyboard", BUTTON_TYPES["CANCEL"]),
-    "DELETE": Button("DELETE", "Keyboard"),
+    "BACKSPACE": Button("BACKSPACE", "Keyboard"),
     "ENTER": Button("ENTER", "Keyboard", BUTTON_TYPES["CONFIRM"]),
     "UP": Button("UP", "Keyboard", BUTTON_TYPES["UP"]),
     "DOWN": Button("DOWN", "Keyboard", BUTTON_TYPES["DOWN"]),

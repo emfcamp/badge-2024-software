@@ -204,7 +204,7 @@ class TextDialog:
             if KEYBOARD_BUTTONS["SHIFT"] in event.button:
                 key = -2
                 final = SPECIAL_KEY_SHIFT
-            elif KEYBOARD_BUTTONS["DELETE"] in event.button:
+            elif KEYBOARD_BUTTONS["BACKSPACE"] in event.button:
                 key = -2
                 final = SPECIAL_KEY_BACKSPACE
             elif KEYBOARD_BUTTONS["SPACE"] in event.button:
