@@ -188,6 +188,10 @@ class SettingsApp(app.App):
                                 idx = 0
                             print(f"{CHANNELS} {idx}")
                             settings.set("update_channel", CHANNELS[idx])
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
 
                     entry = layout.ButtonDisplay(
                         "Toggle", button_handler=_button_event_channel_toggle
