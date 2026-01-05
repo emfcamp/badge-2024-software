@@ -1,3 +1,6 @@
+from os import stat
+
+
 def fill_line(ctx, text, font_size, width_for_line):
     ctx.save()
     ctx.font_size = font_size
@@ -35,3 +38,11 @@ def wrap_text(ctx, text, font_size=None, width=None):
         lines = fill_line(ctx, line, font_size, width)
         wrapped_lines.extend(lines)
     return wrapped_lines
+
+
+def path_isfile(path):
+    # Wow totally an elegant way to do os.path.isfile...
+    try:
+        return (stat(path)[0] & 0x8000) != 0
+    except OSError:
+        return False

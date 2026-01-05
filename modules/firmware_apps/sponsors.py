@@ -1,5 +1,6 @@
 from app import App
-from app_components import Menu, clear_background
+from app_components import Menu
+from app_components.background import Background as bg
 
 main_menu_items = [
     "AND Digital",
@@ -26,12 +27,13 @@ class Sponsors(App):
         self.minimise()
 
     def draw(self, ctx):
-        clear_background(ctx)
+        bg.draw(ctx)
         self.menu.draw(ctx)
         if self.notification:
             self.notification.draw(ctx)
 
     def update(self, delta):
+        bg.update(delta)
         self.menu.update(delta)
         if self.notification:
             self.notification.update(delta)
