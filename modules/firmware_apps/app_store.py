@@ -15,6 +15,7 @@ import wifi
 import shutil
 import machine
 from app_components import Menu, fourteen_pt, sixteen_pt, ten_pt
+from events.emote import EmoteNegativeEvent, EmotePositiveEvent
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from requests import get
 from system.eventbus import eventbus
@@ -157,11 +158,13 @@ class AppStoreApp(app.App):
             self.update_state("main_menu")
             eventbus.emit(InstallNotificationEvent())
             eventbus.emit(ShowNotificationEvent("Installed the app!"))
+            eventbus.emit(EmotePositiveEvent())
         except MemoryError:
             self.update_state("install_oom")
         except Exception as e:
             print(e)
             eventbus.emit(ShowNotificationEvent("Couldn't install app"))
+            eventbus.emit(EmoteNegativeEvent())
             self.update_state("main_menu")
 
     def update_state(self, state):
@@ -305,6 +308,7 @@ class AppStoreApp(app.App):
         else:
             self.update_state("main_menu")
             eventbus.emit(ShowNotificationEvent("All apps up to date!"))
+            eventbus.emit(EmotePositiveEvent())
 
     def prepare_installed_menu(self):
         def on_cancel():
