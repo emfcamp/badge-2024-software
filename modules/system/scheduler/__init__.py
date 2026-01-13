@@ -3,6 +3,7 @@ import display
 import sys
 import time
 
+from events.emote import EmoteNegativeEvent
 from system.a11y.events import ReplaceAccessibiltiyHandlerEvent
 from perf_timer import PerfTimer
 from system.a11y import printer
@@ -194,6 +195,7 @@ class _Scheduler:
                         message=f"{app.__class__.__name__} has crashed"
                     )
                 )
+                eventbus.emit(EmoteNegativeEvent())
 
         self.update_tasks[app] = asyncio.create_task(app_wrapper())
 
@@ -234,6 +236,7 @@ class _Scheduler:
                                     message=f"{app.__class__.__name__} has crashed"
                                 )
                             )
+                            eventbus.emit(EmoteNegativeEvent())
                         ctx.restore()
                 display.end_frame(ctx)
                 if ctx.a11y:
