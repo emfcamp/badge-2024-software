@@ -29,13 +29,15 @@ import sys
 import settings
 
 
+active_back_leds = [False] * 6
+
+
 def Hexspansion_inserted(epin):
     for i, nPin in enumerate(HexpansionManagerApp.hexpansion_pins):
         if nPin is epin:
-            if settings.get("pattern_mirror_hexpansions", False):
-                tildagonos.leds[13 + i] = tildagonos.leds[1 + (i * 2)]
-            else:
+            if not settings.get("pattern_mirror_hexpansions", False):
                 tildagonos.leds[13 + i] = led_colours[i]
+            active_back_leds[i] = True
             eventbus.emit(HexpansionInsertionEvent(port=i + 1))
             tildagonos.leds.write()
 
@@ -44,6 +46,7 @@ def Hexspansion_removed(epin):
     for i, nPin in enumerate(HexpansionManagerApp.hexpansion_pins):
         if nPin is epin:
             tildagonos.leds[13 + i] = (0, 0, 0)
+            active_back_leds[i] = False
             eventbus.emit(HexpansionRemovalEvent(port=i + 1))
             tildagonos.leds.write()
 
@@ -77,10 +80,9 @@ class HexpansionManagerApp(app.App):
             pin.irq(handler=Hexspansion_inserted, trigger=pin.IRQ_FALLING)
             pin.irq(handler=Hexspansion_removed, trigger=pin.IRQ_RISING)
             if not pin.value():
-                if settings.get("pattern_mirror_hexpansions", False):
-                    tildagonos.leds[13 + i] = tildagonos.leds[1 + (i * 2)]
-                else:
+                if not settings.get("pattern_mirror_hexpansions", False):
                     tildagonos.leds[13 + i] = led_colours[i]
+                active_back_leds[i] = True
                 eventbus.emit(HexpansionInsertionEvent(port=i + 1))
         tildagonos.leds.write()
 
@@ -110,6 +112,15 @@ class HexpansionManagerApp(app.App):
 
             eventbus.emit(RequestForegroundPushEvent(self))
             return True
+
+    def background_update(self, delta):
+        if settings.get("pattern_mirror_hexpansions", False):
+            for i in range(0, 6):
+                if active_back_leds[i]:
+                    tildagonos.leds[13 + i] = tildagonos.leds[1 + (i * 2)]
+                else:
+                    tildagonos.leds[13 + i] = (0, 0, 0)
+            tildagonos.leds.write()
 
     def draw(self, ctx):
         if self.format_dialog is not None:
