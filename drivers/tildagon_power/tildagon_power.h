@@ -18,7 +18,9 @@ typedef struct
 extern bq_state_t pmic;
 extern usb_state_t usb_in;
 extern usb_state_t usb_out;
-
+extern uint16_t input_current_limit;
+extern bool badge_as_device;
+extern bool badge_as_host;
 /**
  * @brief initialise the badge power management task
  */

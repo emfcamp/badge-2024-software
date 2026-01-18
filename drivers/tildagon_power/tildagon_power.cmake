@@ -10,6 +10,7 @@ target_sources(usermod_tildagon_power INTERFACE
     ${CMAKE_CURRENT_LIST_DIR}/fusb302b/fusb302b_pd.c
     ${CMAKE_CURRENT_LIST_DIR}/mp_power.c
     ${CMAKE_CURRENT_LIST_DIR}/mp_power_event.c
+    ${CMAKE_CURRENT_LIST_DIR}/mp_pd.c
 )
 
 # Add the current directory as an include directory.
