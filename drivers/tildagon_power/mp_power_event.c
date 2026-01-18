@@ -124,7 +124,7 @@ static mp_obj_t mp_power_host_vendor_msg_rx_set_cb(mp_obj_t cb)
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_event_host_vendor_msg_rx_set_cb_obj, mp_power_host_vendor_msg_rx_set_cb);
-
+#if 0
 static mp_obj_t mp_power_host_prime_msg_rx_set_cb(mp_obj_t cb) 
 {
     callbacks[MP_POWER_EVENT_HOST_PRIME_MSG_RX] = cb;
@@ -140,7 +140,7 @@ static mp_obj_t mp_power_host_dbl_prime_msg_rx_set_cb(mp_obj_t cb)
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_host_dbl_prime_msg_rx_set_cb_obj, mp_power_host_dbl_prime_msg_rx_set_cb);
-
+#endif
 
 static const mp_rom_map_elem_t power_event_globals_table[] = 
 {

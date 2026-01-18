@@ -62,7 +62,7 @@ static mp_obj_t pd_get_host_vendor_msg( void )
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_0( pd_get_host_vendor_msg_obj, pd_get_host_vendor_msg);
-
+#if 0
 static mp_obj_t pd_get_host_prime_msg( void ) 
 {
     mp_obj_t tuple[3];
@@ -105,7 +105,7 @@ static mp_obj_t pd_get_host_dbl_prime_msg( void )
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_0( pd_get_host_dbl_prime_msg_obj, pd_get_host_dbl_prime_msg);
-
+#endif
 static mp_obj_t pd_send_device_vendor_msg( mp_obj_t mp_data, mp_obj_t mp_no_objects ) 
 {
     mp_buffer_info_t data;
@@ -131,7 +131,7 @@ static mp_obj_t pd_send_host_vendor_msg( mp_obj_t mp_data, mp_obj_t mp_no_object
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_2( pd_send_host_vendor_msg_obj, pd_send_host_vendor_msg);
-
+#if 0
 static mp_obj_t pd_send_host_prime_msg( mp_obj_t mp_header, mp_obj_t mp_data, mp_obj_t mp_length ) 
 {
     mp_buffer_info_t data;
@@ -161,6 +161,7 @@ static mp_obj_t pd_send_host_dbl_prime_msg( mp_obj_t mp_header, mp_obj_t mp_data
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_3( pd_send_host_dbl_prime_msg_obj, pd_send_host_dbl_prime_msg);
+#endif
 
 static const mp_rom_map_elem_t pd_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_pd) },
