@@ -351,6 +351,20 @@ static mp_obj_t tildagon_pin_duty(size_t n_args, const mp_obj_t *pos_args, mp_ma
 
 static MP_DEFINE_CONST_FUN_OBJ_KW(tildagon_pin_duty_obj, 1, tildagon_pin_duty);
 
+static mp_obj_t tildagon_pin_toggle(mp_obj_t self_in) {
+    tildagon_pin_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    aw9523b_device_t *dev = PIN_OBJ_PTR_DEVICE(self);
+    aw9523b_pin_t pin = PIN_OBJ_PTR_PORTPIN(self);
+    if (aw9523b_pin_get_input(dev, pin)) {
+        aw9523b_pin_set_output(dev, pin, 0);
+    } else {
+        aw9523b_pin_set_output(dev, pin, 1);   
+    }
+    
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(tildagon_pin_toggle_obj, tildagon_pin_toggle);
+
 MP_DEFINE_CONST_OBJ_TYPE(
     tildagon_pin_board_pins_obj_type,
     MP_QSTR_board,
@@ -367,6 +381,7 @@ static const mp_rom_map_elem_t tildagon_pin_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_on), MP_ROM_PTR(&tildagon_pin_on_obj) },
     { MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&tildagon_pin_irq_obj) },
     { MP_ROM_QSTR(MP_QSTR_duty), MP_ROM_PTR(&tildagon_pin_duty_obj) },
+    { MP_ROM_QSTR(MP_QSTR_toggle), MP_ROM_PTR(&tildagon_pin_toggle_obj) },
 
     // class attributes
     { MP_ROM_QSTR(MP_QSTR_board), MP_ROM_PTR(&tildagon_pin_board_pins_obj_type) },
