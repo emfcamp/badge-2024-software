@@ -1,5 +1,4 @@
-pygame
-requests
-pymad
-wasmer
-wasmer-compiler-cranelift
+pygame==2.6.1
+requests==2.32.3
+wasmtime==39.0.0
+# pymad==0.10  # Optional: MP3 support (requires libmad system library)

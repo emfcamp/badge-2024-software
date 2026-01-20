@@ -19,8 +19,6 @@ import random
 import pygame
 import cmath
 import gzip
-import wasmer
-import wasmer_compiler_cranelift
 
 try:
     import config
