@@ -50,8 +50,19 @@ Alternatively, to flash a badge:
 
 where /dev/ttyACM0 is the device's endpoint. This value is correct on Linux.
 
+### macOS
+
 > [!IMPORTANT]  
 > On macOS, Docker does not have access to the host's USB devices. You will need to use a different method to flash the badge, such as [using the web flasher](flasher/README.md).
+
+[UTM](https://getutm.app/), using QEMU as the virtualization backend, is an effective way to build and flash the badge.
+
+Before attempting to flash the badge, but after booting the badge into the bootloader, share the USB device from the host
+to the QEMU container using the USB devices button on the VM's frame.
+
+The command to flash the badge using docker must be slightly modified on macOS:
+
+    docker run -it --rm --device /dev/ttyACM0:/dev/ttyUSB0 --group-add keep-groups --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.2.1 deploy
 
 ## Contributing
 
