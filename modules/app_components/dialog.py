@@ -2,6 +2,7 @@ import asyncio
 
 import display
 from events.input import BUTTON_TYPES, ButtonDownEvent
+from events.keyboard import KEYBOARD_BUTTONS
 from system.eventbus import eventbus
 
 from .tokens import button_labels, label_font_size, set_color
@@ -182,6 +183,9 @@ class TextDialog:
 
     def _handle_buttondown(self, event: ButtonDownEvent):
         key = -1
+        final = None
+
+        kbd_button = event.button.find_parent_in_group("Keyboard")
 
         if BUTTON_TYPES["UP"] in event.button:
             key = 0
@@ -196,12 +200,39 @@ class TextDialog:
         elif BUTTON_TYPES["CONFIRM"] in event.button:
             key = 2
 
+        elif kbd_button is not None:
+            if KEYBOARD_BUTTONS["SHIFT"] in event.button:
+                key = -2
+                final = SPECIAL_KEY_SHIFT
+            elif KEYBOARD_BUTTONS["BACKSPACE"] in event.button:
+                key = -2
+                final = SPECIAL_KEY_BACKSPACE
+            elif KEYBOARD_BUTTONS["SPACE"] in event.button:
+                key = -2
+                final = SPECIAL_KEY_SPACE
+            elif kbd_button.name in UPPERCASE_ALPHABET:
+                # This is a letter
+                if self._current_alphabet == UPPERCASE_ALPHABET:
+                    key = -2
+                    final = kbd_button.name
+                else:
+                    key = -2
+                    final = kbd_button.name.lower()
+            elif kbd_button.name in SYMBOL_ALPHABET:
+                key = -2
+                final = kbd_button.name
+
         if key == -1:
             return
 
-        selected = self._keys[key]
-        if len(selected) == 1:
-            selected = self._keys[key][0]
+        if key >= 0:
+            selected = self._keys[key]
+            if len(selected) == 1:
+                final = self._keys[key][0]
+
+        if final:
+            selected = final
+            final = None
 
             if selected == SPECIAL_KEY_SPACE:
                 selected = " "

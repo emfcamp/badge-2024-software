@@ -13,54 +13,21 @@ jobs:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential python3-pip python3-pillow libusb-1.0-0-dev cmake
       - name: Check out driver code
         uses: actions/checkout@v4
         with:
-          submodules: true
-      - name: Check out ESP IDF
-        uses: actions/checkout@v4
-        with:
-          repository: espressif/esp-idf
-          ref: v5.2.1
-          path: esp-idf
           submodules: true
       - name: Submodules
         run: |
           cd micropython/lib
           git submodule init
           git submodule update micropython-lib
-      - name: Install SDK
-        run: |
-          cd esp-idf
-          ./install.sh
-          source export.sh
-          python3 -m pip install pillow
       - name: Patch submodule dependencies
         run: |
           ./scripts/firstTime.sh
-      - name: Build cross compiler
-        run: |
-          source esp-idf/export.sh
-          cd micropython
-          make -C mpy-cross
-      - name: Link board definition
-        run: |
-          source esp-idf/export.sh
-          cd micropython/ports/esp32/boards
-          ln -sfn ../../../../tildagon ./tildagon
       - name: Build firmware
         run: |
-          source esp-idf/export.sh
-          ln -sfn $GITHUB_WORKSPACE/tildagon micropython/ports/esp32/boards/tildagon
-          cd micropython/ports/esp32
-          make submodules BOARD=tildagon USER_C_MODULES=$GITHUB_WORKSPACE/drivers/micropython.cmake TARGET=esp32s3
-          make BOARD=tildagon USER_C_MODULES=$GITHUB_WORKSPACE/drivers/micropython.cmake $@ TARGET=esp32s3
-          cd ../../..
-          echo "{\"build\":\"$(git describe --tags --always)\", \"name\":\"$(git describe --tags --always)\"}" > micropython/ports/esp32/build-tildagon/tildagon.txt
+          docker run -q --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.2.1
       - name: Archive firmware
         uses: actions/upload-artifact@v4
         with:
@@ -120,8 +87,8 @@ jobs:
     needs: Build-Firmware
 
     permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
+      pages: write # to deploy to Pages
+      id-token: write # to verify the deployment originates from an appropriate source
 
     # Deploy to the github-pages environment
     environment:
