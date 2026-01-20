@@ -1,4 +1,4 @@
-import pd
+from pd import Host, Device
 
 
 class vdmCmd:
@@ -93,7 +93,8 @@ class pdHelper:
                 0x6E,
             ]
         )
-        pd.send_host_vendor_msg(tildagon_message, 5)
+        usb_out = Host()
+        usb_out.send_vendor_msg(tildagon_message, 5)
 
     def device_send_badge_id(self):
         tildagon_message = bytearray(
@@ -120,4 +121,5 @@ class pdHelper:
                 0x6E,
             ]
         )
-        pd.send_device_vendor_msg(tildagon_message, 5)
+        usb_in = Device()
+        usb_in.send_vendor_msg(tildagon_message, 5)

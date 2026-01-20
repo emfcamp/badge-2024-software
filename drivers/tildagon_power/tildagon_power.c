@@ -14,21 +14,6 @@
 
 #define PD_VENDOR_ID CONFIG_TINYUSB_DESC_CUSTOM_VID
 
-typedef enum
-{
-    DISABLED,
-    UNATTACHED,
-    ATTACHED,
-    MAX_STATES
-} attach_machine_state_t;
-
-typedef enum
-{
-    NOT_STARTED        = 0x00,
-    WAITING            = 0x01,
-    LANYARD            = 0x02,
-} pd_machine_state_t;
-
 typedef enum 
 {
     NO_EVENT,
@@ -80,18 +65,18 @@ bq_state_t pmic = { 0 };
 usb_state_t usb_in = { 0 };
 usb_state_t usb_out = { 0 };
 uint16_t input_current_limit = 500;
-bool badge_as_device;
-bool badge_as_host;
+bool badge_as_device = false;
+bool badge_as_host = false;
+attach_machine_state_t host_attach_state = DISABLED;
+attach_machine_state_t device_attach_state = DISABLED;
+pd_machine_state_t host_pd_state = NOT_STARTED;
+pd_machine_state_t device_pd_state = NOT_STARTED;
 
 static uint8_t tildagon_message[20] = { 0x00, 0x00, PD_VENDOR_ID & 0xFF, PD_VENDOR_ID >> 8,
                                         0x54, 0x69, 0x6C, 0x64,
                                         0x61, 0x67, 0x6F, 0x6E,
                                         0x42, 0x65, 0x73, 0x74,
                                         0x61, 0x67, 0x6F, 0x6E };
-static attach_machine_state_t host_attach_state = DISABLED;
-static attach_machine_state_t device_attach_state = DISABLED;
-static pd_machine_state_t host_pd_state = NOT_STARTED;
-static pd_machine_state_t device_pd_state = NOT_STARTED;
 static TaskHandle_t tildagon_power_task_handle = NULL;
 static QueueHandle_t event_queue;
 static pd_extras_t host_pd_extras;
