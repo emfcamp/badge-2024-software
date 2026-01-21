@@ -41,7 +41,7 @@ class PatternDisplay(App):
             if path_isfile(path):
                 try:
                     _patternpath = f"pattern.{self.pattern[1]}.app"
-                    _patternclass = "__Pattern_export__"
+                    _patternclass = "__pattern_export__"
                     _pmodule = __import__(
                         _patternpath,
                         globals(),
