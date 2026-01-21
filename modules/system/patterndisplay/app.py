@@ -3,6 +3,7 @@ from tildagonos import tildagonos
 import settings
 import asyncio
 import os
+import sys
 from system.patterndisplay.events import (
     PatternEnable,
     PatternDisable,
@@ -54,6 +55,8 @@ class PatternDisplay(App):
                     self._p = _pclass()
                 except ImportError:
                     raise ImportError(f"Pattern {path} not found!")
+                except Exception as e:
+                    sys.print_exception(e)
             else:
                 settings.set("pattern", ("rainbow", None))
         if self.pattern[1] is None:
@@ -74,6 +77,8 @@ class PatternDisplay(App):
                 self._p = _pclass()
             except ImportError:
                 raise ImportError(f"Pattern {self.pattern} not found!")
+            except Exception as e:
+                sys.print_exception(e)
 
     async def _enable(self, event: PatternEnable):
         self.enabled = True
