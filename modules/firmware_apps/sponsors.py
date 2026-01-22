@@ -1,6 +1,8 @@
 from app import App
 from app_components import Menu
 from app_components.background import Background as bg
+from events.emote import EmotePositiveEvent
+from system.eventbus import eventbus
 
 main_menu_items = [
     "AND Digital",
@@ -22,6 +24,7 @@ class Sponsors(App):
             back_handler=self.back_handler,
         )
         self.notification = None
+        eventbus.emit(EmotePositiveEvent())
 
     def back_handler(self):
         self.minimise()

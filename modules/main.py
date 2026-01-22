@@ -5,6 +5,7 @@ import wifi
 from system.scheduler import scheduler
 from system.hexpansion.app import HexpansionManagerApp
 from system.patterndisplay.app import PatternDisplay
+from system.emotebackleds.app import EmoteBackLEDs
 from system.notification.app import NotificationService
 from system.launcher.app import Launcher
 from system.power.handler import PowerEventHandler
@@ -21,6 +22,10 @@ scheduler.start_app(HexpansionManagerApp())
 
 # Start led pattern displayer app
 scheduler.start_app(PatternDisplay())
+
+# Start back-leds emoter
+
+scheduler.start_app(EmoteBackLEDs())
 
 # Start root app
 scheduler.start_app(Launcher(), foreground=True)
