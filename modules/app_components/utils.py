@@ -1,6 +1,8 @@
 from os import stat
+import micropython
 
 
+@micropython.native
 def fill_line(ctx, text, font_size, width_for_line):
     ctx.save()
     ctx.font_size = font_size
@@ -29,6 +31,7 @@ def fill_line(ctx, text, font_size, width_for_line):
     return lines
 
 
+@micropython.native
 def wrap_text(ctx, text, font_size=None, width=None):
     if width is None:
         width = 240
