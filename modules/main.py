@@ -5,6 +5,7 @@ import wifi
 from system.scheduler import scheduler
 from system.hexpansion.app import HexpansionManagerApp
 from system.patterndisplay.app import PatternDisplay
+from system.backleds.app import BackLEDManager
 from system.notification.app import NotificationService
 from system.launcher.app import Launcher
 from system.power.handler import PowerEventHandler
@@ -31,8 +32,11 @@ else:
 # Start expansion interface
 scheduler.start_app(HexpansionManagerApp())
 
-# Start led pattern displayer app
+# Start front led pattern displayer app
 scheduler.start_app(PatternDisplay())
+
+# Start back led manager
+scheduler.start_app(BackLEDManager())
 
 # Start root app
 scheduler.start_app(Launcher(), foreground=True)
