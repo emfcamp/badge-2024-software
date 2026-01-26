@@ -69,44 +69,28 @@ static MP_DEFINE_CONST_FUN_OBJ_1(host_badge_connected_obj, host_badge_connected)
 
 static mp_obj_t device_get_vendor_msg( mp_obj_t self_in ) 
 {
-    mp_obj_t tuple[3];
     mp_obj_t buffer = mp_obj_new_list( 0, NULL );
-    for ( uint8_t i = 0U; i < usb_in.pd.vendor.vendor_data_len; i++ )
+    for ( uint8_t i = 0U; i < ( usb_in.pd.vendor.no_objects * 4); i++ )
     {
         mp_obj_list_append( buffer, mp_obj_new_int( usb_in.pd.vendor.vendor_data[i] ) );
     }
-    
-    tuple[0] = mp_obj_new_int( usb_in.pd.vendor.vendor_header.all );
-    tuple[1] = mp_obj_new_int( usb_in.pd.vendor.vendor_data_len );
-    tuple[2] = buffer;
-    mp_obj_t result = mp_obj_new_tuple( 3, tuple );
-    
-    usb_in.pd.vendor.vendor_header.all = 0;
-    usb_in.pd.vendor.vendor_data_len = 0;
-    
-    return result;
+        
+    usb_in.pd.vendor.no_objects = 0;
+    return buffer;
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_1(device_get_vendor_msg_obj, device_get_vendor_msg);
 
 static mp_obj_t host_get_vendor_msg( mp_obj_t self_in ) 
 {
-    mp_obj_t tuple[3];
     mp_obj_t buffer = mp_obj_new_list( 0, NULL );
-    for ( uint8_t i = 0U; i < usb_out.pd.vendor.vendor_data_len; i++ )
+    for ( uint8_t i = 0U; i < ( usb_out.pd.vendor.no_objects * 4 ); i++ )
     {
         mp_obj_list_append( buffer, mp_obj_new_int( usb_out.pd.vendor.vendor_data[i] ) );
     }
-    
-    tuple[0] = mp_obj_new_int( usb_out.pd.vendor.vendor_header.all );
-    tuple[1] = mp_obj_new_int( usb_out.pd.vendor.vendor_data_len );
-    tuple[2] = buffer;
-    mp_obj_t result = mp_obj_new_tuple( 3, tuple );
-    
-    usb_out.pd.vendor.vendor_header.all = 0;
-    usb_out.pd.vendor.vendor_data_len = 0;
-    
-    return result;
+
+    usb_out.pd.vendor.no_objects = 0;    
+    return buffer;
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_1(host_get_vendor_msg_obj, host_get_vendor_msg);
@@ -154,31 +138,71 @@ static mp_obj_t pd_get_host_dbl_prime_msg( void )
 
 static MP_DEFINE_CONST_FUN_OBJ_0( pd_get_host_dbl_prime_msg_obj, pd_get_host_dbl_prime_msg);
 #endif
-static mp_obj_t device_send_vendor_msg( mp_obj_t self_in, mp_obj_t mp_data, mp_obj_t mp_no_objects ) 
+static mp_obj_t device_send_vendor_msg( mp_obj_t self_in, mp_obj_t mp_data ) 
 {
     mp_buffer_info_t data;
-    mp_int_t no_objects;
     mp_get_buffer_raise( mp_data, &data, MP_BUFFER_READ );
-    no_objects = mp_obj_get_int(mp_no_objects);
-    fusbpd_vendor_specific( &usb_in.pd, data.buf, no_objects );
+    if( data.len > 28 )
+    {
+        return mp_obj_new_int(-ESP_ERR_INVALID_SIZE);
+    }
+    if( device_pd_state != WAITING )
+    {
+        return mp_obj_new_int(-ESP_ERR_INVALID_STATE);
+    }
+    if (data.len % 4)
+    {
+        /* pad to 4 byte boundry */
+        uint8_t buffer[28] = { 0 };
+        for (uint8_t i = 0; i < data.len; i++)
+        {
+            buffer[i] = ((uint8_t*)data.buf)[i];
+        }
+        fusbpd_vendor_specific( &usb_in.pd, buffer, ( data.len / 4 ) + 1 );
+    }
+    else
+    {
+        fusbpd_vendor_specific( &usb_in.pd, data.buf, data.len / 4 );
+    }    
+    
     fusb_send( &usb_in.fusb, usb_in.pd.tx_buffer, usb_in.pd.message_length );
     return mp_const_none;
 }
 
-static MP_DEFINE_CONST_FUN_OBJ_3(device_send_vendor_msg_obj, device_send_vendor_msg);
+static MP_DEFINE_CONST_FUN_OBJ_2(device_send_vendor_msg_obj, device_send_vendor_msg);
 
-static mp_obj_t host_send_vendor_msg( mp_obj_t self_in, mp_obj_t mp_data, mp_obj_t mp_no_objects ) 
+static mp_obj_t host_send_vendor_msg( mp_obj_t self_in, mp_obj_t mp_data ) 
 {
     mp_buffer_info_t data;
-    mp_int_t no_objects;
     mp_get_buffer_raise( mp_data, &data, MP_BUFFER_READ );
-    no_objects = mp_obj_get_int( mp_no_objects );
-    fusbpd_vendor_specific( &usb_out.pd, data.buf, no_objects );
+    if( data.len > 28 )
+    {
+        return mp_obj_new_int(-ESP_ERR_INVALID_SIZE);
+    }
+    if( host_pd_state != WAITING )
+    {
+        return mp_obj_new_int(ESP_ERR_INVALID_STATE);
+    }
+    if (data.len % 4)
+    {
+        /* pad to 4 byte boundry */
+        uint8_t buffer[28] = { 0 };
+        for (uint8_t i = 0; i < data.len; i++)
+        {
+            buffer[i] = ((uint8_t*)data.buf)[i];
+        }
+        fusbpd_vendor_specific( &usb_out.pd, buffer, ( data.len / 4 ) + 1 );
+    }
+    else
+    {
+        fusbpd_vendor_specific( &usb_out.pd, data.buf, data.len / 4 );
+    }    
+    
     fusb_send( &usb_out.fusb, usb_out.pd.tx_buffer, usb_out.pd.message_length );
     return mp_const_none;
 }
 
-static MP_DEFINE_CONST_FUN_OBJ_3(host_send_vendor_msg_obj, host_send_vendor_msg);
+static MP_DEFINE_CONST_FUN_OBJ_2(host_send_vendor_msg_obj, host_send_vendor_msg);
 #if 0
 static mp_obj_t pd_send_host_prime_msg( mp_obj_t mp_header, mp_obj_t mp_data, mp_obj_t mp_length ) 
 {

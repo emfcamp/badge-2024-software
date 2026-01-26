@@ -180,9 +180,8 @@ typedef union
 typedef struct
 {
     bool new_msg;
-    pd_vendor_header_union_t vendor_header;
-    uint8_t vendor_data[24];
-    uint8_t vendor_data_len;
+    uint8_t vendor_data[28];
+    uint8_t no_objects;
 } pd_vendor_t;
 
 typedef struct 

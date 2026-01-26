@@ -361,11 +361,11 @@ void host_pd ( event_t event )
                 {
                     
                     if (
-                        ( usb_out.pd.vendor.vendor_data_len == 16 )
-                    && ( usb_out.pd.vendor.vendor_data[0] == tildagon_message[4] )
-                    && ( usb_out.pd.vendor.vendor_data[1] == tildagon_message[5] )
-                    && ( usb_out.pd.vendor.vendor_data[2] == tildagon_message[6] )
-                    && ( usb_out.pd.vendor.vendor_data[3] == tildagon_message[7] )
+                        ( usb_out.pd.vendor.no_objects == 5 )
+                    && ( usb_out.pd.vendor.vendor_data[4] == tildagon_message[4] )
+                    && ( usb_out.pd.vendor.vendor_data[5] == tildagon_message[5] )
+                    && ( usb_out.pd.vendor.vendor_data[6] == tildagon_message[6] )
+                    && ( usb_out.pd.vendor.vendor_data[7] == tildagon_message[7] )
                     )
                     {
                         push_event(MP_POWER_EVENT_BADGE_AS_HOST_ATTACH);
@@ -462,11 +462,11 @@ void device_pd ( event_t event )
         else if ( usb_in.pd.last_rx_data_msg_type == PD_DATA_VENDOR_DEFINED )
         {
             if (
-                ( usb_in.pd.vendor.vendor_data_len == 16 )
-                && ( usb_in.pd.vendor.vendor_data[0] == tildagon_message[4] )
-                && ( usb_in.pd.vendor.vendor_data[1] == tildagon_message[5] )
-                && ( usb_in.pd.vendor.vendor_data[2] == tildagon_message[6] )
-                && ( usb_in.pd.vendor.vendor_data[3] == tildagon_message[7] )
+                ( usb_in.pd.vendor.no_objects == 5 )
+                && ( usb_in.pd.vendor.vendor_data[4] == tildagon_message[4] )
+                && ( usb_in.pd.vendor.vendor_data[5] == tildagon_message[5] )
+                && ( usb_in.pd.vendor.vendor_data[6] == tildagon_message[6] )
+                && ( usb_in.pd.vendor.vendor_data[7] == tildagon_message[7] )
             )
             {
                 push_event( MP_POWER_EVENT_BADGE_AS_DEVICE_ATTACH );

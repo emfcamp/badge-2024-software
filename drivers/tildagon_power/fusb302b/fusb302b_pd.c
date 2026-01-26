@@ -59,9 +59,8 @@ void fusbpd_decode( pd_state_t* state, fusb_state_t* fusb )
                 }
                 else if ( header.sop.message_type == PD_DATA_VENDOR_DEFINED )
                 {
-                    fusb_get_fifo( fusb, state->vendor.vendor_header.raw, 4U ); 
-                    fusb_get_fifo( fusb, state->vendor.vendor_data, ( header.sop.number_objects - 1U ) * 4U ); 
-                    state->vendor.vendor_data_len = ( header.sop.number_objects - 1 ) * 4;
+                    fusb_get_fifo( fusb, state->vendor.vendor_data, ( header.sop.number_objects * 4U ) ); 
+                    state->vendor.no_objects = header.sop.number_objects;
                     /* discard crc and end of packet */
                     uint8_t temp[4];
                     fusb_get_fifo( fusb, temp, 4U );

@@ -58,6 +58,26 @@ class pdHelper:
         vdmh = (SVID << 16) | (0x7FFF & data)
         return vdmh
 
+    def vdm_header_extract(self, vendor_header):
+        header = {
+            "SVID": vendor_header >> 16,
+            "structured": (vendor_header >> 15) & 0x01,
+            "data": None,
+            "vdm_major": None,
+            "obj_pos": None,
+            "cmd_type": None,
+            "cmd": None,
+        }
+        if header["structured"] == 1:
+            header["vdm_major"] = (vendor_header >> 13) & 0x03
+            header["vmd_minor"] = (vendor_header >> 11) & 0x03
+            header["obj_pos"] = (vendor_header >> 8) & 0x07
+            header["cmd_type"] = (vendor_header >> 6) & 0x03
+            header["cmd"] = vendor_header & 0x3F
+        else:
+            header["data"] = vendor_header & 0x7FFF
+        return header
+
     # def host_disc_id_prime(self):
     #    header = self.pd_header(dataType.VENDOR_DEFINED, 1)
     #    data = self.vdm_structured_header(vdmCmd.DISCOVER_IDENTITY)
@@ -94,7 +114,7 @@ class pdHelper:
             ]
         )
         usb_out = Host()
-        usb_out.send_vendor_msg(tildagon_message, 5)
+        usb_out.send_vendor_msg(tildagon_message)
 
     def device_send_badge_id(self):
         tildagon_message = bytearray(
@@ -122,4 +142,4 @@ class pdHelper:
             ]
         )
         usb_in = Device()
-        usb_in.send_vendor_msg(tildagon_message, 5)
+        usb_in.send_vendor_msg(tildagon_message)
