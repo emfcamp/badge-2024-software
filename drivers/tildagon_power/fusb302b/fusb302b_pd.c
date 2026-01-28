@@ -78,14 +78,12 @@ void fusbpd_decode( pd_state_t* state, fusb_state_t* fusb )
             if ( state->extra != NULL )
             {
                 /* store for python */
-                fusb_get_fifo( fusb, state->extra->prime.header.raw, 2U );
-                uint8_t i = 0U;
-                while( !fusb_rx_empty( fusb ) && ( i < 80U ) )
-                {
-                    fusb_get_fifo( fusb, &state->extra->prime.data[i], 1U );
-                    i++;
-                }
-                state->extra->prime.data_size = i;
+                fusb_get_fifo( fusb, &state->extra->prime.data[0], 2U );
+                pd_header_union_t header;
+                header.raw[0] = state->extra->prime.data[0];
+                header.raw[1] = state->extra->prime.data[1];
+                fusb_get_fifo( fusb, &state->extra->prime.data[2], header.sop_prime.number_objects * 4 );
+                state->extra->prime.data_size = 2 + ( header.sop_prime.number_objects * 4 );
                 state->extra->prime.new_msg = true;
             }
         }
@@ -94,14 +92,12 @@ void fusbpd_decode( pd_state_t* state, fusb_state_t* fusb )
             if ( state->extra != NULL )
             {
                 /* store for python */
-                fusb_get_fifo( fusb, state->extra->dbl_prime.header.raw, 2U );
-                uint8_t i = 0U;
-                while( !fusb_rx_empty( fusb ) && ( i < 80U ) )
-                {
-                    fusb_get_fifo( fusb, &state->extra->dbl_prime.data[i], 1U );
-                    i++;
-                }
-                state->extra->dbl_prime.data_size = i;
+                fusb_get_fifo( fusb, &state->extra->dbl_prime.data[0], 2U );
+                pd_header_union_t header;
+                header.raw[0] = state->extra->dbl_prime.data[0];
+                header.raw[1] = state->extra->dbl_prime.data[1];
+                fusb_get_fifo( fusb, &state->extra->dbl_prime.data[2], header.sop_prime.number_objects * 4 );
+                state->extra->dbl_prime.data_size = 2 + ( header.sop_prime.number_objects * 4 );
                 state->extra->dbl_prime.new_msg = true;
             }
         }
@@ -220,11 +216,13 @@ void fusbpd_vendor_specific( pd_state_t* state, uint8_t* data, uint8_t no_object
  * @param data buffer of data to transmit.
  * @param length data length. fusb302 tx buffer is 48 bytes, 16 are needed for tx commands, length 32 max.
  */
-void fusbpd_prime( pd_state_t* state, uint16_t header, uint8_t* data, uint8_t length )
+void fusbpd_prime( pd_state_t* state, uint8_t* data, uint8_t length )
 {
+    uint8_t len = length - 2U;
     /* fill header with protocol layer state */
     pd_header_union_t msgheader = { 0U };
-    msgheader.all = header;
+    msgheader.raw[0] = data[0];
+    msgheader.raw[1] = data[1];
     msgheader.sop.message_id = state->msg_id;
     msgheader.sop.revision = 0x01U;
     msgheader.sop.data_role = state->data_role;
@@ -241,36 +239,36 @@ void fusbpd_prime( pd_state_t* state, uint16_t header, uint8_t* data, uint8_t le
     state->tx_buffer[3] = TX_SOP3; 
     state->tx_buffer[4] = TX_SOP3; 
     uint8_t padding = 0;
-    if( length % 4 )
+    if( len % 4 )
     {
-        padding = 4 - ( length % 4 );
+        padding = 4 - ( len % 4 );
     }
     
-    state->tx_buffer[5] = TX_PACKSYM | (length + 2 + padding);
+    state->tx_buffer[5] = TX_PACKSYM | (length + padding );
     state->tx_buffer[6] = msgheader.raw[0];
     state->tx_buffer[7] = msgheader.raw[1];
     
     uint8_t index = 0U;
-    while( index < length )
+    while( index < len )
     {
-        state->tx_buffer[ 8 + index ] = data[index];   
+        state->tx_buffer[ 8 + index ] = (&data[2])[index];
         index++; 
     }
     
     if( padding )
     {
-        while( index < ( length + padding ) )
+        while( index < ( len + padding ) )
         {
             state->tx_buffer[ 8 + index ] = 0;   
             index++;
         }
     }
     
-    state->tx_buffer[ 9 + index ] = TX_JAM_CRC;
-    state->tx_buffer[ 10 + index ] = TX_EOP;
-    state->tx_buffer[ 11 + index ] = TX_OFF;
-    state->tx_buffer[ 12 + index ] = TX_ON;
-    state->message_length =  13 + index ;
+    state->tx_buffer[ 8 + index ] = TX_JAM_CRC;
+    state->tx_buffer[ 9 + index ] = TX_EOP;
+    state->tx_buffer[ 10 + index ] = TX_OFF;
+    state->tx_buffer[ 11 + index ] = TX_ON;
+    state->message_length =  12 + index ;
 }
 
 /**
@@ -280,11 +278,13 @@ void fusbpd_prime( pd_state_t* state, uint16_t header, uint8_t* data, uint8_t le
  * @param data buffer of data to transmit.
  * @param length data length. fusb302 tx buffer is 48 bytes, 16 are needed for tx commands, length 32 max.
  */
-void fusbpd_dbl_prime( pd_state_t* state, uint16_t header, uint8_t* data, uint8_t length )
+void fusbpd_dbl_prime( pd_state_t* state, uint8_t* data, uint8_t length )
 {
+    uint8_t len = length - 2U;
     /* fill header with protocol layer state */
     pd_header_union_t msgheader = { 0U };
-    msgheader.all = header;
+    msgheader.raw[0] = data[0];
+    msgheader.raw[1] = data[1];
     msgheader.sop.message_id = state->msg_id;
     msgheader.sop.revision = 0x01U;
     msgheader.sop.data_role = state->data_role;
@@ -301,34 +301,35 @@ void fusbpd_dbl_prime( pd_state_t* state, uint16_t header, uint8_t* data, uint8_
     state->tx_buffer[3] = TX_SOP1; 
     state->tx_buffer[4] = TX_SOP3; 
     uint8_t padding = 0;
-    if( length % 4 )
+    if( len % 4 )
     {
-        padding = 4 - ( length % 4 );
+        padding = 4 - ( len % 4 );
     }
     
-    state->tx_buffer[5] = TX_PACKSYM | (length + 2 + padding);
+    state->tx_buffer[5] = TX_PACKSYM | (length + padding );
     state->tx_buffer[6] = msgheader.raw[0];
     state->tx_buffer[7] = msgheader.raw[1];
     
     uint8_t index = 0U;
-    while( index < length )
+    while( index < len )
     {
-        state->tx_buffer[ 8 + index ] = data[index];   
+        state->tx_buffer[ 8 + index ] = (&data[2])[index];   
         index++; 
     }
         
     if( padding )
     {
-        while( index < ( length + padding ) )
+        while( index < ( len + padding ) )
         {
             state->tx_buffer[ 8 + index ] = 0;   
             index++;
         }
     }
     
-    state->tx_buffer[ 9 + index ] = TX_JAM_CRC;
-    state->tx_buffer[ 10 + index ] = TX_EOP;
-    state->tx_buffer[ 11 + index ] = TX_OFF;
-    state->tx_buffer[ 12 + index ] = TX_ON;
-    state->message_length =  13 + index ;
+    state->tx_buffer[ 8 + index ] = TX_JAM_CRC;
+    state->tx_buffer[ 9 + index ] = TX_EOP;
+    state->tx_buffer[ 10 + index ] = TX_OFF;
+    state->tx_buffer[ 11 + index ] = TX_ON;
+    state->message_length =  12 + index ;
 }
+

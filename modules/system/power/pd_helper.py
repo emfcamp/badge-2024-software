@@ -78,15 +78,21 @@ class pdHelper:
             header["data"] = vendor_header & 0x7FFF
         return header
 
-    # def host_disc_id_prime(self):
-    #    header = self.pd_header(dataType.VENDOR_DEFINED, 1)
-    #    data = self.vdm_structured_header(vdmCmd.DISCOVER_IDENTITY)
-    #    pd.send_host_prime_msg(header, data.to_bytes(4, 'little'), 4)
+    def host_disc_id_prime(self):
+        header = self.pd_header(dataType.VENDOR_DEFINED, 1)
+        data = self.vdm_structured_header(vdmCmd.DISCOVER_IDENTITY)
+        usb_out = Host()
+        usb_out.send_prime_msg(
+            header.to_bytes(2, "little") + data.to_bytes(4, "little")
+        )
 
-    # def host_disc_id_dbl_prime(self):
-    #    header = self.pd_header(dataType.VENDOR_DEFINED, 1)
-    #    data = self.vdm_structured_header(vdmCmd.DISCOVER_IDENTITY)
-    #    pd.send_host_dbl_prime_msg(header, data.to_bytes(4, 'little'), 4)
+    def host_disc_id_dbl_prime(self):
+        header = self.pd_header(dataType.VENDOR_DEFINED, 1)
+        data = self.vdm_structured_header(vdmCmd.DISCOVER_IDENTITY)
+        usb_out = Host()
+        usb_out.send_dbl_prime_msg(
+            header.to_bytes(2, "little") + data.to_bytes(4, "little")
+        )
 
     def host_send_badge_id(self):
         tildagon_message = bytearray(

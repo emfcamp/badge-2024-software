@@ -21,8 +21,8 @@ class PowerEventHandler:
         pe.set_badge_as_host_detach_cb(self.BadgeAsHostDetachHandler)
         pe.set_device_vendor_msg_rx_cb(self.VendorMsgDevRxHandler)
         pe.set_host_vendor_msg_rx_cb(self.VendorMsgHostRxHandler)
-        # pe.set_host_prime_msg_rx_cb(self.PrimeMsgHostRxHandler)
-        # pe.set_host_dbl_prime_msg_rx_cb(self.DoublePrimeMsgHostRxHandler)
+        pe.set_host_prime_msg_rx_cb(self.PrimeMsgHostRxHandler)
+        pe.set_host_dbl_prime_msg_rx_cb(self.DoublePrimeMsgHostRxHandler)
 
     def ChargeEventHandler(self):
         eventbus.emit(

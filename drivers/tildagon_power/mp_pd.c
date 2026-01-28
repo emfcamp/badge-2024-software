@@ -94,50 +94,37 @@ static mp_obj_t host_get_vendor_msg( mp_obj_t self_in )
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_1(host_get_vendor_msg_obj, host_get_vendor_msg);
-#if 0
-static mp_obj_t pd_get_host_prime_msg( void ) 
+
+static mp_obj_t host_get_prime_msg( mp_obj_t self_in ) 
 {
-    mp_obj_t tuple[3];
     mp_obj_t buffer = mp_obj_new_list(0, NULL);
     for ( uint8_t i = 0U; i < usb_out.pd.extra->prime.data_size; i++)
     {
         mp_obj_list_append(buffer, mp_obj_new_int(usb_out.pd.extra->prime.data[i]));
     }
     
-    tuple[0] = mp_obj_new_int(usb_out.pd.extra->prime.header.all);
-    tuple[1] = mp_obj_new_int(usb_out.pd.extra->prime.data_size);
-    tuple[2] = buffer;
-    mp_obj_t result = mp_obj_new_tuple(3, tuple);
-    
-    usb_out.pd.extra->prime.header.all = 0;
     usb_out.pd.extra->prime.data_size = 0;
     
-    return result;
+    return buffer;
 }
 
-static MP_DEFINE_CONST_FUN_OBJ_0( pd_get_host_prime_msg_obj, pd_get_host_prime_msg);
+static MP_DEFINE_CONST_FUN_OBJ_1( host_get_prime_msg_obj, host_get_prime_msg);
 
-static mp_obj_t pd_get_host_dbl_prime_msg( void ) 
+static mp_obj_t host_get_dbl_prime_msg( mp_obj_t self_in ) 
 {
-    mp_obj_t tuple[3];
     mp_obj_t buffer = mp_obj_new_list(0, NULL);
     for ( uint8_t i = 0U; i < usb_out.pd.extra->dbl_prime.data_size; i++)
     {
         mp_obj_list_append(buffer, mp_obj_new_int(usb_out.pd.extra->dbl_prime.data[i]));
     }
-    tuple[0] = mp_obj_new_int(usb_out.pd.extra->dbl_prime.header.all);
-    tuple[1] = mp_obj_new_int(usb_out.pd.extra->dbl_prime.data_size);
-    tuple[2] = buffer;
-    mp_obj_t result = mp_obj_new_tuple(3, tuple);
     
-    usb_out.pd.extra->dbl_prime.header.all = 0;
     usb_out.pd.extra->dbl_prime.data_size = 0;
     
-    return result;
+    return buffer;
 }
 
-static MP_DEFINE_CONST_FUN_OBJ_0( pd_get_host_dbl_prime_msg_obj, pd_get_host_dbl_prime_msg);
-#endif
+static MP_DEFINE_CONST_FUN_OBJ_1( host_get_dbl_prime_msg_obj, host_get_dbl_prime_msg);
+
 static mp_obj_t device_send_vendor_msg( mp_obj_t self_in, mp_obj_t mp_data ) 
 {
     mp_buffer_info_t data;
@@ -203,37 +190,29 @@ static mp_obj_t host_send_vendor_msg( mp_obj_t self_in, mp_obj_t mp_data )
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_2(host_send_vendor_msg_obj, host_send_vendor_msg);
-#if 0
-static mp_obj_t pd_send_host_prime_msg( mp_obj_t mp_header, mp_obj_t mp_data, mp_obj_t mp_length ) 
+
+static mp_obj_t host_send_prime_msg( mp_obj_t self_in, mp_obj_t mp_data ) 
 {
     mp_buffer_info_t data;
-    mp_int_t header;
-    mp_int_t length;
     mp_get_buffer_raise(mp_data, &data, MP_BUFFER_READ);
-    header = mp_obj_get_int(mp_header);
-    length = mp_obj_get_int(mp_length);
-    fusbpd_prime( &usb_out.pd, header, data.buf, length );
+    fusbpd_prime( &usb_out.pd, data.buf, data.len );
     fusb_send( &usb_out.fusb, usb_out.pd.tx_buffer, usb_out.pd.message_length );
     return mp_const_none;
 }
 
-static MP_DEFINE_CONST_FUN_OBJ_3( pd_send_host_prime_msg_obj, pd_send_host_prime_msg);
+static MP_DEFINE_CONST_FUN_OBJ_2( host_send_prime_msg_obj, host_send_prime_msg);
 
-static mp_obj_t pd_send_host_dbl_prime_msg( mp_obj_t mp_header, mp_obj_t mp_data, mp_obj_t mp_length ) 
+static mp_obj_t host_send_dbl_prime_msg( mp_obj_t self_in, mp_obj_t mp_data ) 
 {
     mp_buffer_info_t data;
-    mp_int_t header;
-    mp_int_t length;
     mp_get_buffer_raise(mp_data, &data, MP_BUFFER_READ);
-    header = mp_obj_get_int(mp_header);
-    length = mp_obj_get_int(mp_length);
-    fusbpd_dbl_prime( &usb_out.pd, header, data.buf, length );
+    fusbpd_dbl_prime( &usb_out.pd, data.buf, data.len );
     fusb_send( &usb_out.fusb, usb_out.pd.tx_buffer, usb_out.pd.message_length );
     return mp_const_none;
 }
 
-static MP_DEFINE_CONST_FUN_OBJ_3( pd_send_host_dbl_prime_msg_obj, pd_send_host_dbl_prime_msg);
-#endif
+static MP_DEFINE_CONST_FUN_OBJ_2( host_send_dbl_prime_msg_obj, host_send_dbl_prime_msg);
+
 
 static const mp_rom_map_elem_t device_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_connected), MP_ROM_PTR(&device_connected_obj) },
@@ -259,12 +238,10 @@ static const mp_rom_map_elem_t host_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_badge_connected), MP_ROM_PTR(&host_badge_connected_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_vendor_msg), MP_ROM_PTR(&host_get_vendor_msg_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_vendor_msg), MP_ROM_PTR(&host_send_vendor_msg_obj) },
-    // these are untested because of the issue below
-    //{ MP_ROM_QSTR( MP_QSTR_get_prime_msg ), MP_ROM_PTR( &host_get_prime_msg_obj ) },
-    //{ MP_ROM_QSTR( MP_QSTR_get_dbl_prime_msg ), MP_ROM_PTR( &host_get_dbl_prime_msg_obj ) },
-    // theres currently an issue with EOP being transmitted before the CRC even though the I2C is correct.
-    //{ MP_ROM_QSTR( MP_QSTR_send_prime_msg ), MP_ROM_PTR( &host_send_prime_msg_obj ) },
-    //{ MP_ROM_QSTR( MP_QSTR_send_dbl_prime_msg ), MP_ROM_PTR( &host_send_dbl_prime_msg_obj ) },
+    { MP_ROM_QSTR(MP_QSTR_get_prime_msg), MP_ROM_PTR(&host_get_prime_msg_obj ) },
+    { MP_ROM_QSTR(MP_QSTR_get_dbl_prime_msg), MP_ROM_PTR(&host_get_dbl_prime_msg_obj ) },
+    { MP_ROM_QSTR(MP_QSTR_send_prime_msg), MP_ROM_PTR(&host_send_prime_msg_obj ) },
+    { MP_ROM_QSTR(MP_QSTR_send_dbl_prime_msg), MP_ROM_PTR(&host_send_dbl_prime_msg_obj ) },
 };
 
 static MP_DEFINE_CONST_DICT(host_locals_dict, host_locals_dict_table);

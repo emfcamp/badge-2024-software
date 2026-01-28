@@ -121,62 +121,6 @@ typedef union
     pd_variable_pdo_t variable;
 } pd_source_pdo_union_t;
 
-typedef struct 
-{
-    uint32_t min_current         : 10;
-    uint32_t current             : 10;
-    uint32_t reserved            : 2;
-    uint32_t epr_cap             : 1;
-    uint32_t uem_suspend         : 1;
-    uint32_t no_suspend          : 1;
-    uint32_t usb_comms           : 1;
-    uint32_t capability_mismatch : 1;
-    uint32_t give_back           : 1;
-    uint32_t position            : 1;
-} pd_request_pdo_t;
-
-typedef union 
-{
-    uint32_t raw;
-    pd_request_pdo_t bits;
-} pd_request_pdo_union_t;
-
-typedef struct
-{
-    uint16_t command         : 5;
-    uint16_t reserved        : 1;
-    uint16_t command_type    : 2;
-    uint16_t object_position : 3;
-    uint16_t vdm_ver_min     : 2;
-    uint16_t vdm_ver_maj     : 2;
-    uint16_t stuctured       : 1;
-} pd_vend_structured_t;
-
-typedef struct
-{
-    uint16_t user      : 15;
-    uint16_t stuctured : 1;
-} pd_vend_unstructured_t;
-
-typedef union
-{
-    pd_vend_structured_t structured;
-    pd_vend_unstructured_t unstructured;
-} pd_vend_header_lsb_t;
-
-typedef struct
-{
-    pd_vend_header_lsb_t lsb;
-    uint16_t vendor_id;
-} pd_vendor_header_t;
-
-typedef union
-{
-    pd_vendor_header_t header;
-    uint8_t raw[4];
-    uint32_t all;
-} pd_vendor_header_union_t;
-
 typedef struct
 {
     bool new_msg;
@@ -187,7 +131,6 @@ typedef struct
 typedef struct 
 {
     bool new_msg;
-    pd_header_union_t header;
     uint8_t data_size;
     uint8_t data[80];
 } pd_prime_t;
@@ -254,7 +197,7 @@ extern void fusbpd_extended( pd_state_t* state, uint16_t header, uint16_t ext_he
  * @param data buffer of data to transmit, must start with the appropriate extended header.
  * @param length data length. fusb302 tx buffer is 48 bytes, 16 are needed for tx commands, length 32 max.
  */
-extern void fusbpd_prime( pd_state_t* state, uint16_t header, uint8_t* data, uint8_t length );
+extern void fusbpd_prime( pd_state_t* state, uint8_t* data, uint8_t length );
 /**
  * @brief create a unchunked extended message.
  * @param state the comms state onject.
@@ -262,6 +205,6 @@ extern void fusbpd_prime( pd_state_t* state, uint16_t header, uint8_t* data, uin
  * @param data buffer of data to transmit.
  * @param length data length. fusb302 tx buffer is 48 bytes, 16 are needed for tx commands, length 32 max.
  */
-extern void fusbpd_dbl_prime( pd_state_t* state, uint16_t header, uint8_t* data, uint8_t length );
+extern void fusbpd_dbl_prime( pd_state_t* state, uint8_t* data, uint8_t length );
 
 #endif /* FUSB302B_PD_H */
