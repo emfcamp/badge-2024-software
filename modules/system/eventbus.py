@@ -104,4 +104,3 @@ class _EventBus:
 
 
 eventbus = _EventBus()
-eventbus = _EventBus()
