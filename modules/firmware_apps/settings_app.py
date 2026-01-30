@@ -42,6 +42,15 @@ def tuple_formatter(value):
         return value[0]
 
 
+def on_off_formatter(value):
+    if value is None:
+        return "Default"
+    elif value:
+        return "Yes"
+    else:
+        return "No"
+
+
 def reset_wifi_settings():
     print("RESET WIFI")
     for s in ["wifi_ssid", "wifi_password", "wifi_wpa2ent_username"]:
@@ -176,6 +185,26 @@ class SettingsApp(app.App):
                     )
                     self.layout.items.append(entry)
 
+                if id == "pattern_mirror_hexpansions":
+
+                    async def _button_event_mirror_toggle(event):
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            mirror = settings.get("pattern_mirror_hexpansions")
+
+                            # default will evaluate to False here
+                            mirror = not mirror
+
+                            settings.set("pattern_mirror_hexpansions", mirror)
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry = layout.ButtonDisplay(
+                        "Toggle", button_handler=_button_event_mirror_toggle
+                    )
+                    self.layout.items.append(entry)
+
                 if id == "update_channel":
 
                     async def _button_event_channel_toggle(event):
@@ -261,7 +290,7 @@ class SettingsApp(app.App):
             ("name", "Name", string_formatter, self.string_editor),
             ("pattern", "LED Pattern", string_formatter, None),
             ("pattern_brightness", "Pattern brightness", pct_formatter, None),
-            ("pattern_mirror_hexpansions", "Mirror pattern", string_formatter, None),
+            ("pattern_mirror_hexpansions", "Mirror pattern", on_off_formatter, None),
             ("background", "Background", tuple_formatter, None),
             ("update_channel", "Update channel", string_formatter, None),
             ("wifi_tx_power", "WiFi TX power", string_formatter, None),
