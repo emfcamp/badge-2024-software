@@ -19,6 +19,7 @@ typedef struct
 #define READ ( MP_MACHINE_I2C_FLAG_WRITE1 | MP_MACHINE_I2C_FLAG_READ | MP_MACHINE_I2C_FLAG_STOP )
 #define WRITE MP_MACHINE_I2C_FLAG_STOP
 static const fusb_register_t select_cc              = { 0x02U, 0x0CU, 2U };
+static const fusb_register_t select_vcon            = { 0x02U, 0x30U, 4U };
 static const fusb_register_t enable_bmc             = { 0x03U, 0x03U, 0U };
 static const fusb_register_t auto_crc               = { 0x03U, 0x04U, 2U };
 static const fusb_register_t tx_flush               = { 0x06U, 0x40U, 6U };
@@ -54,7 +55,6 @@ void fusb_setup_device( fusb_state_t* state )
     mp_machine_i2c_buf_t buffer = { .len = 13, .buf = write_buffer };
     tildagon_mux_i2c_transaction( state->mux_port, ADDRESS, 1, &buffer, WRITE );
     state->host = 0U;
-    state->input_current_limit = 500U;
     state->cc_select = 0U;
 }
 
@@ -83,6 +83,16 @@ void fusb_setup_host( fusb_state_t* state )
 void fusb_set_cc( fusb_state_t* state, uint8_t cc_select )
 {
     write_bits( state, select_cc, cc_select );
+}
+
+/**
+ * @brief turn on Vcon
+ * @param state the port object
+ * @param cc_vcon which cc line to use as Vcon
+ */
+void fusb_set_vcon(fusb_state_t* state, uint8_t cc_vcon )
+{
+    write_bits( state, select_vcon, cc_vcon );
 }
 
 /**
@@ -267,22 +277,11 @@ void fusb_setup_pd( fusb_state_t* state )
         tildagon_mux_i2c_transaction( state->mux_port, ADDRESS, 1, &buffer, WRITE );
         
         write_bits( state, rx_flush, 1 );
-        uint8_t data = 0x20;
-        if ( state->cc_select == 1 )
+        uint8_t data = 0x24; /* pd rev 2 and auto crc bits set */
+        if ( state->cc_select < 3 )
         {
-            data |= 0x01;
-        }
-        else
-        {
-            data |= 0x02;
-        }
-        if ( state->host == 0 )
-        {
-            data |= 0x84;
-        }
-        else
-        {
-            data |= 0x04;
+            data |= state->cc_select; /* enable transceiver for the CC pin selected */
+            data |= state->host << 7 | state->host << 4; /* set power and data roles for auto good crc */
         }
         write_buffer[0] = enable_bmc.regaddr;
         write_buffer[1] = data;
