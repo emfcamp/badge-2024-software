@@ -64,56 +64,30 @@ class PowerEventHandler:
 
     def BadgeAsDeviceAttachHandler(self):
         eventbus.emit(ShowNotificationEvent("Badge Connected as Device"))
-        eventbus.emit(
-            events.RequestBadgeAsDeviceAttachEvent(
-                events.PowerEvent("Badge Connected as Device")
-            )
-        )
+        eventbus.emit(events.BadgeAsDeviceAttachEvent())
         pdh = pdHelper()
         pdh.device_send_badge_id()
 
     def BadgeAsDeviceDetachHandler(self):
         eventbus.emit(ShowNotificationEvent("Badge Device disconnected"))
-        eventbus.emit(
-            events.RequestBadgeAsDeviceDetachEvent(
-                events.PowerEvent("Badge Device disconnected")
-            )
-        )
+        eventbus.emit(events.BadgeAsDeviceDetachEvent())
 
     def BadgeAsHostAttachHandler(self):
         eventbus.emit(ShowNotificationEvent("Badge Connected as Host"))
-        eventbus.emit(
-            events.RequestBadgeAsHostAttachEvent(
-                events.PowerEvent("Badge Connected as Host")
-            )
-        )
+        eventbus.emit(events.BadgeAsHostAttachEvent())
 
     def BadgeAsHostDetachHandler(self):
         eventbus.emit(ShowNotificationEvent("Badge Host disconnected"))
-        eventbus.emit(
-            events.RequestBadgeAsHostDetachEvent(
-                events.PowerEvent("Badge Host disconnected")
-            )
-        )
+        eventbus.emit(events.BadgeAsHostDetachEvent())
 
     def VendorMsgDevRxHandler(self):
-        eventbus.emit(
-            events.RequestVendorMsgDevRxEvent(events.PowerEvent("Device Vendor Msg Rx"))
-        )
+        eventbus.emit(events.VendorMsgDevRxEvent())
 
     def VendorMsgHostRxHandler(self):
-        eventbus.emit(
-            events.RequestVendorMsgHostRxEvent(events.PowerEvent("Host Vendor Msg Rx"))
-        )
+        eventbus.emit(events.VendorMsgHostRxEvent())
 
     def PrimeMsgHostRxHandler(self):
-        eventbus.emit(
-            events.RequestPrimeMsgHostRxEvent(events.PowerEvent("Host Prime Msg Rx"))
-        )
+        eventbus.emit(events.PrimeMsgHostRxEvent())
 
     def DoublePrimeMsgHostRxHandler(self):
-        eventbus.emit(
-            events.RequestDblPrimeMsgHostRxEvent(
-                events.PowerEvent("Host Double Prime Msg Rx")
-            )
-        )
+        eventbus.emit(events.DblPrimeMsgHostRxEvent())

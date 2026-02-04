@@ -11,18 +11,7 @@ class vdmCmd:
 
 
 class dataType:
-    SOURCE_CAPABILITIES = 1
-    REQUEST = 2
     BIST = 3
-    SINK_CAPABILITIES = 4
-    BATTERY_STATUS = 5
-    ALERT = 6
-    GET_COUNTRY_INFO = 7
-    ENTER_USB = 8
-    EPR_REQUEST = 9
-    EPR_MODE = 10
-    SOURCE_INFO = 11
-    REVISION = 12
     VENDOR_DEFINED = 15
 
 
@@ -30,28 +19,16 @@ class cmdType:
     ACCEPT = 3
     REJECT = 4
     SOFT_RESET = 13
-    NOT_SUPPORTED = 16
-    GET_STATUS = 18
 
 
 class pdHelper:
-    def pd_header(self, message_type, no_objects=0, extended=0):
+    def pd_header(self, message_type, no_objects=0):
         # the majority of the header is filled in by the badge
-        header = (extended << 15) | (no_objects << 12) | message_type
+        header = (no_objects << 12) | message_type
         return header
 
-    def vdm_structured_header(
-        self, command, SVID=0xFF00, cmd_type=0, obj_pos=0, vdm_minor=0, vdm_major=0
-    ):
-        vdmh = (
-            (SVID << 16)
-            | (1 << 15)
-            | (vdm_major << 13)
-            | (vdm_minor << 11)
-            | (obj_pos << 8)
-            | (cmd_type << 6)
-            | command
-        )
+    def vdm_structured_header(self, command, SVID=0xFF00, obj_pos=0, Version=0):
+        vdmh = (SVID << 16) | (1 << 15) | (Version << 13) | (obj_pos << 8) | command
         return vdmh
 
     def vdm_unstructured_header(self, SVID=0xFF00, data=0):
@@ -63,14 +40,13 @@ class pdHelper:
             "SVID": vendor_header >> 16,
             "structured": (vendor_header >> 15) & 0x01,
             "data": None,
-            "vdm_major": None,
+            "Version": None,
             "obj_pos": None,
             "cmd_type": None,
             "cmd": None,
         }
         if header["structured"] == 1:
-            header["vdm_major"] = (vendor_header >> 13) & 0x03
-            header["vmd_minor"] = (vendor_header >> 11) & 0x03
+            header["Version"] = (vendor_header >> 13) & 0x03
             header["obj_pos"] = (vendor_header >> 8) & 0x07
             header["cmd_type"] = (vendor_header >> 6) & 0x03
             header["cmd"] = vendor_header & 0x3F
