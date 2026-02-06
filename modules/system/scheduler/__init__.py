@@ -1,3 +1,4 @@
+import aiorepl
 import asyncio
 import display
 import sys
@@ -236,7 +237,8 @@ class _Scheduler:
             update_tasks.append(self.start_update_tasks(app))
         render_task = self._render_task()
         event_task = eventbus.run()
-        await asyncio.gather(render_task, event_task, *update_tasks)
+        repl_task = asyncio.create_task(aiorepl.task())
+        await asyncio.gather(render_task, event_task, repl_task, *update_tasks)
 
     def run_forever(self):
         loop = asyncio.get_event_loop()
