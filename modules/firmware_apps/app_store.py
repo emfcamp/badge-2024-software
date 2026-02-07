@@ -20,25 +20,17 @@ from requests import get
 from system.eventbus import eventbus
 from system.launcher.app import (
     APP_DIR,
-    list_user_apps,
     load_info,
     InstallNotificationEvent,
 )
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
-from firmware_apps.settings_app import BG_DIR
+from firmware_apps.settings_app import BG_DIR, PAT_DIR
 
 
 def dir_exists(filename):
     try:
         return (os.stat(filename)[0] & 0x4000) != 0
-    except OSError:
-        return False
-
-
-def file_exists(filename):
-    try:
-        return (os.stat(filename)[0] & 0x4000) == 0
     except OSError:
         return False
 
@@ -52,33 +44,41 @@ UPDATE = "Update"
 REFRESH = "Refresh Apps"
 
 
-def list_user_backgrounds():
+def list_apps(dir, callable):
     with PerfTimer("List user apps"):
         apps = []
         try:
-            contents = os.listdir(BG_DIR)
+            contents = os.listdir(dir)
         except OSError:
-            # No apps dir full stop
+            # directory doesn't exist
             try:
-                os.mkdir(BG_DIR)
+                os.mkdir(dir)
             except OSError:
                 pass
             return []
 
         for name in contents:
             app = {
-                "path": f"backgrounds.{name}.app",
-                "callable": "__Background__",
+                "path": f"{dir[1:]}.{name}.app",
+                "callable": callable,
                 "name": name,
                 "folder": name,
                 "hidden": False,
             }
-            metadata = load_info(BG_DIR, name)
+            metadata = load_info(dir, name)
             if "version" not in metadata:
                 app["version"] = "0.0.0"
             app.update(metadata)
             apps.append(app)
         return apps
+
+
+def list_all_apps():
+    return (
+        list_apps(APP_DIR, "__app_export__")
+        + list_apps(BG_DIR, "__Background__")
+        + list_apps(PAT_DIR, "__Pattern_Export__")
+    )
 
 
 class AppStoreApp(app.App):
@@ -274,7 +274,7 @@ class AppStoreApp(app.App):
             # compare format v0.0.0
             return v1.split(".") > v2.split(".")
 
-        installed_apps = list_user_apps() + list_user_backgrounds()
+        installed_apps = list_all_apps()
         self.apps_available_dict = {}
         for a in self.app_store_index:
             folder_name = a["id"]["owner"] + "_" + a["id"]["title"]
@@ -316,7 +316,7 @@ class AppStoreApp(app.App):
             self.cleanup_ui_widgets()
             self.update_state("main_menu")
 
-        installed_apps = list_user_apps() + list_user_backgrounds()
+        installed_apps = list_all_apps()
 
         self.installed_menu = Menu(
             self,
@@ -328,7 +328,7 @@ class AppStoreApp(app.App):
         )
 
     def uninstall_app(self, app):
-        user_apps = list_user_apps() + list_user_backgrounds()
+        user_apps = list_all_apps()
         selected_app = list(filter(lambda x: x["name"] == app, user_apps))
         if len(selected_app) == 0:
             raise RuntimeError(f"app not found: {app}")
@@ -548,6 +548,8 @@ def install_app(app):
         # TODO: Does the app already exist? Delete it
         if app["manifest"]["app"].get("category") == "Background":
             TARGET_DIR = "/backgrounds"
+        elif app["manifest"]["app"].get("category") == "Pattern":
+            TARGET_DIR = "/pattern"
         else:
             TARGET_DIR = APP_DIR
         # Make sure apps dir exists
