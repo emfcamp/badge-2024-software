@@ -228,7 +228,8 @@ class _Scheduler:
                                 )
                             )
                         ctx.restore()
-                display.end_frame(ctx)
+                with PerfTimer("End frame"):
+                    display.end_frame(ctx)
             await asyncio.sleep(0)
 
     async def _main(self):

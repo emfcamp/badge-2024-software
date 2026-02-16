@@ -121,7 +121,7 @@ class SettingsApp(app.App):
             self.layout.items = []
             for id, label, formatter, editor in self.settings_options():
                 value = settings.get(id)
-                print(editor)
+
                 if editor:
 
                     async def _button_event(event, label=label, id=id, editor=editor):
@@ -272,8 +272,8 @@ class SettingsApp(app.App):
                 await render_update()
                 current_time = time.ticks_ms()
                 self.update(current_time - previous_time)
-                if self.ctx:
-                    self.draw(self.ctx)
+                # if self.ctx:
+                #    self.draw(self.ctx)
                 if self.dialog:
                     result = await self.dialog.run(render_update)
                     if (
