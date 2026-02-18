@@ -75,12 +75,20 @@ typedef union
     pd_sop_prime_header_t sop_prime;
 } pd_header_union_t;
 
-/* power data objects */
+/* 
+    power data objects 
+
+    Universal Serial Bus Power Delivery Specification
+    
+    Revision: 3.2
+    Version: 1.0
+    Release date: 2023-10
+*/
 
 typedef struct
 {
-    uint32_t max_current   : 10; /* Maximum Current in 10mA units */
-    uint32_t voltage       : 10; /* Voltage in 50mV units */
+    uint32_t max_current   : 10; /* Maximum Current in 10mA increments */
+    uint32_t voltage       : 10; /* Voltage in 50mV increments */
     uint32_t peak_current  : 2;  /* Peak Current capability */
     uint32_t reserved      : 3;  /* Reserved – Shall be set to zero. */
     uint32_t dual_role     : 1;  /* Dual-Role Data */
@@ -93,19 +101,55 @@ typedef struct
 
 typedef struct 
 {
-    uint32_t max_power    : 10; /* Maximum Allowable Power in 250mW units */
-    uint32_t min_volt     : 10; /* Maximum Voltage in 50mV units */
-    uint32_t max_volt     : 10; /* Minimum Voltage in 50mV units */
+    uint32_t max_power    : 10; /* Maximum Allowable Power in 250mW increments */
+    uint32_t min_volt     : 10; /* Maximum Voltage in 50mV increments */
+    uint32_t max_volt     : 10; /* Minimum Voltage in 50mV increments */
     uint32_t pdo_type     : 2;  /* Battery == 1 */
 } pd_battery_pdo_t;
 
 typedef struct 
 {
-    uint32_t max_current : 10; /* Maximum Current in 10mA units */
-    uint32_t min_voltage : 10; /* Minimum Voltage in 50mV units */
-    uint32_t max_voltage : 10; /* Maximum Voltage in 50mV units */
-    uint32_t pdo_type     : 2; /* Variable Supply (non-Battery) == 2 */
+    uint32_t max_current : 10; /* Maximum Current in 10mA increments */
+    uint32_t min_voltage : 10; /* Minimum Voltage in 50mV increments */
+    uint32_t max_voltage : 10; /* Maximum Voltage in 50mV increments */
+    uint32_t pdo_type    :  2; /* Variable Supply (non-Battery) == 2 */
 } pd_variable_pdo_t;
+
+typedef struct
+{
+    uint32_t max_current   : 6; /* Maximum Current in 50mA increments */
+    uint32_t               : 1;
+    uint32_t min_voltage   : 8; /* Minimum Voltage in 100mV increments */
+    uint32_t               : 1;
+    uint32_t max_voltage   : 8; /* Maximum Voltage in 100mV increments */
+    uint32_t               : 2;
+    uint32_t power_limited : 1;
+    uint32_t aug_type      : 2; /* 00b SPR Programmable Power Supply */
+    uint32_t pdo_type      : 2; /* Augmented pdo == 3 */
+} pd_pps_pdo_t;
+
+typedef struct
+{
+    uint32_t pdp          : 8; /* PDP in 1W increments */
+    uint32_t min_voltage  : 8; /* Minimum Voltage in 100mV increments */ 
+    uint32_t              : 1;
+    uint32_t max_voltage  : 8; /* Maximum Voltage in 100mV increments */ 
+    uint32_t peak_current : 2; /* Peak Current (see Table 6.15 “EPR AVS Power Source Peak Current Capability”) */
+    uint32_t aug_type     : 2; /* 01b EPR Adjustable Voltage Supply */
+    uint32_t pdo_type     : 2; /* Augmented pdo == 3 */
+} pd_epr_pdo_t;
+
+typedef struct
+{
+    uint32_t max_current15_20v : 10; /* For 15V – 20V range: Maximum Current in 10mA units equal to the Maximum Current field of the 20V
+                                        Fixed Source PDO, set to 0 if the Maximum voltage in the SPR AVS range is 15V. */
+    uint32_t max_current9_15v  : 10; /* For 9V – 15V range: Maximum Current in 10mA units equal to the Maximum Current field of the 15V
+                                        Fixed Source PDO */
+    uint32_t                   : 6;
+    uint32_t peak_current      : 2;  /* Peak Current (see Table 6.10 “Fixed Power Source Peak Current Capability”) */
+    uint32_t aug_type          : 2; /* 10b SPR Adjustable Voltage Supply */
+    uint32_t pdo_type          : 2; /* Augmented pdo == 3 */
+} pd_avr_pdo_t;
 
 typedef union
 {    
@@ -114,6 +158,9 @@ typedef union
     pd_fixed_pdo_t fixed;
     pd_battery_pdo_t battery;
     pd_variable_pdo_t variable;
+    pd_pps_pdo_t spr_pps; /* standard power range programmable power supply */
+    pd_epr_pdo_t epr_avs; /* extended power range adjustable voltage supply */
+    pd_avr_pdo_t spr_avs; /* standard power range adjustable voltage supply */
 } pd_source_pdo_union_t;
 
 typedef struct 
@@ -139,6 +186,11 @@ typedef union
 #define PD_FIXED_SUPPLY 0U
 #define PD_BATTERY 1U
 #define PD_VARIABLE_SUPPLY 2U
+#define PD_AUGMENTED 3U
+#define PD_STANDARD_POWER_PROG_PSU 0U
+#define PD_EXTENDED_POWER_VOLTAGE_SUPPLY 1U
+#define PD_STANDARD_POWER_VOLTAGE_SUPPLY 2U
+
 #define PD_MAX_TX_MSG_SIZE 50 
 #define PD_VENDOR_ID 0xCDCD
 
