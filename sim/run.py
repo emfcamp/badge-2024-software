@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
 
+import argparse
+import builtins
 import importlib
 import importlib.abc
 import importlib.machinery
-from importlib.machinery import PathFinder, BuiltinImporter
 import importlib.util
 import os
 import sys
-import builtins
-import argparse
 import traceback
-import os
-
+from importlib.machinery import BuiltinImporter, PathFinder
 
 projectpath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-import random
-import pygame
 import cmath
 import gzip
+import random
+
+import pygame
 
 try:
     import config
@@ -147,19 +146,34 @@ os.stat = mkstat(os.stat)
 sys.print_exception = lambda x: print(traceback.format_exc())
 
 
+def replace_launcher(module_name: str, class_name: str):
+    try:
+        app_module = importlib.import_module(module_name)
+    except ImportError:
+        raise Exception(f"Module '{module_name}' not found.")
+
+    try:
+        app_class = getattr(app_module, class_name)
+    except AttributeError:
+        raise Exception(f"Class '{class_name}' not found in module '{module_name}'.")
+
+    import system.launcher.app
+    system.launcher.app.Launcher = app_class
+
+
 def sim_main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--screenshot",
         action="store_true",
         default=False,
-        help="Generate a flow3r.png screenshot.",
+        help="Generate a screenshot.",
     )
     parser.add_argument(
         "override_app",
         nargs="?",
-        help="Bundle to start instead of the main menu. "
-        + "This is the `app.name` from flow3r.toml.",
+        help="App to start instead of the main launcher. "
+        + "This is in the format 'module.class', for example 'example.ExampleApp'.",
     )
     args = parser.parse_args()
 
@@ -167,9 +181,17 @@ def sim_main():
 
     _sim.SCREENSHOT = args.screenshot
 
-    #if args.override_app is not None:
-    #    import st3m.run
-    #    st3m.run.override_main_app = args.override_app
+    if args.override_app is not None:
+        parts = args.override_app.split(".")
+        if len(parts) != 2:
+            print("Error: override_app argument must be in the format `module.class`")
+            sys.exit(1)
+
+        try:
+            replace_launcher(parts[0], parts[1])
+        except Exception as ex:
+            print(f"Error: {ex}")
+            sys.exit(1)
 
     import main
 
