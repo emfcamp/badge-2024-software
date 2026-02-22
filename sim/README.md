@@ -44,6 +44,20 @@ Known Issues
 
 Try using non-precompiled Python.
 
+## ModuleNotFoundError: No module named 'aiorepl'
+
+The simulator no longer requires `aiorepl` to start. If `aiorepl` is missing, the REPL task is skipped.
+
+If you run `pipenv install aiorepl`, Pipenv may fail to lock with:
+
+`No matching distribution found for aiorepl`
+
+In that case, do not add it to the lockfile; run the simulator normally with:
+
+```sh
+pipenv run python run.py
+```
+
 ## Dependencies
 
 All dependencies are pinned to specific versions to ensure reproducible builds. If you encounter issues with missing dependencies, ensure you're using Python 3.10 and run:
