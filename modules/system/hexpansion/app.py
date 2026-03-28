@@ -9,6 +9,7 @@ from system.hexpansion.events import (
     HexpansionAppRequestStopEvent,
     HexpansionMountedEvent,
     HexpansionUnmountedEvent,
+    HexpansionAppLauncherRemoveEvent
 )
 from system.hexpansion.util import (
     read_hexpansion_header,
@@ -243,31 +244,6 @@ class HexpansionManagerApp(app.App):
         if self.autolaunch:
             self._launch_hexpansion_app(port)
 
-    def populated_ports(self):
-        return list(self.inserted_hexpansions.keys())
-
-    def locate_hexpansion(self, vid, pid): # Returns a list of ports if found as several of the same hexpansion might be inserted
-        found = []
-        for port,header in self.inserted_hexpansions.items():
-            if header is not None:
-                if header.vid == vid and header.pid == pid:
-                    found.append(port)
-        
-        if found:
-            found.sort()
-            return found
-        else:
-            return None
-
-    def get_header(self, port):
-        if port in self.inserted_hexpansions:
-            return self.inserted_hexpansions[port]
-        else:
-            return None
-
-    def is_populated(self, port):
-        return port in self.inserted_hexpansions
-
     def handle_hexpansion_app_start(self, event):
         if event.port in self.hexpansion_apps:
             self._launch_hexpansion_app(event.port)
@@ -339,6 +315,7 @@ class HexpansionManagerApp(app.App):
 
         if event.port in self.hexpansion_apps:
             self._stop_hexpansion_app(self.hexpansion_apps[event.port], event.port)
+            eventbus.emit(HexpansionAppLauncherRemoveEvent(port=event.port))
 
         if event.port in self.hexpansion_headers:
             header = self.hexpansion_headers[event.port]

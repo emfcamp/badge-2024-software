@@ -47,12 +47,11 @@ class HexpansionAppLauncherAddEvent(HexpansionEvent):
         return f"Hexpansion app from port {self.port} called {self.name} added to the home screen"
 
 class HexpansionAppLauncherRemoveEvent(HexpansionEvent):
-    def __init__(self,port, name):
+    def __init__(self,port):
         super().__init__(port)
-        self.name = name
 
     def __str__(self):
-        return f"Hexpansion app from port {self.port} with name {self.name} removed from the home screen"
+        return f"Hexpansion app from port {self.port} removed from the home screen"
 
 class HexpansionAppRequestStartEvent(HexpansionEvent):
     def __init__(self,port):

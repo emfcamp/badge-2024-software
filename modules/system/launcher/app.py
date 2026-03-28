@@ -24,7 +24,6 @@ from app_components.background import Background as bg
 
 APP_DIR = "/apps"
 
-
 class InstallNotificationEvent(Event):
     pass
 
@@ -119,14 +118,14 @@ class Launcher(App):
         
         for app in self.hexpansion_apps:
             if app["callable"] == "hexpansion_app":
-                if app["port"] == event.port:
-                    print("Hexpansion app already in launcher list")
-                    return
+                if app["port"] == event.port: # A hexpansion for this port already has an app in the list, so remove it and re-launch
+                    print(f"Hexpansion app {event.name} already in launcher list, removing and re-adding")
+                    self.hexpansion_apps.remove(app)
 
         self.hexpansion_apps.append({
                 "port": event.port,
                 "callable": "hexpansion_app",
-                "name": "▼ " + event.name
+                "name": chr(0x2B23) + event.name # Prepend hexpansion symbol to app name, requires EMFCampFont.h
             }
         )
 
@@ -134,13 +133,12 @@ class Launcher(App):
 
     async def _handle_hexpansion_app_remove(self, event: HexpansionAppLauncherRemoveEvent):
         # Handle a hexpansion EEPROM app requesting to be added to the launcher
-        print(f"Removing hexpansion on port {event.port} with name {event.name} from launcher")
+        print(f"Removing hexpansion on port {event.port} from launcher")
         
         for app in self.hexpansion_apps:
             if app["port"] == event.port:
                 self.hexpansion_apps.remove(app)
-
-        self.update_menu()
+                self.update_menu()
 
 
     def list_core_apps(self):
