@@ -80,9 +80,25 @@ class ButtonDisplay(Layoutable):
 class DefinitionDisplay(Layoutable):
     def __init__(self, label, value, button_handler=None):
         self.label = label
-        self.value = value
+        self._value = value
+        self._label_lines = None
+        self._label_widths = None
+        self._label_height = 0
+        self._value_lines = None
+        self._value_widths = None
+        self._value_height = 0
         self.height = 0
         self.button_handler = button_handler
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, v):
+        self._value = v
+        self._value_lines = None
+        self._value_widths = None
 
     async def button_event(self, event):
         if self.button_handler:
@@ -91,34 +107,45 @@ class DefinitionDisplay(Layoutable):
 
     def draw(self, ctx, focused=False):
         ctx.save()
-        self.height = 0
-
-        # Draw heading
-        ctx.font_size = tokens.one_pt * 8
         ctx.text_align = ctx.LEFT
+
+        # Pre-compute label line geometry (happens once)
+        if self._label_lines is None:
+            ctx.font_size = tokens.one_pt * 8
+            self._label_lines = utils.wrap_text(ctx, self.label, tokens.label_font_size)
+            self._label_widths = [ctx.text_width(line) for line in self._label_lines]
+            self._label_height = len(self._label_lines) * ctx.font_size
+
+        # Pre-compute value line geometry (happens each time a value changes)
+        if self._value_lines is None:
+            ctx.font_size = tokens.ten_pt
+            self._value_lines = utils.wrap_text(
+                ctx, self._value, tokens.label_font_size, 230
+            )
+            self._value_widths = [ctx.text_width(line) for line in self._value_lines]
+            self._value_height = len(self._value_lines) * ctx.font_size
+
+        self.height = self._label_height + self._value_height
+
+        # Draw label
+        ctx.font_size = tokens.one_pt * 8
         if focused:
             ctx.rgb(*tokens.colors["orange"])
         else:
             ctx.rgb(*tokens.colors["yellow"])
-
-        # Draw label
-        label_lines = utils.wrap_text(ctx, self.label, tokens.label_font_size)
-        for line in label_lines:
-            width = ctx.text_width(line)
-            ctx.move_to(115 - width / 2, self.height)
+        y = 0
+        for line, width in zip(self._label_lines, self._label_widths):
+            ctx.move_to(115 - width / 2, y)
             ctx.text(line)
-            self.height += ctx.font_size
-
-        ctx.rgb(*tokens.ui_colors["label"])
+            y += tokens.one_pt * 8
 
         # Draw value
+        ctx.rgb(*tokens.ui_colors["label"])
         ctx.font_size = tokens.ten_pt
-        value_lines = utils.wrap_text(ctx, self.value, tokens.label_font_size, 230)
-        for line in value_lines:
-            width = ctx.text_width(line)
-            ctx.move_to(115 - width / 2, self.height)
+        for line, width in zip(self._value_lines, self._value_widths):
+            ctx.move_to(115 - width / 2, y)
             ctx.text(line)
-            self.height += ctx.font_size
+            y += tokens.ten_pt
 
         ctx.restore()
 
@@ -146,19 +173,35 @@ class LinearLayout(Layoutable):
         ctx.scale(self.scale_factor, self.scale_factor)
         ctx.translate(12, 0)
 
-        # Draw each item in turn
+        # Draw each item in turn, skipping any that cannot be visible
+        above_threshold = -self.y_offset / self.scale_factor
+        below_threshold = (240 - self.y_offset) / self.scale_factor
+
+        cumulative_y = 0
         for item in self.items:
-            item.draw(ctx, focused=item == focused_child)
-            ctx.translate(0, item.height)
-            self.height += item.height
+            item_height = item.height
+            if item_height > 0 and (
+                cumulative_y + item_height < above_threshold
+                or cumulative_y > below_threshold
+            ):
+                # Off-screen: skip drawing but maintain layout position
+                ctx.translate(0, item_height)
+                self.height += item_height
+                cumulative_y += item_height
+            else:
+                item.draw(ctx, focused=item == focused_child)
+                ctx.translate(0, item.height)
+                self.height += item.height
+                cumulative_y += item.height
 
         ctx.restore()
 
     def centred_component(self):
         cumulative_height = 0
+        threshold = round(120 - self.y_offset)
         for item in self.items:
             cumulative_height += item.height * self.scale_factor
-            if round(cumulative_height) > round(120 - self.y_offset):
+            if round(cumulative_height) > threshold:
                 return item
         return self.items[0]
 
