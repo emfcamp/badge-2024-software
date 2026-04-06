@@ -60,7 +60,7 @@ def reset_wifi_settings():
 PATTERNS = ["rainbow", "cylon", "flash", "off"]
 BRIGHTNESSES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 CHANNELS = ["latest", "preview"]
-
+REPL_TYPES = ["Default", "asyncio"]
 
 class SettingsApp(app.App):
     def __init__(self):
@@ -252,6 +252,29 @@ class SettingsApp(app.App):
                     )
                     self.layout.items.append(entry)
 
+                if id == "repl_type":
+
+                    async def _repl_toggle(event):
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            repl_type = settings.get("repl_type", "Default")
+
+                            if repl_type not in REPL_TYPES:
+                                repl_type = "Default"
+                            idx = REPL_TYPES.index(repl_type) + 1
+                            if idx >= len(REPL_TYPES):
+                                idx = 0
+                            print(f"{repl_type} {idx}")
+                            settings.set("repl_type", REPL_TYPES[idx])
+                            
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+                    entry = layout.ButtonDisplay(
+                        "Toggle", button_handler=_repl_toggle
+                    )
+                    self.layout.items.append(entry)
+
             async def _button_event_w(event):
                 print(event)
                 if BUTTON_TYPES["CONFIRM"] in event.button:
@@ -313,6 +336,7 @@ class SettingsApp(app.App):
                 string_formatter,
                 self.string_editor,
             ),
+            ("repl_type", "REPL type", string_formatter, None ),
         ]
 
     def update(self, delta):

@@ -3,6 +3,7 @@ import asyncio
 import display
 import sys
 import time
+import settings
 
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
@@ -237,8 +238,12 @@ class _Scheduler:
             update_tasks.append(self.start_update_tasks(app))
         render_task = self._render_task()
         event_task = eventbus.run()
-        repl_task = asyncio.create_task(aiorepl.task())
-        await asyncio.gather(render_task, event_task, repl_task, *update_tasks)
+        repl_type = settings.get("repl_type", "Default")
+        if repl_type is "asyncio":
+            repl_task = asyncio.create_task(aiorepl.task())
+            await asyncio.gather(render_task, event_task, repl_task, *update_tasks)
+        else:
+            await asyncio.gather(render_task, event_task, *update_tasks)
 
     def run_forever(self):
         loop = asyncio.get_event_loop()
