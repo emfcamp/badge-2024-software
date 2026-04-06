@@ -239,7 +239,7 @@ class _Scheduler:
         render_task = self._render_task()
         event_task = eventbus.run()
         repl_type = settings.get("repl_type", "Default")
-        if repl_type is "asyncio":
+        if repl_type == "asyncio":
             repl_task = asyncio.create_task(aiorepl.task())
             await asyncio.gather(render_task, event_task, repl_task, *update_tasks)
         else:

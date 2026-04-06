@@ -62,6 +62,7 @@ BRIGHTNESSES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 CHANNELS = ["latest", "preview"]
 REPL_TYPES = ["Default", "asyncio"]
 
+
 class SettingsApp(app.App):
     def __init__(self):
         self.layout = layout.LinearLayout(items=[layout.DefinitionDisplay("", "")])
@@ -265,14 +266,13 @@ class SettingsApp(app.App):
                                 idx = 0
                             print(f"{repl_type} {idx}")
                             settings.set("repl_type", REPL_TYPES[idx])
-                            
+
                             await self.update_values()
                             await render_update()
                             return True
                         return False
-                    entry = layout.ButtonDisplay(
-                        "Toggle", button_handler=_repl_toggle
-                    )
+
+                    entry = layout.ButtonDisplay("Toggle", button_handler=_repl_toggle)
                     self.layout.items.append(entry)
 
             async def _button_event_w(event):
@@ -336,7 +336,7 @@ class SettingsApp(app.App):
                 string_formatter,
                 self.string_editor,
             ),
-            ("repl_type", "REPL type", string_formatter, None ),
+            ("repl_type", "REPL type", string_formatter, None),
         ]
 
     def update(self, delta):
