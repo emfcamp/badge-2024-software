@@ -272,8 +272,6 @@ class SettingsApp(app.App):
                 await render_update()
                 current_time = time.ticks_ms()
                 self.update(current_time - previous_time)
-                if self.ctx:
-                    self.draw(self.ctx)
                 if self.dialog:
                     result = await self.dialog.run(render_update)
                     if (
