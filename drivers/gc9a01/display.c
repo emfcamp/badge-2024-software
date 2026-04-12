@@ -69,10 +69,8 @@ void tildagon_blit_fb (void)
 void tildagon_end_frame(Ctx *ctx)
 {
   ctx_restore (ctx);
+  ctx_end_frame (ctx);
   tildagon_blit_fb ();
-  // display.end_frame() does not call ctx_end_frame(), so advance the
-  // texture clock here to let ctx expire stale image cache entries.
-  ctx_set_textureclock (ctx, ctx_textureclock (ctx) + 1);
   st3m_gfx_fps_update ();
 }
 
