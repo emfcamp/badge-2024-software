@@ -234,9 +234,22 @@ class HexpansionManagerApp(app.App):
             return
 
         # Do we have a header?
-        header = read_hexpansion_header(i2c, addr, addr_len=addr_len)
-        if header is None:
+        try:
+            header = read_hexpansion_header(i2c, addr, addr_len=addr_len)
+        except OSError:
+            # We failed to read from the hexpansion header, skip
+            eventbus.emit(
+                ShowNotificationEvent(message="Failed to read EEPROM", port=event.port)
+            )
             return
+        else:
+            if header is None:
+                eventbus.emit(
+                    ShowNotificationEvent(
+                        message="Failed to read header", port=event.port
+                    )
+                )
+                return
 
         if header.friendly_name != "":
             eventbus.emit(
