@@ -34,7 +34,9 @@ jobs:
           name: firmware
           path: |
             micropython/ports/esp32/build-tildagon/micropython.bin
+            micropython/ports/esp32/build-tildagon/micropython.elf
             micropython/ports/esp32/build-tildagon/bootloader/bootloader.bin
+            micropython/ports/esp32/build-tildagon/bootloader/bootloader.elf
             micropython/ports/esp32/build-tildagon/partition_table/partition-table.bin
             micropython/ports/esp32/build-tildagon/ota_data_initial.bin
             micropython/ports/esp32/build-tildagon/tildagon.txt
