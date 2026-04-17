@@ -1,6 +1,5 @@
-from machine import Pin, SPI
+from machine import Pin
 import neopixel
-import gc9a01py as gc9a01
 from egpio import ePin
 
 BUS_SYSTEM = 7
@@ -25,15 +24,6 @@ led_colours = [
 class _tildagonos:
     def __init__(self):
         self.leds = neopixel.NeoPixel(Pin(21), 19)
-        self.spi = None
-        self.tft = None
-
-    def init_display(self):
-        self.spi = SPI(1, 40000000, sck=Pin(8), mosi=Pin(7))
-        self.tft = gc9a01.GC9A01(
-            self.spi, dc=Pin(2, Pin.OUT), cs=Pin(1, Pin.OUT), rotation=2
-        )
-        self.tft.fill(gc9a01.MAGENTA)
 
     def init_gpio(self):
         print(
