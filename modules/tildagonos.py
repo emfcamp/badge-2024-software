@@ -1,4 +1,4 @@
-from machine import Pin, SPI
+from machine import Pin
 import neopixel
 from egpio import ePin
 
