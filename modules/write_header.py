@@ -23,10 +23,7 @@ def write_header(port, addr=0x50):
 def read_header(port, addr=0x50):
     i2c = I2C(port)
 
-    # Set internal address to 0x00
-    i2c.writeto(addr, bytes([0, 0]))
-
-    header_bytes = i2c.readfrom(addr, 32)
+    header_bytes = i2c.readfrom_mem(addr, 0, 32)
     header = HexpansionHeader.from_bytes(header_bytes)
 
     return header
