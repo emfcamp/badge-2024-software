@@ -80,13 +80,13 @@ static mp_obj_t power_BatteryLevel( void )
         float max_current = 1.536F;
         float vbat_cv_percent = 20.0F;
         float vbat_ci_percent = 100.0F - vbat_cv_percent;
-        if ( usb_in.fusb.input_current_limit == 1500U )
+        if ( input_current_limit == 1500U )
         {
             max_current = 1.3F;
             vbat_cv_percent = 17.0F;
             vbat_ci_percent = 100.0F - vbat_cv_percent;
         }
-        else if ( usb_in.fusb.input_current_limit == 500 )
+        else if ( input_current_limit == 500 )
         {
             max_current = 0.4F;
             vbat_cv_percent = 2.0F;
@@ -199,7 +199,7 @@ static mp_obj_t power_SupplyCapabilities( void )
             bq_update_state( &pmic );
             mp_obj_t tuple[3];
             tuple[0] = mp_obj_new_str( "non-pd", 6 );
-            tuple[1] = mp_obj_new_int( usb_in.fusb.input_current_limit );
+            tuple[1] = mp_obj_new_int( input_current_limit );
             tuple[2] = mp_obj_new_float( pmic.vbus );
             mp_obj_t capability = mp_obj_new_tuple(3, tuple);
             mp_obj_list_append(capabilities, capability);

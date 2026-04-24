@@ -1,3 +1,6 @@
+from events import Event
+
+
 class PowerEvent:
     def __init__(self, EventName):
         self.__str__ = EventName
@@ -34,3 +37,27 @@ class RequestLanyardAttachEvent(PowerEvent): ...
 
 
 class RequestLanyardDetachEvent(PowerEvent): ...
+
+
+class BadgeAsDeviceAttachEvent(Event): ...
+
+
+class BadgeAsDeviceDetachEvent(Event): ...
+
+
+class BadgeAsHostAttachEvent(Event): ...
+
+
+class BadgeAsHostDetachEvent(Event): ...
+
+
+class VendorMsgDevRxEvent(Event): ...
+
+
+class VendorMsgHostRxEvent(Event): ...
+
+
+class PrimeMsgHostRxEvent(Event): ...
+
+
+class DblPrimeMsgHostRxEvent(Event): ...
