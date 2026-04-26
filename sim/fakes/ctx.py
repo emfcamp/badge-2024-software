@@ -407,10 +407,21 @@ class Context:
             buf = open(path, "rb").read()
             _img_cache[path] = _wasm.stbi_load_from_memory(buf)
         img, width, height, components = _img_cache[path]
+        # Allocate some space to receive the EID as determined by ctx, the
+        # ret_eid param will either be set to the path we pass in unchanged,
+        # or if the path is too long we will get back a SHA sum instead
+        ret_eid = _wasm.malloc(65) # 64 + 1 byte for null terminator
         _wasm.ctx_define_texture(
-            self._ctx, path, width, height, width * components, RGBA8, img, 0
+            self._ctx, path, width, height, width * components, RGBA8, img, ret_eid
         )
-        _wasm.ctx_draw_texture(self._ctx, path, x, y, w, h)
+        mem = _wasm._memory.data_ptr(_wasm._store)
+        eid = ""
+        for b in mem[ret_eid:ret_eid + 65]:
+            if not b:
+                break
+            eid += chr(b)
+        _wasm.free(ret_eid)
+        _wasm.ctx_draw_texture(self._ctx, eid, x, y, w, h)
         return self
 
     def rectangle(self, x, y, width, height):
