@@ -194,6 +194,7 @@ class Context:
     CLEAR = "clear"
     END = "end"
     MIDDLE = "middle"
+    BOTTOM = "bottom"
     BEVEL = "bevel"
     NONE = "none"
     COPY = "copy"
