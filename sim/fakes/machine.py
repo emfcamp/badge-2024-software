@@ -9,7 +9,7 @@ class Pin:
     def __init__(self, *args, **kwargs):
         pass
 
-    def value(self, value):
+    def value(self, value=None):
         return 1
 
     def on(self):

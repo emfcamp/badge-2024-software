@@ -81,6 +81,9 @@ importlib.invalidate_caches()
 sys.modules["time"] = time
 
 simpath = "/tmp/sim"
+if sys.platform == "win32":
+    import tempfile
+    simpath = os.path.join(tempfile.gettempdir(), "sim")
 print(f"Using {simpath} as /flash mount")
 try:
     os.mkdir(simpath)
@@ -126,6 +129,13 @@ def _mkmock2(fun):
 os.listdir = _mkmock(os.listdir)
 os.rename = _mkmock2(os.rename)
 os.stat = _mkmock(os.stat)
+if not hasattr(os, "statvfs"):
+    # Windows does not have os.statvfs; provide a stub returning fake disk stats
+    # Returns a tuple matching statvfs_result fields:
+    # (f_bsize, f_frsize, f_blocks, f_bfree, f_bavail, f_files, f_ffree, f_favail, f_flag, f_namemax)
+    def _statvfs_stub(path):
+        return (4096, 4096, 1048576, 524288, 524288, 0, 0, 0, 0, 255)
+    os.statvfs = _statvfs_stub
 os.statvfs = _mkmock(os.statvfs)
 os.mkdir = _mkmock(os.mkdir)
 os.rmdir = _mkmock(os.rmdir)
