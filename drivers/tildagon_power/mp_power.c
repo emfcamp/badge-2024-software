@@ -208,10 +208,10 @@ static mp_obj_t power_SupplyCapabilities( void )
                         {
                             mp_obj_t tuple[5];
                             tuple[0] = mp_obj_new_str( "EPR Adj V", 9 );
-                            tuple[1] = mp_obj_new_int( usb_in.pd.pdos[i].epr_avs.pdp );
+                            tuple[1] = mp_obj_new_int( usb_in.pd.pdos[i].epr_avs.peak_current );
                             tuple[2] = mp_obj_new_float( ( usb_in.pd.pdos[i].epr_avs.min_voltage * 100 ) / 1000.0F );
                             tuple[3] = mp_obj_new_float( ( usb_in.pd.pdos[i].epr_avs.max_voltage * 100 ) / 1000.0F );
-                            tuple[4] = mp_obj_new_int( usb_in.pd.pdos[i].epr_avs.peak_current );
+                            tuple[4] = mp_obj_new_int( usb_in.pd.pdos[i].epr_avs.pdp );
                             mp_obj_t capability = mp_obj_new_tuple(5, tuple);
                             mp_obj_list_append(capabilities, capability);
                             break;
@@ -220,9 +220,9 @@ static mp_obj_t power_SupplyCapabilities( void )
                         {
                             mp_obj_t tuple[4];
                             tuple[0] = mp_obj_new_str( "SPR Adj V", 9 );
-                            tuple[1] = mp_obj_new_int( usb_in.pd.pdos[i].spr_avs.max_current15_20v * 10 );
-                            tuple[2] = mp_obj_new_int( usb_in.pd.pdos[i].spr_avs.max_current9_15v *10 );
-                            tuple[3] = mp_obj_new_int( usb_in.pd.pdos[i].spr_avs.peak_current );
+                            tuple[1] = mp_obj_new_int( usb_in.pd.pdos[i].spr_avs.peak_current );
+                            tuple[2] = mp_obj_new_int( usb_in.pd.pdos[i].spr_avs.max_current15_20v * 10 );
+                            tuple[3] = mp_obj_new_int( usb_in.pd.pdos[i].spr_avs.max_current9_15v *10 );
                             mp_obj_t capability = mp_obj_new_tuple(5, tuple);
                             mp_obj_list_append(capabilities, capability);
                             break;
