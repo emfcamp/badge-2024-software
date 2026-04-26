@@ -9,13 +9,15 @@ EPIN_BTN_6 = (1, 3)
 
 
 class ePin:
-    def __init__(self, pin):
+    def __init__(self, pin, mode=None):
         self.IN = 1
         self.OUT = 3
         self.PWM = 8
         self.pin = pin
         self.IRQ_RISING = 1
         self.IRQ_FALLING = 2
+        if mode is not None:
+            self.init(mode)
     
     def init(self, mode):
         pass

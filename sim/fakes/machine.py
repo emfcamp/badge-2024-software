@@ -76,3 +76,8 @@ def disk_mode_flash():
 def disk_mode_sd():
     print("beep boop i'm now in sd card disk mode")
     sys.exit(0)
+
+#Added for use by BadgeBot
+def disable_irq() -> int: ...
+
+def enable_irq(_state: int) -> None: ...
