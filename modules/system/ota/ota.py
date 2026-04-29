@@ -46,31 +46,6 @@ def parse_version(version):
     return components
 
 
-def parse_version(version):
-    pre_components = ["final"]
-    build_components = ["0", "000000z"]
-    build = ""
-    components = []
-    if "+" in version:
-        version, build = version.split("+", 1)
-        build_components = build.split(".")
-    if "-" in version:
-        version, pre_release = version.split("-", 1)
-        if pre_release.startswith("rc"):
-            # Re-write rc as c, to support a1, b1, rc1, final ordering
-            pre_release = pre_release[1:]
-        pre_components = pre_release.split(".")
-    version = version.strip("v").split(".")
-    components = [int(item) if item.isdigit() else item for item in version]
-    components.append(
-        [int(item) if item.isdigit() else item for item in pre_components]
-    )
-    components.append(
-        [int(item) if item.isdigit() else item for item in build_components]
-    )
-    return components
-
-
 class OtaUpdate(App):
     def __init__(self):
         self.status = None
