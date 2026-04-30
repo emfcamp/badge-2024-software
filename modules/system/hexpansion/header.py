@@ -128,7 +128,7 @@ def write_header(port, header, addr=0x50, addr_len=2, page_size=32):
 def read_header(port, addr=0x50, addr_len=2):
     i2c = I2C(port)
 
-    header_bytes = i2c.readfrom_mem(addr, 0, 32, addr_bytes=addr_len * 8)
+    header_bytes = i2c.readfrom_mem(addr, 0, 32, addrsize=addr_len * 8)
     header = HexpansionHeader.from_bytes(header_bytes)
 
     return header

@@ -20,10 +20,10 @@ def write_header(port, addr=0x50):
     i2c.writeto(addr, bytes([0, 0]) + h.to_bytes())
 
 
-def read_header(port, addr=0x50):
+def read_header(port, addr=0x50, addr_len=2):
     i2c = I2C(port)
 
-    header_bytes = i2c.readfrom_mem(addr, 0, 32)
+    header_bytes = i2c.readfrom_mem(addr, 0, 32, addrsize=addr_len * 8)
     header = HexpansionHeader.from_bytes(header_bytes)
 
     return header
