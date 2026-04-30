@@ -76,6 +76,24 @@ class I2C:
 class SPI:
     pass
 
+
+class UART:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def read(self, *args, **kwargs):
+        return b''
+
+    def write(self, *args, **kwargs):
+        return 0
+
+    def any(self):
+        return 0
+
+    def deinit(self):
+        pass
+
+
 def reset():
     print("beep boop i have reset")
     os.execv(sys.executable, ["python"] + sys.argv)
