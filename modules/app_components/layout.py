@@ -72,6 +72,8 @@ class ButtonDisplay(Layoutable):
         ctx.restore()
 
     async def button_event(self, event):
+        if BUTTON_TYPES["CONFIRM"] not in event.button:
+            return False
         if self.button_handler:
             return await self.button_handler(event)
         return False
