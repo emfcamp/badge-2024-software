@@ -20,6 +20,8 @@ SPECIAL_KEY_SPACE = "Space"
 LOWERCASE_ALPHABET = list("abcdefghijklmnopqrstuvwxyz")
 UPPERCASE_ALPHABET = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890")
 SYMBOL_ALPHABET = list("-=!\"£$%^&*()_+[];'#,./{}:@~<>?") + [SPECIAL_KEY_SPACE]
+HEX_ALPHABET = list("ABCDEF0123456789")
+NUM_ALPHABET = list("0123456789")
 
 
 class YesNoDialog:
@@ -93,6 +95,8 @@ class TextDialog:
         self.complete_handler = on_complete
         self.masked = masked
         self.text = ""
+        self._default_alphabet = LOWERCASE_ALPHABET
+        self._shifted_alphabet = UPPERCASE_ALPHABET
         self._current_alphabet = LOWERCASE_ALPHABET
         self._keys = []
         self._caps = False
@@ -256,7 +260,7 @@ class TextDialog:
             elif selected == SPECIAL_KEY_SYMBOL:
                 self._layer = 0
                 if self._sym:
-                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._current_alphabet = self._default_alphabet
                     self._sym = False
                     self._caps = False
                 else:
@@ -266,28 +270,49 @@ class TextDialog:
                 self._layer = 0
                 self._shift = not self._shift
                 if self._shift:
-                    self._current_alphabet = UPPERCASE_ALPHABET
+                    self._current_alphabet = self._shifted_alphabet
                 else:
-                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._current_alphabet = self._default_alphabet
             elif selected == SPECIAL_KEY_CAPS:
                 self._layer = 0
                 self._caps = not self._caps
                 if self._caps:
-                    self._current_alphabet = UPPERCASE_ALPHABET
+                    self._current_alphabet = self._shifted_alphabet
                 else:
-                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._current_alphabet = self._default_alphabet
             else:
                 self.text += selected
                 if self._shift:
                     self._shift = False
-                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._current_alphabet = self._default_alphabet
                 self._layer = 0
                 if self._caps:
-                    self._current_alphabet = UPPERCASE_ALPHABET
+                    self._current_alphabet = self.self._shifted_alphabet
                 else:
-                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._current_alphabet = self._default_alphabet
         elif len(selected) > 0:
             self._current_alphabet = selected
             self._layer = 1
 
         self._update_keys()
+
+
+class HexDialog(TextDialog):
+    def __init__(self, message, app, masked=False, on_complete=None, on_cancel=None):
+        super().__init__(message, app, masked, on_complete, on_cancel)
+        self._current_alphabet = HEX_ALPHABET
+        self._default_alphabet = self._shifted_alphabet = HEX_ALPHABET
+        self._update_keys()
+
+    def _update_keys(self):
+        if self._layer == -1:
+            self._keys = [
+                [SPECIAL_KEY_CANCEL],
+                [],
+                [],
+                [SPECIAL_KEY_DONE],
+                [SPECIAL_KEY_BACKSPACE],
+                [SPECIAL_KEY_BACK],
+            ]
+            return
+        return super()._update_keys()
