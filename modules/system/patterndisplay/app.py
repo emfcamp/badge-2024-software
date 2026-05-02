@@ -52,7 +52,10 @@ class PatternDisplay(App):
                         ],
                     )
                     _pclass = getattr(_pmodule, _patternclass)
-                    self._p = _pclass()
+                    try:
+                        self._p = _pclass(12)
+                    except TypeError:
+                        self._p = _pclass()
                 except ImportError:
                     raise ImportError(f"Pattern {path} not found!")
                 except Exception as e:
@@ -74,7 +77,10 @@ class PatternDisplay(App):
                     ],
                 )
                 _pclass = getattr(_pmodule, _patternclass)
-                self._p = _pclass()
+                try:
+                    self._p = _pclass(12)
+                except TypeError:
+                    self._p = _pclass()
             except ImportError:
                 raise ImportError(f"Pattern {self.pattern} not found!")
             except Exception as e:
