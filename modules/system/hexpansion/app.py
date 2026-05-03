@@ -63,6 +63,8 @@ class HexpansionManagerApp(app.App):
 
     def __init__(self, autolaunch=True):
         super().__init__()
+        global _hexpansion_manager
+        _hexpansion_manager = self
         eventbus.on_async(
             HexpansionInsertionEvent, self.handle_hexpansion_insertion, self
         )
@@ -73,6 +75,7 @@ class HexpansionManagerApp(app.App):
         self.format_dialog_port = None
         self.buttons = Buttons(self)
         self.hexpansion_apps = {}
+        self.hexpansion_headers = {}
         self.autolaunch = autolaunch
         tildagonos.set_led_power(True)
 
@@ -258,6 +261,7 @@ class HexpansionManagerApp(app.App):
 
         print("Found hexpansion header:")
         print(header)
+        self.hexpansion_headers[event.port] = header
 
         # Try creating block devices, one for the whole eeprom,
         # one for the partition with the filesystem on it
@@ -280,6 +284,9 @@ class HexpansionManagerApp(app.App):
         if event.port in self.hexpansion_apps:
             self._stop_hexpansion_app(self.hexpansion_apps[event.port], event.port)
 
+        if event.port in self.hexpansion_headers:
+            self.hexpansion_headers[event.port] = None
+
         if event.port in self.mountpoints:
             print(f"Unmounting {self.mountpoints[event.port]}")
             vfs.umount(self.mountpoints[event.port])
@@ -296,3 +303,6 @@ class HexpansionManagerApp(app.App):
 
         for hs in HexpansionConfig(event.port).pin:
             hs.init(hs.IN)
+
+
+_hexpansion_manager = None
