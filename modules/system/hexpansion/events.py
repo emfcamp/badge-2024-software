@@ -22,5 +22,18 @@ class HexpansionFormattedEvent(HexpansionEvent):
 
 
 class HexpansionMountedEvent(HexpansionEvent):
+    def __init__(self, port, header=None):
+        self.port = port
+        self.header = header
+
     def __str__(self):
         return f"Hexpansion in port {self.port} mounted"
+
+
+class HexpansionUnmountedEvent(HexpansionEvent):
+    def __init__(self, port, header=None):
+        self.port = port
+        self.header = header
+
+    def __str__(self):
+        return f"Hexpansion in port {self.port} unmounted"
