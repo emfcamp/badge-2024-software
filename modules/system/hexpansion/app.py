@@ -2,7 +2,12 @@ import os
 
 import app
 from system.hexpansion.config import HexpansionConfig
-from system.hexpansion.events import HexpansionRemovalEvent, HexpansionInsertionEvent
+from system.hexpansion.events import (
+    HexpansionRemovalEvent,
+    HexpansionInsertionEvent,
+    HexpansionMountedEvent,
+    HexpansionUnmountedEvent,
+)
 from system.hexpansion.util import (
     read_hexpansion_header,
     get_hexpansion_block_devices,
@@ -278,13 +283,17 @@ class HexpansionManagerApp(app.App):
         if eep is not None and partition is not None:
             self._mount_eeprom(partition, event.port)
 
+        eventbus.emit(HexpansionMountedEvent(port=event.port, header=header))
+
     async def handle_hexpansion_removal(self, event):
         print(event)
+        header = None
 
         if event.port in self.hexpansion_apps:
             self._stop_hexpansion_app(self.hexpansion_apps[event.port], event.port)
 
         if event.port in self.hexpansion_headers:
+            header = self.hexpansion_headers[event.port]
             self.hexpansion_headers[event.port] = None
 
         if event.port in self.mountpoints:
@@ -303,6 +312,8 @@ class HexpansionManagerApp(app.App):
 
         for hs in HexpansionConfig(event.port).pin:
             hs.init(hs.IN)
+
+        eventbus.emit(HexpansionUnmountedEvent(port=event.port, header=header))
 
 
 _hexpansion_manager = None
