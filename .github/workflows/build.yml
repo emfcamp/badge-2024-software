@@ -27,7 +27,7 @@ jobs:
           ./scripts/firstTime.sh
       - name: Build firmware
         run: |
-          docker run -q --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.4.1
+          docker run -q --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.5.1
       - name: Archive firmware
         uses: actions/upload-artifact@v4
         with:
