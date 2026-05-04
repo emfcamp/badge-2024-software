@@ -1,5 +1,6 @@
 set(IDF_TARGET esp32s3)
 
+cmake_policy(SET CMP0152 OLD)
 
 # Additional IDF components
 set(IDF_COMPONENTS
@@ -8,9 +9,8 @@ set(IDF_COMPONENTS
     flow3r_bmi270
     flow3r_bsp
     tildagon
-)
-set(EXTRA_COMPONENT_DIRS
-    "${CMAKE_CURRENT_LIST_DIR}/../../../../../components/"
+    esp_https_ota
+    wpa_supplicant
 )
 
 if(NOT GIT_FOUND)
@@ -23,6 +23,12 @@ file(
         FIRMWARE_ROOT
         BASE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
 )
+
+set(EXTRA_COMPONENT_DIRS
+    "${FIRMWARE_ROOT}/components/"
+)
+
+
 execute_process(
         COMMAND "python" "components/st3m/host-tools/version.py"
         WORKING_DIRECTORY "${FIRMWARE_ROOT}"

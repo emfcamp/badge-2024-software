@@ -18,5 +18,14 @@ target_sources(usermod_ota INTERFACE
 #     ${CMAKE_CURRENT_LIST_DIR}
 # )
 
+# Pull out include paths from components :(
+idf_component_get_property(esp_https_ota_includes esp_https_ota INCLUDE_DIRS)
+idf_component_get_property(esp_https_ota_dir esp_https_ota COMPONENT_DIR)
+list(TRANSFORM esp_https_ota_includes PREPEND ${esp_https_ota_dir}/)
+list(APPEND INCLUDES ${esp_https_ota_includes})
+
+target_include_directories(usermod_ota INTERFACE ${INCLUDES})
+
+
 # Link our INTERFACE library to the usermod target.
 target_link_libraries(usermod INTERFACE usermod_ota)
