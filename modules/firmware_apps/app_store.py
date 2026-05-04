@@ -4,31 +4,33 @@ import io
 import json
 import os
 import tarfile
+import time
 from tarfile import DIRTYPE, TarFile
 from typing import Any, Callable
+from perf_timer import PerfTimer
 
 import app
+import async_helpers
 import wifi
 import shutil
 import machine
-from app_components import Menu, clear_background, fourteen_pt, sixteen_pt, ten_pt
+from app_components import Menu, fourteen_pt, sixteen_pt, ten_pt
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from requests import get
 from system.eventbus import eventbus
-from system.launcher.app import APP_DIR, list_user_apps, InstallNotificationEvent
+from system.launcher.app import (
+    APP_DIR,
+    load_info,
+    InstallNotificationEvent,
+)
 from system.notification.events import ShowNotificationEvent
+from app_components.background import Background as bg
+from firmware_apps.settings_app import BG_DIR, PAT_DIR
 
 
 def dir_exists(filename):
     try:
         return (os.stat(filename)[0] & 0x4000) != 0
-    except OSError:
-        return False
-
-
-def file_exists(filename):
-    try:
-        return (os.stat(filename)[0] & 0x4000) == 0
     except OSError:
         return False
 
@@ -40,6 +42,43 @@ AVAILABLE = "StoreInstall"
 INSTALLED = "Uninstall"
 UPDATE = "Update"
 REFRESH = "Refresh Apps"
+
+
+def list_apps(dir, callable):
+    with PerfTimer("List user apps"):
+        apps = []
+        try:
+            contents = os.listdir(dir)
+        except OSError:
+            # directory doesn't exist
+            try:
+                os.mkdir(dir)
+            except OSError:
+                pass
+            return []
+
+        for name in contents:
+            app = {
+                "path": f"{dir[1:]}.{name}.app",
+                "callable": callable,
+                "name": name,
+                "folder": name,
+                "hidden": False,
+            }
+            metadata = load_info(dir, name)
+            if "version" not in metadata:
+                app["version"] = "0.0.0"
+            app.update(metadata)
+            apps.append(app)
+        return apps
+
+
+def list_all_apps():
+    return (
+        list_apps(APP_DIR, "__app_export__")
+        + list_apps(BG_DIR, "__Background__")
+        + list_apps(PAT_DIR, "__Pattern_Export__")
+    )
 
 
 class AppStoreApp(app.App):
@@ -89,23 +128,6 @@ class AppStoreApp(app.App):
             self.update_state("no_wifi")
             return
         self.update_state("refreshing_index")
-
-    def background_update(self, delta):
-        if self.state == "refreshing_index":
-            try:
-                self.response = get(APP_STORE_LISTING_URL)
-            except Exception:
-                self.update_state("no_index")
-                return
-            self.update_state("index_received")
-        if self.to_install_app:
-            # We wait one cycle after background_update is called to ensure the
-            # installation screen is drawn
-            if self.wait_one_cycle:
-                self.install_app(self.to_install_app)
-                self.to_install_app = None
-                self.wait_one_cycle = False
-            self.wait_one_cycle = True
 
     def handle_index(self):
         if not self.response:
@@ -195,6 +217,9 @@ class AppStoreApp(app.App):
         self.available_menu = Menu(
             self,
             menu_items=[app["manifest"]["app"]["name"] for app in filtered_index()],
+            info_items=[
+                app["manifest"]["metadata"]["description"] for app in filtered_index()
+            ],
             select_handler=on_select,
             back_handler=exit_available_menu,
             focused_item_font_size=fourteen_pt,
@@ -249,7 +274,7 @@ class AppStoreApp(app.App):
             # compare format v0.0.0
             return v1.split(".") > v2.split(".")
 
-        installed_apps = list_user_apps()
+        installed_apps = list_all_apps()
         self.apps_available_dict = {}
         for a in self.app_store_index:
             folder_name = a["id"]["owner"] + "_" + a["id"]["title"]
@@ -291,7 +316,7 @@ class AppStoreApp(app.App):
             self.cleanup_ui_widgets()
             self.update_state("main_menu")
 
-        installed_apps = list_user_apps()
+        installed_apps = list_all_apps()
 
         self.installed_menu = Menu(
             self,
@@ -303,7 +328,7 @@ class AppStoreApp(app.App):
         )
 
     def uninstall_app(self, app):
-        user_apps = list_user_apps()
+        user_apps = list_all_apps()
         selected_app = list(filter(lambda x: x["name"] == app, user_apps))
         if len(selected_app) == 0:
             raise RuntimeError(f"app not found: {app}")
@@ -330,7 +355,18 @@ class AppStoreApp(app.App):
             ctx.gray(1).move_to(0, start_y + i * ctx.font_size).text(line)
         ctx.restore()
 
-    def update(self, delta):
+    async def run(self, render_update):
+        last_time = time.ticks_ms()
+        await render_update()
+        while True:
+            cur_time = time.ticks_ms()
+            delta_ticks = time.ticks_diff(cur_time, last_time)
+            await self.main_loop(delta_ticks, render_update)
+            await render_update()
+            last_time = cur_time
+
+    async def main_loop(self, delta, render_update):
+        bg.update(delta)
         if self.state == "init":
             if not wifi.status():
                 self.update_state("wifi_init")
@@ -361,7 +397,22 @@ class AppStoreApp(app.App):
             self.prepare_installed_menu()
         elif self.state == "update_menu" and not self.update_menu:
             self.prepare_update_menu()
-
+        elif self.state == "refreshing_index":
+            try:
+                self.response = await async_helpers.unblock(
+                    get, render_update, APP_STORE_LISTING_URL
+                )
+            except Exception:
+                self.update_state("no_index")
+            else:
+                self.update_state("index_received")
+        elif self.state == "installing_app":
+            # We wait one cycle after background_update is called to ensure the
+            # installation screen is drawn
+            await async_helpers.unblock(
+                self.install_app, render_update, self.to_install_app
+            )
+            self.to_install_app = None
         if self.menu:
             self.menu.update(delta)
         if self.available_categories_menu:
@@ -377,7 +428,7 @@ class AppStoreApp(app.App):
         ctx.save()
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
-        clear_background(ctx)
+        bg.draw(ctx)
         if self.state == "main_menu" and self.menu:
             self.menu.draw(ctx)
         elif self.state == "main_menu" and not self.menu:
@@ -388,6 +439,8 @@ class AppStoreApp(app.App):
             self.available_categories_menu.draw(ctx)
         elif self.state == "available_menu" and self.available_menu:
             self.available_menu.draw(ctx)
+        elif self.state == "available_menu" and not self.available_menu:
+            pass
         elif self.state == "installed_menu" and self.installed_menu:
             self.installed_menu.draw(ctx)
         elif self.state == "update_menu" and self.update_menu:
@@ -421,6 +474,7 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Loading...")
         else:
             self.error_screen(ctx, "Unknown error")
+            print("Unkown error " + self.state)
         ctx.restore()
 
         self.draw_overlays(ctx)
@@ -492,10 +546,15 @@ def install_app(app):
 
         # TODO: Check we have enough storage in advance
         # TODO: Does the app already exist? Delete it
-
+        if app["manifest"]["app"].get("category") == "Background":
+            TARGET_DIR = "/backgrounds"
+        elif app["manifest"]["app"].get("category") == "Pattern":
+            TARGET_DIR = "/pattern"
+        else:
+            TARGET_DIR = APP_DIR
         # Make sure apps dir exists
         try:
-            os.mkdir(APP_DIR)
+            os.mkdir(TARGET_DIR)
         except OSError:
             pass
 
@@ -507,7 +566,7 @@ def install_app(app):
                 if not i.name.startswith(prefix):
                     continue
                 if i.type == DIRTYPE:
-                    dirname = f"{APP_DIR}/{i.name}"
+                    dirname = f"{TARGET_DIR}/{i.name}"
                     dirname = dirname.replace(prefix, app_module_name, 1)
                     print(f"Dirname: {dirname}")
                     if not dir_exists(dirname):
@@ -518,7 +577,7 @@ def install_app(app):
                             print(f"Failed to create {dirname}")
                             pass
                 else:
-                    filename = f"{APP_DIR}/{i.name}"
+                    filename = f"{TARGET_DIR}/{i.name}"
                     filename = filename.replace(prefix, app_module_name, 1)
                     print(f"Filename: {filename}")
                     f = t.extractfile(i)
@@ -532,7 +591,7 @@ def install_app(app):
             "hidden": False,
             "version": app["manifest"]["metadata"]["version"],
         }
-        json_path = f"{APP_DIR}/{app_module_name}/metadata.json"
+        json_path = f"{TARGET_DIR}/{app_module_name}/metadata.json"
         print(f"Json path: {json_path}")
         with open(json_path, "w+") as internal_manifest_file_handler:
             json.dump(internal_manifest, internal_manifest_file_handler)

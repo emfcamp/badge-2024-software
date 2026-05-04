@@ -1,9 +1,17 @@
 import settings
 import app
-from app_components import layout, tokens, TextDialog
+import os
+import time
+from app_components import layout, TextDialog
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
 from system.patterndisplay.events import PatternReload
+from app_components.background import Background as bg
+from system.launcher.app import load_info
+from system.scheduler.events import RequestForegroundPushEvent
+
+BG_DIR = "/backgrounds"
+PAT_DIR = "/pattern"
 
 
 def string_formatter(value):
@@ -27,14 +35,33 @@ def pct_formatter(value):
         return f"{value:.0%}"
 
 
+def tuple_formatter(value):
+    if value is None:
+        return "Default"
+    else:
+        if len(value) != 2:
+            value = (value, None)
+        # first entry is name
+        return value[0]
+
+
+def on_off_formatter(value):
+    if value is None:
+        return "Default"
+    elif value:
+        return "Yes"
+    else:
+        return "No"
+
+
 def reset_wifi_settings():
     print("RESET WIFI")
     for s in ["wifi_ssid", "wifi_password", "wifi_wpa2ent_username"]:
         settings.set(s, None)
 
 
-PATTERNS = ["rainbow", "cylon", "flash", "off"]
 BRIGHTNESSES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+CHANNELS = ["latest", "preview"]
 
 
 class SettingsApp(app.App):
@@ -42,8 +69,39 @@ class SettingsApp(app.App):
         self.layout = layout.LinearLayout(items=[layout.DefinitionDisplay("", "")])
         self.overlays = []
         self.dialog = None
+        self.load_alt_app_options()
+        self.ctx = None
         eventbus.on_async(ButtonDownEvent, self._button_handler, self)
-        # eventbus.on(RequestForegroundPushEvent, self.make_layout_children, self)
+        eventbus.on(RequestForegroundPushEvent, self.load_alt_app_options, self)
+
+    def load_options(self, dir, options: list):
+        try:
+            contents = os.listdir(dir)
+        except OSError:
+            # No dir
+            try:
+                os.mkdir(dir)
+            except OSError:
+                pass
+            contents = []
+        for name in contents:
+            metadata = load_info(dir, name)
+            path = name
+            if "name" in metadata:
+                name = metadata["name"]
+            options.append((name, path))
+        return options
+
+    def load_alt_app_options(self, event=None):
+        self.backgrounds = [("None", None), ("hexagons", None), ("emf logo", None)]
+        self.patterns = [
+            ("rainbow", None),
+            ("cylon", None),
+            ("flash", None),
+            ("off", None),
+        ]
+        self.backgrounds = self.load_options(BG_DIR, self.backgrounds)
+        self.patterns = self.load_options(PAT_DIR, self.patterns)
 
     async def string_editor(self, label, id, render_update):
         self.dialog = TextDialog(label, self)
@@ -98,14 +156,20 @@ class SettingsApp(app.App):
                     async def _button_event_pattern_toggle(event):
                         print(event)
                         if BUTTON_TYPES["CONFIRM"] in event.button:
-                            pattern = settings.get("pattern")
-                            if not pattern:
-                                pattern = "rainbow"
-                            idx = PATTERNS.index(pattern) + 1
-                            if idx >= len(PATTERNS):
+                            pattern = settings.get("pattern", ("rainbow", None))
+                            if len(pattern) != 2:
+                                pattern = (pattern, None)
+                            else:
+                                pattern = (pattern[0], pattern[1])
+                            if pattern not in self.patterns:
+                                pattern = ("rainbow", None)
                                 idx = 0
-                            print(f"{PATTERNS} {idx}")
-                            settings.set("pattern", PATTERNS[idx])
+                            else:
+                                idx = self.patterns.index(pattern) + 1
+                            if idx >= len(self.patterns):
+                                idx = 0
+                            print(f"{self.patterns[idx][0]} {idx}")
+                            settings.set("pattern", self.patterns[idx])
                             eventbus.emit(PatternReload())
                             await self.update_values()
                             await render_update()
@@ -140,6 +204,73 @@ class SettingsApp(app.App):
                     )
                     self.layout.items.append(entry)
 
+                if id == "pattern_mirror_hexpansions":
+
+                    async def _button_event_mirror_toggle(event):
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            mirror = settings.get("pattern_mirror_hexpansions")
+
+                            # default will evaluate to False here
+                            mirror = not mirror
+
+                            settings.set("pattern_mirror_hexpansions", mirror)
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry = layout.ButtonDisplay(
+                        "Toggle", button_handler=_button_event_mirror_toggle
+                    )
+                    self.layout.items.append(entry)
+
+                if id == "update_channel":
+
+                    async def _button_event_channel_toggle(event):
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            channel = settings.get("update_channel")
+                            if not channel:
+                                channel = "latest"
+                            idx = CHANNELS.index(channel) + 1
+                            if idx >= len(CHANNELS):
+                                idx = 0
+                            print(f"{CHANNELS} {idx}")
+                            settings.set("update_channel", CHANNELS[idx])
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry = layout.ButtonDisplay(
+                        "Toggle", button_handler=_button_event_channel_toggle
+                    )
+                    self.layout.items.append(entry)
+
+                if id == "background":
+
+                    async def _button_event_background_toggle(event):
+                        print(event)
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            background = settings.get("background", ("None", None))
+                            if background not in self.backgrounds:
+                                background = ("None", None)
+                            idx = self.backgrounds.index(background) + 1
+                            if idx >= len(self.backgrounds):
+                                idx = 0
+                            print(f"{background} {idx}")
+                            settings.set("background", self.backgrounds[idx])
+                            bg.reload()
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry = layout.ButtonDisplay(
+                        "Next background",
+                        button_handler=_button_event_background_toggle,
+                    )
+                    self.layout.items.append(entry)
+
             async def _button_event_w(event):
                 print(event)
                 if BUTTON_TYPES["CONFIRM"] in event.button:
@@ -155,8 +286,11 @@ class SettingsApp(app.App):
             entry = layout.ButtonDisplay("Reset WiFi", button_handler=_button_event_w)
             self.layout.items.append(entry)
 
+            previous_time = time.ticks_ms()
             while True:
                 await render_update()
+                current_time = time.ticks_ms()
+                self.update(current_time - previous_time)
                 if self.dialog:
                     result = await self.dialog.run(render_update)
                     if (
@@ -166,13 +300,15 @@ class SettingsApp(app.App):
                     self.dialog = None
                     if result:
                         break
+                previous_time = current_time
 
     def settings_options(self):
         return [
             ("name", "Name", string_formatter, self.string_editor),
-            ("pattern", "LED Pattern", string_formatter, None),
+            ("pattern", "LED Pattern", tuple_formatter, None),
             ("pattern_brightness", "Pattern brightness", pct_formatter, None),
-            ("pattern_mirror_hexpansions", "Mirror pattern", string_formatter, None),
+            ("pattern_mirror_hexpansions", "Mirror pattern", on_off_formatter, None),
+            ("background", "Background", tuple_formatter, None),
             ("update_channel", "Update channel", string_formatter, None),
             ("wifi_tx_power", "WiFi TX power", string_formatter, None),
             (
@@ -197,10 +333,14 @@ class SettingsApp(app.App):
         ]
 
     def update(self, delta):
-        return True
+        if delta > 0:
+            bg.update(delta)
+        pass
 
     def draw(self, ctx):
-        tokens.clear_background(ctx)
+        if self.ctx is None:
+            self.ctx = ctx
+        bg.draw(ctx)
         self.layout.draw(ctx)
         self.draw_overlays(ctx)
 

@@ -9,8 +9,7 @@ import os
 import math
 import sys
 
-import wasmer
-import wasmer_compiler_cranelift
+import wasmtime
 
 
 class Wasm:
@@ -20,30 +19,51 @@ class Wasm:
     """
 
     def __init__(self):
-        store = wasmer.Store(wasmer.engine.JIT(wasmer_compiler_cranelift.Compiler))
+        # Create engine and store
+        engine = wasmtime.Engine()
+        store = wasmtime.Store(engine)
+
+        # Load WASM module
         simpath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         wasmpath = os.path.join(simpath, "wasm", "ctx.wasm")
-        module = wasmer.Module(store, open(wasmpath, "rb").read())
-        wasi_version = wasmer.wasi.get_version(module, strict=False)
-        wasi_env = wasmer.wasi.StateBuilder("badge23sim").finalize()
-        import_object = wasi_env.generate_import_object(store, wasi_version)
-        instance = wasmer.Instance(module, import_object)
-        self._i = instance
+        with open(wasmpath, "rb") as f:
+            module = wasmtime.Module(engine, f.read())
+
+        # Configure WASI
+        wasi = wasmtime.WasiConfig()
+        wasi.argv = ["badge23sim"]
+        store.set_wasi(wasi)
+
+        # Create linker and instantiate
+        linker = wasmtime.Linker(engine)
+        linker.define_wasi()
+        instance = linker.instantiate(store, module)
+
+        self._store = store
+        self._instance = instance
+        self._memory = instance.exports(store)["memory"]
 
     def malloc(self, n):
-        return self._i.exports.malloc(n)
+        malloc_fn = self._instance.exports(self._store)["malloc"]
+        return malloc_fn(self._store, n)
 
     def free(self, p):
-        self._i.exports.free(p)
+        free_fn = self._instance.exports(self._store)["free"]
+        free_fn(self._store, p)
 
     def ctx_parse(self, ctx, s):
         s = s.encode("utf-8")
         slen = len(s) + 1
         p = self.malloc(slen)
-        mem = self._i.exports.memory.uint8_view(p)
-        mem[0 : slen - 1] = s
-        mem[slen - 1] = 0
-        self._i.exports.ctx_parse(ctx, p)
+        # Get memory view as ctypes array
+        mem = self._memory.data_ptr(self._store)
+        # Write string to memory
+        for i, byte in enumerate(s):
+            mem[p + i] = byte
+        mem[p + slen - 1] = 0
+        # Call ctx_parse
+        ctx_parse_fn = self._instance.exports(self._store)["ctx_parse"]
+        ctx_parse_fn(self._store, ctx, p)
         self.free(p)
 
     def ctx_new_for_framebuffer(self, width, height, stride, format):
@@ -52,25 +72,28 @@ class Wasm:
         framebuffer and return it alongside the Ctx*.
         """
         fb = self.malloc(stride * height)
-        return fb, self._i.exports.ctx_new_for_framebuffer(
-            fb, width, height, stride, format
-        )
+        ctx_new_fb_fn = self._instance.exports(self._store)["ctx_new_for_framebuffer"]
+        return fb, ctx_new_fb_fn(self._store, fb, width, height, stride, format)
 
     def ctx_new_drawlist(self, width, height):
-        return self._i.exports.ctx_new_drawlist(width, height)
+        ctx_new_drawlist_fn = self._instance.exports(self._store)["ctx_new_drawlist"]
+        return ctx_new_drawlist_fn(self._store, width, height)
 
     def ctx_apply_transform(self, ctx, *args):
         args = [float(a) for a in args]
-        return self._i.exports.ctx_apply_transform(ctx, *args)
+        ctx_apply_transform_fn = self._instance.exports(self._store)["ctx_apply_transform"]
+        return ctx_apply_transform_fn(self._store, ctx, *args)
 
     def ctx_define_texture(self, ctx, eid, *args):
         s = eid.encode("utf-8")
         slen = len(s) + 1
         p = self.malloc(slen)
-        mem = self._i.exports.memory.uint8_view(p)
-        mem[0 : slen - 1] = s
-        mem[slen - 1] = 0
-        res = self._i.exports.ctx_define_texture(ctx, p, *args)
+        mem = self._memory.data_ptr(self._store)
+        for i, byte in enumerate(s):
+            mem[p + i] = byte
+        mem[p + slen - 1] = 0
+        ctx_define_texture_fn = self._instance.exports(self._store)["ctx_define_texture"]
+        res = ctx_define_texture_fn(self._store, ctx, p, *args)
         self.free(p)
         return res
 
@@ -78,11 +101,13 @@ class Wasm:
         s = eid.encode("utf-8")
         slen = len(s) + 1
         p = self.malloc(slen)
-        mem = self._i.exports.memory.uint8_view(p)
-        mem[0 : slen - 1] = s
-        mem[slen - 1] = 0
+        mem = self._memory.data_ptr(self._store)
+        for i, byte in enumerate(s):
+            mem[p + i] = byte
+        mem[p + slen - 1] = 0
         args = [float(a) for a in args]
-        res = self._i.exports.ctx_draw_texture(ctx, p, *args)
+        ctx_draw_texture_fn = self._instance.exports(self._store)["ctx_draw_texture"]
+        res = ctx_draw_texture_fn(self._store, ctx, p, *args)
         self.free(p)
         return res
 
@@ -90,55 +115,63 @@ class Wasm:
         s = text.encode("utf-8")
         slen = len(s) + 1
         p = self.malloc(slen)
-        mem = self._i.exports.memory.uint8_view(p)
-        mem[0 : slen - 1] = s
-        mem[slen - 1] = 0
-        res = self._i.exports.ctx_text_width(ctx, p)
+        mem = self._memory.data_ptr(self._store)
+        for i, byte in enumerate(s):
+            mem[p + i] = byte
+        mem[p + slen - 1] = 0
+        ctx_text_width_fn = self._instance.exports(self._store)["ctx_text_width"]
+        res = ctx_text_width_fn(self._store, ctx, p)
         self.free(p)
         return res
 
     def ctx_x(self, ctx):
-        return self._i.exports.ctx_x(ctx)
+        ctx_x_fn = self._instance.exports(self._store)["ctx_x"]
+        return ctx_x_fn(self._store, ctx)
 
     def ctx_y(self, ctx):
-        return self._i.exports.ctx_y(ctx)
+        ctx_y_fn = self._instance.exports(self._store)["ctx_y"]
+        return ctx_y_fn(self._store, ctx)
 
     def ctx_logo(self, ctx, *args):
         args = [float(a) for a in args]
-        return self._i.exports.ctx_logo(ctx, *args)
+        ctx_logo_fn = self._instance.exports(self._store)["ctx_logo"]
+        return ctx_logo_fn(self._store, ctx, *args)
 
     def ctx_destroy(self, ctx):
-        return self._i.exports.ctx_destroy(ctx)
+        ctx_destroy_fn = self._instance.exports(self._store)["ctx_destroy"]
+        return ctx_destroy_fn(self._store, ctx)
 
     def ctx_render_ctx(self, ctx, dctx):
-        return self._i.exports.ctx_render_ctx(ctx, dctx)
+        ctx_render_ctx_fn = self._instance.exports(self._store)["ctx_render_ctx"]
+        return ctx_render_ctx_fn(self._store, ctx, dctx)
 
     def stbi_load_from_memory(self, buf):
         p = self.malloc(len(buf))
-        mem = self._i.exports.memory.uint8_view(p)
-        mem[0 : len(buf)] = buf
+        mem = self._memory.data_ptr(self._store)
+        # Write buffer to memory
+        for i, byte in enumerate(buf):
+            mem[p + i] = byte
         wh = self.malloc(4 * 3)
-        res = self._i.exports.stbi_load_from_memory(p, len(buf), wh, wh + 4, wh + 8, 4)
-        whmem = self._i.exports.memory.uint32_view(wh // 4)
-        r = (res, whmem[0], whmem[1], whmem[2])
+        stbi_load_fn = self._instance.exports(self._store)["stbi_load_from_memory"]
+        res = stbi_load_fn(self._store, p, len(buf), wh, wh + 4, wh + 8, 4)
+        # Read width, height, components as uint32
+        import struct
+        whmem_bytes = bytes(mem[wh:wh + 12])
+        w, h, c = struct.unpack('<III', whmem_bytes)
+        r = (res, w, h, c)
         self.free(p)
         self.free(wh)
 
         res, w, h, c = r
-        b = self._i.exports.memory.uint8_view(res)
+        b = mem[res:]
         if c == 3:
             return r
         for j in range(h):
             for i in range(w):
-                b[i * 4 + j * w * 4 + 0] = int(
-                    b[i * 4 + j * w * 4 + 0] * b[i * 4 + j * w * 4 + 3] / 255
-                )
-                b[i * 4 + j * w * 4 + 1] = int(
-                    b[i * 4 + j * w * 4 + 1] * b[i * 4 + j * w * 4 + 3] / 255
-                )
-                b[i * 4 + j * w * 4 + 2] = int(
-                    b[i * 4 + j * w * 4 + 2] * b[i * 4 + j * w * 4 + 3] / 255
-                )
+                idx = i * 4 + j * w * 4
+                b[idx + 0] = int(b[idx + 0] * b[idx + 3] / 255)
+                b[idx + 1] = int(b[idx + 1] * b[idx + 3] / 255)
+                b[idx + 2] = int(b[idx + 2] * b[idx + 3] / 255)
         return r
 
 

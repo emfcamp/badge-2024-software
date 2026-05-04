@@ -46,11 +46,7 @@ def read_hexpansion_header(
         print(f"No device found at {hex(eeprom_addr)}")
         return None
 
-    if set_read_addr:
-        addr_bytes = [0] * addr_len
-        i2c.writeto(eeprom_addr, bytes(addr_bytes))
-
-    header_bytes = i2c.readfrom(eeprom_addr, 32)
+    header_bytes = i2c.readfrom_mem(eeprom_addr, 0, 32, addrsize=addr_len * 8)
 
     try:
         header = HexpansionHeader.from_bytes(header_bytes)
@@ -75,6 +71,7 @@ def get_hexpansion_block_devices(i2c, header, addr=0x50, addr_len=2):
         chip_size=chip_size,
         page_size=header.eeprom_page_size,
         block_size=block_size,
+        addrsize=addr_len * 8,
     )
     partition = EEPROMPartition(
         eep=eep,

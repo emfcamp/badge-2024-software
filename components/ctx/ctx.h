@@ -55483,7 +55483,7 @@ void ctx_draw_image_clipped (Ctx *ctx, const char *path, float x, float y, float
   else
 #endif
   {
-    char reteid[65];
+    char reteid[65] = "";
     int width, height;
     ctx_texture_load (ctx, path, &width, &height, reteid);
     if (reteid[0])
