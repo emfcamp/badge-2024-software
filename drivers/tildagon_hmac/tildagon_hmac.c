@@ -13,7 +13,7 @@ static mp_obj_t tildagon_hmac_digest(mp_obj_t key_slot, mp_obj_t msg) {
   esp_err_t err = esp_hmac_calculate(key_id, bufinfo.buf, bufinfo.len, hmac);
 
   if (err == ESP_FAIL) {
-    mp_raise_msg(&mp_type_Exception, "HMAC key not provisioned!");
+    mp_raise_msg(&mp_type_Exception, MP_ERROR_TEXT("HMAC key not provisioned!"));
   }
 
   return mp_obj_new_bytes(hmac, 32);
