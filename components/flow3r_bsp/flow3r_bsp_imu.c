@@ -30,25 +30,13 @@ static float lsb_to_dps(int16_t val, float dps, uint8_t bit_width);
 static struct bmi2_sens_data _bmi_sens_data;
 static struct bmi2_feat_sensor_data _bmi_feat_data = {.type = BMI2_STEP_COUNTER};
 
-static tildagon_mux_i2c_obj_t* mux;
-
-#define READ ( MP_MACHINE_I2C_FLAG_WRITE1 | MP_MACHINE_I2C_FLAG_READ | MP_MACHINE_I2C_FLAG_STOP )
-#define WRITE MP_MACHINE_I2C_FLAG_STOP
-
 BMI2_INTF_RETURN_TYPE bmi2_i2c_read(uint8_t reg_addr, uint8_t *reg_data,
                                            uint32_t len, void *intf_ptr) {
     flow3r_bsp_imu_t *imu = (flow3r_bsp_imu_t *)intf_ptr;
-
-    uint8_t tx[] = { reg_addr };
-
     ESP_LOGD(TAG, "bhi read register %02X (%" PRIu32 " bytes)", reg_addr, len);
-
-    mp_machine_i2c_buf_t buffer[2] = { { .len = 1, .buf = tx },
-                                       { .len = len, .buf = reg_data } };
-    esp_err_t ret = tildagon_mux_i2c_transaction (mux, imu->bmi_dev_addr, 2, buffer, READ);
-    
-    if (ret < 0) {
-        ESP_LOGE(TAG, "i2c read/write fail: %s", esp_err_to_name(ret));
+    esp_err_t ret = tildagon_i2c_reg_read(TILDAGON_SYS_I2C_PORT, imu->bmi_dev_addr, reg_addr, reg_data, len);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "i2c read fail: %s", esp_err_to_name(ret));
         return BMI2_E_COM_FAIL;
     }
     ESP_LOG_BUFFER_HEX_LEVEL(TAG, reg_data, len, ESP_LOG_DEBUG);
@@ -59,23 +47,13 @@ BMI2_INTF_RETURN_TYPE bmi2_i2c_write(uint8_t reg_addr,
                                             const uint8_t *reg_data,
                                             uint32_t len, void *intf_ptr) {
     flow3r_bsp_imu_t *imu = (flow3r_bsp_imu_t *)intf_ptr;
-
-    uint8_t tx[len + 1];
-    tx[0] = reg_addr;
-    memcpy(tx + 1, reg_data, len);
-
-    ESP_LOGD(TAG, "bhi write to register %02X (%" PRIu32 " bytes)", reg_addr,
-             len);
+    ESP_LOGD(TAG, "bhi write to register %02X (%" PRIu32 " bytes)", reg_addr, len);
     ESP_LOG_BUFFER_HEX_LEVEL(TAG, reg_data, len, ESP_LOG_DEBUG);
-
-    mp_machine_i2c_buf_t buffer[1] = { { .len = sizeof(tx), .buf = tx } };
-    esp_err_t ret = tildagon_mux_i2c_transaction (mux, imu->bmi_dev_addr, 1, buffer, WRITE);
-
-    if (ret < 0) {
+    esp_err_t ret = tildagon_i2c_reg_write(TILDAGON_SYS_I2C_PORT, imu->bmi_dev_addr, reg_addr, reg_data, len);
+    if (ret != ESP_OK) {
         ESP_LOGE(TAG, "i2c write fail: %s", esp_err_to_name(ret));
         return BMI2_E_COM_FAIL;
     }
-
     return BMI2_OK;
 }
 
@@ -91,7 +69,6 @@ static void bmi2_delay_us(uint32_t period, void *intf_ptr) {
 
 esp_err_t flow3r_bsp_imu_init(flow3r_bsp_imu_t *imu) {
     memset(imu, 0, sizeof(*imu));
-    mux = tildagon_get_mux_obj( 7 );
     imu->bmi_dev_addr = BMI2_I2C_SEC_ADDR;
     imu->bmi.intf = BMI2_I2C_INTF;
     imu->bmi.read = bmi2_i2c_read;

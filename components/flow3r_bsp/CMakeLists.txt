@@ -9,6 +9,5 @@ idf_component_register(
     REQUIRES
 		driver
 		vfs
-		main
 		flow3r_bmi270
 )
