@@ -141,7 +141,7 @@ void tildagon_power_fast_task(void *param __attribute__((__unused__)))
         while ( 1 )
         {
             event_t event = NO_EVENT;
-            if ( xQueueReceive(event_queue, &event, portMAX_DELAY) )
+            if ( xQueueReceive(event_queue, &event, pdMS_TO_TICKS(1000)) )
             {
                 if ( ( event == NO_EVENT ) )
                 {
@@ -163,6 +163,13 @@ void tildagon_power_fast_task(void *param __attribute__((__unused__)))
                 {
                     /*  throw away */
                 }
+            }
+            else if ( gpio_get_level(GPIO_NUM_10) == 0 )
+            {
+                /* ISR handler was removed (e.g. by MicroPython soft reset), re-register it */
+                gpio_set_intr_type(GPIO_NUM_10, GPIO_INTR_NEGEDGE);
+                gpio_isr_handler_add(GPIO_NUM_10, tildagon_power_interrupt_event, NULL);
+                generate_events();
             }
         }
     }
