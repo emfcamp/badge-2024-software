@@ -35,6 +35,10 @@ execute_process(
         RESULT_VARIABLE res
         OUTPUT_VARIABLE TILDAGON_GIT_VERSION
         OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(
+    CONFIG_APP_PROJECT_VER
+    "${TILDAGON_GIT_VERSION}"
+)
 message("TILDAGON_GIT_VERSION=${TILDAGON_GIT_VERSION}")
 message("Location=${FIRMWARE_ROOT}")
 configure_file("${CMAKE_CURRENT_LIST_DIR}/sdkconfig.project_ver.in" "${CMAKE_CURRENT_LIST_DIR}/../../build-tildagon/sdkconfig.project_ver")
