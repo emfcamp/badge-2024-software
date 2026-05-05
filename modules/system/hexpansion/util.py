@@ -5,6 +5,31 @@ from system.hexpansion.header import HexpansionHeader
 
 import typing
 
+def guess_address_length(i2c, addr=0x50):
+    print("Guessing eeprom address length, starting with 2 bytes..")
+    try:
+        i2c.writeto(addr, bytes([0,0]))
+        d = i2c.readfrom(addr, 4)
+        if len(d) == 4:
+            print(".. its a 2 byter!")
+            return 2
+    except:
+        print("..not a 2 byte address, resetting to 1")
+
+    # flush the pending write/read, this overwrites the first byte to 
+    # a 0 which doesnt seem to upset the hexpansion header detection
+    # logic
+    # i've seen this run forever for some reason, so stick some bounds on it
+    ct = 0
+    while ct < 10:
+        try:
+            if i2c.writeto(addr, bytes([0])):
+                break
+            ct += 1
+        except OSError:
+            pass
+
+    return 1
 
 def detect_eeprom_addr(i2c):
     devices = i2c.scan()
@@ -21,8 +46,15 @@ def detect_eeprom_addr(i2c):
         and 0x50 in devices
     ):
         return (0x50, 1)
+
+    # some devices share this address but use single byte
+    # addresses. A quick test is to write two bytes then do a read
+    # if the device throws ENODEV then its probably a single byte 
+    # device. This does overwrite the first byte of the eeprom tho
+    # and will fail on devices with write-protect enabled
     if 0x50 in devices:
-        return (0x50, 2)
+        addr_len = guess_address_length(i2c, addr=0x50)
+        return (0x50, addr_len)
     return (None, None)
 
 
