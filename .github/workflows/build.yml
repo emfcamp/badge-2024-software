@@ -73,11 +73,12 @@ jobs:
             micropython/ports/esp32/build-tildagon/tildagon.txt
       - name: Build merged image
         run: |
-          source esp-idf/export.sh
-          cd micropython/ports/esp32
-          python -m esptool --chip esp32s3 -b 460800 merge_bin -o merged-firmware.bin --flash_mode dio --flash_size 8MB --flash_freq 80m 0x0 build-tildagon/bootloader/bootloader.bin 0x8000 build-tildagon/partition_table/partition-table.bin 0xd000 build-tildagon/ota_data_initial.bin 0x10000 build-tildagon/micropython.bin
-          cp merged-firmware.bin $GITHUB_WORKSPACE/flasher/
-        if: startsWith(github.event.ref, 'refs/tags/v')
+          docker run --entrypoint=/firmware/scripts/merge-firmwares.sh -q --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.5.1
+        if: ${{startsWith(github.event.ref, 'refs/tags/v') && !contains(github.event.ref, '-') }}
+      - name: Move merged image
+        run: |
+          cp micropython/ports/esp32/build-tildagon/merged-firmware.bin $GITHUB_WORKSPACE/flasher/
+        if: ${{startsWith(github.event.ref, 'refs/tags/v') && !contains(github.event.ref, '-') }}
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/upload-pages-artifact@v3 # or specific "vX.X.X" version tag for this action
