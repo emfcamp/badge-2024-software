@@ -6,7 +6,7 @@
 #include "esp_wifi.h"
 #include "rom/uart.h"
 #include "soc/rtc_cntl_reg.h"
-#include "esp_wpa2.h"
+#include "esp_eap_client.h"
 #include "driver/ledc.h"
 
 // static const char *TAG = "tildagon_helpers";
@@ -49,9 +49,9 @@ static MP_DEFINE_CONST_FUN_OBJ_1(tildagon_esp_wifi_set_max_tx_power_obj, tildago
 static mp_obj_t tildagon_esp_wifi_sta_wpa2_ent_enable(mp_obj_t flag_obj) {
     esp_err_t err;
     if (mp_obj_is_true(flag_obj)) {
-        err = esp_wifi_sta_wpa2_ent_enable();
+        err = esp_wifi_sta_enterprise_enable();
     } else {
-        err = esp_wifi_sta_wpa2_ent_disable();
+        err = esp_wifi_sta_enterprise_disable();
     }
     check_esp_err(err);
     return mp_const_none;
@@ -62,10 +62,10 @@ static mp_obj_t tildagon_esp_wifi_sta_wpa2_ent_set_identity(mp_obj_t id_obj) {
     if (mp_obj_is_true(id_obj)) {
         size_t len = 0;
         const char* id = mp_obj_str_get_data(id_obj, &len);
-        esp_err_t err = esp_wifi_sta_wpa2_ent_set_identity((const unsigned char*)id, len);
+        esp_err_t err = esp_eap_client_set_identity((const unsigned char*)id, len);
         check_esp_err(err);
     } else {
-        esp_wifi_sta_wpa2_ent_clear_identity();
+        esp_eap_client_clear_identity();
     }
     return mp_const_none;
 }
@@ -75,10 +75,10 @@ static mp_obj_t tildagon_esp_wifi_sta_wpa2_ent_set_username(mp_obj_t username_ob
     if (mp_obj_is_true(username_obj)) {
         size_t len = 0;
         const char* username = mp_obj_str_get_data(username_obj, &len);
-        esp_err_t err = esp_wifi_sta_wpa2_ent_set_username((const unsigned char*)username, len);
+        esp_err_t err = esp_eap_client_set_username((const unsigned char*)username, len);
         check_esp_err(err);
     } else {
-        esp_wifi_sta_wpa2_ent_clear_username();
+        esp_eap_client_clear_username();
     }
     return mp_const_none;
 }
@@ -88,10 +88,10 @@ static mp_obj_t tildagon_esp_wifi_sta_wpa2_ent_set_password(mp_obj_t pass_obj) {
     if (mp_obj_is_true(pass_obj)) {
         size_t len = 0;
         const char* password = mp_obj_str_get_data(pass_obj, &len);
-        esp_err_t err = esp_wifi_sta_wpa2_ent_set_password((const unsigned char*)password, len);
+        esp_err_t err = esp_eap_client_set_password((const unsigned char*)password, len);
         check_esp_err(err);
     } else {
-        esp_wifi_sta_wpa2_ent_clear_password();
+        esp_eap_client_clear_password();
     }
     return mp_const_none;
 }

@@ -2,7 +2,7 @@
 
 #include "bmi2_defs.h"
 
-#include "tildagon_i2c.h"
+#include "tildagon_i2c_mpless.h"
 
 #include "esp_err.h"
 

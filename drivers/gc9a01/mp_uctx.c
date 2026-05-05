@@ -386,7 +386,7 @@ static mp_obj_t mp_ctx_texture(size_t n_args, const mp_obj_t *args) {
     mp_ctx_obj_t *self = MP_OBJ_TO_PTR(args[0]);
 
     if (!mp_get_buffer(args[1], &buffer_info, MP_BUFFER_READ)) {
-        mp_raise_TypeError("not a buffer");
+        mp_raise_TypeError(MP_ERROR_TEXT("not a buffer"));
     }
     int format = mp_obj_get_int(args[2]);
     int width = mp_obj_get_int(args[3]);
@@ -444,7 +444,7 @@ static mp_obj_t mp_ctx_get_font_name(mp_obj_t self_in, mp_obj_t no_in) {
     if (name)
         return mp_obj_new_str(name, strlen(name));
     else
-        mp_raise_ValueError("font with given index does not exist");
+        mp_raise_ValueError(MP_ERROR_TEXT("font with given index does not exist"));
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mp_ctx_get_font_name_obj, mp_ctx_get_font_name);
 
@@ -466,12 +466,12 @@ static mp_obj_t mp_ctx_add_stop(size_t n_args, const mp_obj_t *args) {
         alpha_f = (float)mp_obj_get_float(args[3]);
     }
     if (alpha_f < 0.0f || alpha_f > 1.0f) {
-        mp_raise_ValueError("alpha must be between 0.0 or 1.0");
+        mp_raise_ValueError(MP_ERROR_TEXT("alpha must be between 0.0 or 1.0"));
     }
 
     mp_obj_t red_in, green_in, blue_in;
     if (mp_obj_get_int(mp_obj_len(color_in)) < 3) {
-        mp_raise_ValueError("color must have 3 elements");
+        mp_raise_ValueError(MP_ERROR_TEXT("color must have 3 elements"));
     }
     red_in = mp_obj_subscr(color_in, mp_obj_new_int(0), MP_OBJ_SENTINEL);
     green_in = mp_obj_subscr(color_in, mp_obj_new_int(1), MP_OBJ_SENTINEL);
@@ -530,7 +530,7 @@ STATIC void generic_method_lookup(mp_obj_t obj, qstr attr, mp_obj_t *dest) {
 static mp_obj_t mp_ctx_tinyvg_get_size(mp_obj_t self_in, mp_obj_t buffer_in) {
     mp_buffer_info_t buffer_info;
     if (!mp_get_buffer(buffer_in, &buffer_info, MP_BUFFER_READ)) {
-        mp_raise_TypeError("not a buffer");
+        mp_raise_TypeError(MP_ERROR_TEXT("not a buffer"));
     }
     int width = 0, height = 0;
     ctx_tinyvg_get_size(buffer_info.buf, buffer_info.len, &width, &height);
@@ -546,7 +546,7 @@ static mp_obj_t mp_ctx_tinyvg_draw(mp_obj_t self_in, mp_obj_t buffer_in) {
     mp_buffer_info_t buffer_info;
 
     if (!mp_get_buffer(buffer_in, &buffer_info, MP_BUFFER_READ)) {
-        mp_raise_TypeError("not a buffer");
+        mp_raise_TypeError(MP_ERROR_TEXT("not a buffer"));
     }
     ctx_tinyvg_draw(self->ctx, buffer_info.buf, buffer_info.len, 0);
     return self_in;
@@ -647,7 +647,7 @@ static mp_obj_t mp_ctx_make_new(const mp_obj_type_t *type, size_t n_args,
 
         if (!mp_get_buffer(args[ARG_buffer].u_obj, &buffer_info,
                            MP_BUFFER_READ)) {
-            mp_raise_TypeError("not a buffer");
+            mp_raise_TypeError(MP_ERROR_TEXT("not a buffer"));
         }
         o->ctx = ctx_new_for_framebuffer(buffer_info.buf, width, height, stride,
                                          format);

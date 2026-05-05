@@ -5,10 +5,9 @@ idf_component_register(
 		flow3r_bsp_imu.c
     INCLUDE_DIRS
 		.
-		../flow3r_bmi270
 		../../drivers/tildagon_i2c
     REQUIRES
 		driver
 		vfs
-		main_esp32s3
+		flow3r_bmi270
 )
