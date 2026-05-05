@@ -64,6 +64,16 @@ void flow3r_bsp_display_send_fb(void *fb_data, int bits) {
     flow3r_bsp_display_send_fb_osd(fb_data, bits, 1, NULL, 0, 0, 0, 0);
 }
 
+void flow3r_bsp_display_send_rect(const void *data,
+                                   uint16_t x, uint16_t y,
+                                   uint16_t w, uint16_t h) {
+    if (!gc9a01_initialized) return;
+    esp_err_t ret = flow3r_bsp_gc9a01_blit_rect(&gc9a01, data, x, y, w, h);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "display rect blit failed: %s", esp_err_to_name(ret));
+    }
+}
+
 void flow3r_bsp_display_set_backlight(uint8_t percent) {
     if (!gc9a01_initialized) {
         return;
