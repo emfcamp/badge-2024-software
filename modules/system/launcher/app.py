@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 from app import App
 from app_components import clear_background
@@ -155,6 +156,7 @@ class Launcher(App):
                 app = getattr(module, fn)()
             except Exception as e:
                 print(f"Error creating app: {e}")
+                sys.print_exception(e, sys.stderr)
                 eventbus.emit(
                     ShowNotificationEvent(message=f"{item['name']} has crashed")
                 )

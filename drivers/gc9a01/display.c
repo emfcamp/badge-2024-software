@@ -70,6 +70,10 @@ void tildagon_end_frame(Ctx *ctx)
 {
   ctx_restore (ctx);
   tildagon_blit_fb ();
+  // display.end_frame() cannot call ctx_end_frame() directly here: that resets
+  // rasterizer state, including the framebuffer clip bounds, which leaves
+  // subsequent frames blank. Advance only the texture eviction clock.
+  ctx_set_textureclock (ctx, ctx_textureclock (ctx) + 1);
   st3m_gfx_fps_update ();
 }
 

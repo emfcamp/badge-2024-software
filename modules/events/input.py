@@ -26,6 +26,8 @@ class Button:
         return self.name == other.name and self.group == other.group
 
     def __contains__(self, other):
+        if other == self:
+            return True
         parent = self.parent
         while parent is not None:
             if other == parent:
@@ -33,6 +35,17 @@ class Button:
             else:
                 parent = parent.parent
         return False
+
+    def find_parent_in_group(self, group):
+        if self.group == group:
+            return self
+        parent = self.parent
+        while parent is not None:
+            if parent.group == group:
+                return parent
+            else:
+                parent = parent.parent
+        return None
 
 
 BUTTON_TYPES = {

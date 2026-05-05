@@ -141,63 +141,52 @@ class Menu:
         else:
             # calculate biggest font size a menu item should grow to
             if not self.focused_item_font_size_arr:
-                for item in self.menu_items:
-                    fs = self._calculate_max_focussed_font_size(item, ctx)
-                    self.focused_item_font_size_arr = (
-                        self.focused_item_font_size_arr + [fs]
-                    )
+                self.focused_item_font_size_arr = [
+                    self._calculate_max_focussed_font_size(item, ctx)
+                    for item in self.menu_items
+                ]
 
-            animation_progress = ease_out_quart(self.animation_time_ms / self.speed_ms)
-            animation_direction = 1 if self.is_animating == "up" else -1
+            if self.is_animating == "none":
+                animation_progress = 1.0
+                y_offset = 0
+            else:
+                animation_progress = ease_out_quart(
+                    self.animation_time_ms / self.speed_ms
+                )
+                animation_direction = 1 if self.is_animating == "up" else -1
+                y_offset = animation_direction * 30 * (animation_progress - 1)
 
             ctx.text_align = ctx.CENTER
             ctx.text_baseline = ctx.MIDDLE
 
             set_color(ctx, "label")
             num_menu_items = len(self.menu_items)
+            pos = self.position % num_menu_items if num_menu_items > 0 else 0
 
             # Current menu item
             ctx.font_size = self.item_font_size + animation_progress * (
-                self.focused_item_font_size_arr[
-                    self.position % num_menu_items if num_menu_items > 0 else 1
-                ]
-                - self.item_font_size
+                self.focused_item_font_size_arr[pos] - self.item_font_size
             )
-
-            label = ""
-            try:
-                label = self.menu_items[
-                    self.position % num_menu_items if num_menu_items > 0 else 1
-                ]
-            except IndexError:
-                label = "Empty Menu"
-            ctx.move_to(
-                0,
-                animation_direction * -30
-                + animation_progress * animation_direction * 30,
-            ).text(label)
+            label = self.menu_items[pos] if num_menu_items > 0 else "Empty Menu"
+            ctx.move_to(0, y_offset).text(label)
 
             # Previous menu items
             ctx.font_size = self.item_font_size
             for i in range(1, 4):
-                if (self.position - i) >= 0 and len(self.menu_items):
+                if (self.position - i) >= 0 and num_menu_items:
                     ctx.move_to(
                         0,
                         -self.focused_item_margin
-                        + -i * self.item_line_height
-                        - animation_direction * 30
-                        + animation_progress * animation_direction * 30,
+                        - i * self.item_line_height
+                        + y_offset,
                     ).text(self.menu_items[self.position - i])
 
             # Next menu items
             for i in range(1, 4):
-                if (self.position + i) < len(self.menu_items):
+                if (self.position + i) < num_menu_items:
                     ctx.move_to(
                         0,
-                        self.focused_item_margin
-                        + i * self.item_line_height
-                        - animation_direction * 30
-                        + animation_progress * animation_direction * 30,
+                        self.focused_item_margin + i * self.item_line_height + y_offset,
                     ).text(self.menu_items[self.position + i])
 
     def update(self, delta):
