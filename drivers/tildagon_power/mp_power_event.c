@@ -77,6 +77,70 @@ static mp_obj_t mp_power_lanyard_detach_set_cb(mp_obj_t cb)
 
 static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_event_lanyard_detach_set_cb_obj, mp_power_lanyard_detach_set_cb);
 
+static mp_obj_t mp_power_badge_as_device_attach_set_cb(mp_obj_t cb) 
+{
+    callbacks[MP_POWER_EVENT_BADGE_AS_DEVICE_ATTACH] = cb;
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_badge_as_device_attach_set_cb_obj, mp_power_badge_as_device_attach_set_cb);
+
+static mp_obj_t mp_power_badge_as_device_detach_set_cb(mp_obj_t cb) 
+{
+    callbacks[MP_POWER_EVENT_BADGE_AS_DEVICE_DETACH] = cb;
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_badge_as_device_detach_set_cb_obj, mp_power_badge_as_device_detach_set_cb);
+
+static mp_obj_t mp_power_badge_as_host_attach_set_cb(mp_obj_t cb) 
+{
+    callbacks[MP_POWER_EVENT_BADGE_AS_HOST_ATTACH] = cb;
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_badge_as_host_attach_set_cb_obj, mp_power_badge_as_host_attach_set_cb);
+
+static mp_obj_t mp_power_badge_as_host_detach_set_cb(mp_obj_t cb) 
+{
+    callbacks[MP_POWER_EVENT_BADGE_AS_HOST_DETACH] = cb;
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_badge_as_host_detach_set_cb_obj, mp_power_badge_as_host_detach_set_cb);
+
+static mp_obj_t mp_power_device_vendor_msg_rx_set_cb(mp_obj_t cb) 
+{
+    callbacks[MP_POWER_EVENT_DEVICE_VENDOR_MSG_RX] = cb;
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_event_device_vendor_msg_rx_set_cb_obj, mp_power_device_vendor_msg_rx_set_cb);
+
+static mp_obj_t mp_power_host_vendor_msg_rx_set_cb(mp_obj_t cb) 
+{
+    callbacks[MP_POWER_EVENT_HOST_VENDOR_MSG_RX] = cb;
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_event_host_vendor_msg_rx_set_cb_obj, mp_power_host_vendor_msg_rx_set_cb);
+
+static mp_obj_t mp_power_host_prime_msg_rx_set_cb(mp_obj_t cb) 
+{
+    callbacks[MP_POWER_EVENT_HOST_PRIME_MSG_RX] = cb;
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_host_prime_msg_rx_set_cb_obj, mp_power_host_prime_msg_rx_set_cb);
+
+static mp_obj_t mp_power_host_dbl_prime_msg_rx_set_cb(mp_obj_t cb) 
+{
+    callbacks[MP_POWER_EVENT_HOST_DBL_PRIME_MSG_RX] = cb;
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_power_host_dbl_prime_msg_rx_set_cb_obj, mp_power_host_dbl_prime_msg_rx_set_cb);
+
 
 static const mp_rom_map_elem_t power_event_globals_table[] = 
 {
@@ -89,6 +153,14 @@ static const mp_rom_map_elem_t power_event_globals_table[] =
     { MP_ROM_QSTR(MP_QSTR_set_device_detach_cb), MP_ROM_PTR(&mp_power_event_device_detach_set_cb_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_lanyard_attach_cb), MP_ROM_PTR(&mp_power_event_lanyard_attach_set_cb_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_lanyard_detach_cb), MP_ROM_PTR(&mp_power_event_lanyard_detach_set_cb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_badge_as_device_attach_cb), MP_ROM_PTR(&mp_power_badge_as_device_attach_set_cb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_badge_as_device_detach_cb), MP_ROM_PTR(&mp_power_badge_as_device_detach_set_cb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_badge_as_host_attach_cb), MP_ROM_PTR(&mp_power_badge_as_host_attach_set_cb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_badge_as_host_detach_cb), MP_ROM_PTR(&mp_power_badge_as_host_detach_set_cb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_device_vendor_msg_rx_cb), MP_ROM_PTR(&mp_power_event_device_vendor_msg_rx_set_cb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_host_vendor_msg_rx_cb), MP_ROM_PTR(&mp_power_event_host_vendor_msg_rx_set_cb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_host_prime_msg_rx_cb), MP_ROM_PTR(&mp_power_host_prime_msg_rx_set_cb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_host_dbl_prime_msg_rx_cb), MP_ROM_PTR(&mp_power_host_dbl_prime_msg_rx_set_cb_obj) },
 };
 
 static MP_DEFINE_CONST_DICT(power_event_globals, power_event_globals_table);
