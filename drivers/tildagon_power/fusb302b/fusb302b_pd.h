@@ -197,7 +197,6 @@ typedef struct
 #define PD_STANDARD_POWER_VOLTAGE_SUPPLY 2U
 
 #define PD_MAX_TX_MSG_SIZE 50 
-#define PD_VENDOR_ID 0xCDCD
 
 typedef struct
 {
