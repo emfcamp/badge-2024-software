@@ -12,7 +12,7 @@
 #include "tildagon_power.h"
 #include "mp_power_event.h"
 
-#define PD_VENDOR_ID CONFIG_TINYUSB_DESC_CUSTOM_VID
+#define PD_VENDOR_ID 0xD016
 
 typedef enum 
 {
