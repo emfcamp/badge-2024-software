@@ -162,8 +162,7 @@ class Wasm:
         self.free(p)
         self.free(wh)
 
-        res, w, h, c = r
-        b = mem[res:]
+        b = mem[res:res + w * h * c]
         if c == 3:
             return r
         for j in range(h):
