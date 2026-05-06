@@ -63,6 +63,8 @@ class TwentyTwentyFour(FrontBoard):
     pin_assignment = {key: None for key in BUTTONS.keys()}
     button_states = {key: [False, 0] for key in BUTTONS.keys()}
     hexpansion_states = {1: None, 2: None, 3: None, 4: None, 5: None, 6: None}
+    year = 2024
+    num_pattern_leds = 12
 
     async def background_task(self):
         global sim
