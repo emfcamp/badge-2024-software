@@ -143,7 +143,7 @@ def mkstat(orig_stat):
 os.stat = mkstat(os.stat)
 
 
-sys.print_exception = lambda x: print(traceback.format_exc())
+sys.print_exception = lambda *_: print(traceback.format_exc())
 
 
 def replace_launcher(module_name: str, class_name: str):
