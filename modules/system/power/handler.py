@@ -36,6 +36,8 @@ class PowerEventHandler:
         eventbus.emit(
             events.RequestHostAttachEvent(events.PowerEvent("Host attatched"))
         )
+        pdh = pdHelper()
+        pdh.host_send_badge_id()
 
     def HostDetachHandler(self):
         eventbus.emit(

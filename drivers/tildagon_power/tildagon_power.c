@@ -248,8 +248,6 @@ void host_unattached_handler( event_t event )
             fusb_set_vcon( &usb_out.fusb, ( usb_out.fusb.cc_select ^ 3 ) & 0x03 );
             fusb_mask_interrupt_retryfail( &usb_out.fusb, 0 );
             fusb_mask_interrupt_txsent( &usb_out.fusb, 0 );
-            fusbpd_vendor_specific( &usb_out.pd, tildagon_message, 5 );
-            fusb_send ( &usb_out.fusb, usb_out.pd.tx_buffer, usb_out.pd.message_length );
             host_pd_state = WAITING;
         }
         push_event( MP_POWER_EVENT_HOST_ATTACH );
