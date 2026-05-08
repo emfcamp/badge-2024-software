@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "name": "badge-2024-software",
+      "path": "."
+    },
+    {
+      "name": "BadgeBot",
+      "path": "sim/apps/BadgeBot"
+    },
+    {
+      "name": "HexManager",
+      "path": "sim/apps/HexManager"
+    }
+  ]
+}

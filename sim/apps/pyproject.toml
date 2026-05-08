@@ -1,0 +1,47 @@
+# Pylint formatting policy used across the project.
+# Set to 200 to match existing code style and reduce noisy line wrapping.
+[tool.pylint.format]
+max-line-length = 200
+max-module-lines = 2000
+
+# General pylint behavior for this repository.
+[tool.pylint.master]
+# Add the shared badge module tree as an import root for linting.
+# Keep app-local imports like `import app` out of this path to avoid
+# cross-app ambiguity when multiple simulator apps live in one workspace.
+init-hook = "import sys; from pathlib import Path; root = Path().resolve(); modules = str(root / 'modules'); sys.path.insert(0, modules) if modules not in sys.path else None"
+
+# These modules are provided by BadgeOS/MicroPython runtime or simulator,
+# not by standard desktop CPython. Ignoring them avoids false E0401 import
+# errors when linting on developer machines.
+ignored-modules = [
+    "machine",
+    "micropython",
+    "ota",
+    "vfs",
+    "app",
+    "display",
+    "imu",
+    "egpio",
+]
+disable = [
+    "import-outside-toplevel",  # Allow imports inside functions for lazy imports and to avoid circular dependencies.
+]
+
+# Type-checking exceptions for dynamic runtime members.
+[tool.pylint.typecheck]
+# MicroPython exposes these members at runtime, but desktop type models often
+# do not. Marking them as generated-members prevents false no-member warnings.
+generated-members = [
+    "time.ticks_ms",
+    "time.ticks_diff",
+    "time.ticks_add",
+    "time.sleep_ms",
+    "asyncio.sleep_ms",
+    "time.ticks_us",
+    "time.sleep_us",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

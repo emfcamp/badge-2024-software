@@ -1,0 +1,3 @@
+from typing import Any
+
+def compile(pattern: str, flags: int = ...) -> Any: ...

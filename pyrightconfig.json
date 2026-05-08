@@ -1,0 +1,37 @@
+{
+  "stubPath": "sim/apps/typings",
+  "extraPaths": [
+    "modules"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "executionEnvironments": [
+    {
+      "root": "modules",
+      "extraPaths": [
+        "modules"
+      ]
+    },
+    {
+      "root": "sim/apps/BadgeBot",
+      "extraPaths": [
+        "modules",
+        "sim/apps/BadgeBot"
+      ]
+    },
+    {
+      "root": "sim/apps/HexManager",
+      "extraPaths": [
+        "modules",
+        "sim/apps/HexManager"
+      ]
+    },
+    {
+      "root": "sim/apps/EMFBadge-Hexpansions-GPS",
+      "extraPaths": [
+        "modules",
+        "sim/apps/EMFBadge-Hexpansions-GPS"
+      ]
+    }
+  ]
+}
