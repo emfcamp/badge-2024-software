@@ -558,7 +558,14 @@ def install_app(app):
         except OSError:
             pass
 
-        app_module_name = "_".join(prefix.split("-")[0:-1])
+        # I think this is all we need
+        # So like
+        # https://whatever.forge/dave-user/tildagon-some-app
+        # resolves to
+        # dave_user_tildagon_some_app
+        app_module_name = "_".join([app["id"]["owner"], app["id"]["title"]]).replace(
+            "-", "_"
+        )
 
         t = TarFile(fileobj=tar_bytesio)
         for i in t:
@@ -604,11 +611,12 @@ def install_app(app):
         raise e
 
 
-def validate_app_files(tar):
-    prefix = find_app_root_dir(tar)
-    app_py_path = find_app_py_file(prefix, tar)
-    print(f"Found app.py at: {app_py_path}")
-    return prefix
+# I don't believe this is ever called
+# def validate_app_files(tar):
+#     prefix = find_app_root_dir(tar)
+#     app_py_path = find_app_py_file(prefix, tar)
+#     print(f"Found app.py at: {app_py_path}")
+#     return prefix
 
 
 def find_app_root_dir(tar):
