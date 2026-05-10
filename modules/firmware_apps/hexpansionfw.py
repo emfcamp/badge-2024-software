@@ -186,6 +186,20 @@ class HexpansionDetail:
         try:
             with open(_TMP_PATH, "rb") as f:
                 tar_bytes = gzip.decompress(f.read())
+            for entry in TarFile(fileobj=io.BytesIO(tar_bytes)):
+                if not entry or entry.type == DIRTYPE:
+                    continue
+                name = entry.name.lstrip("./")
+                candidates = [name]
+                if name.endswith(".py"):
+                    candidates.append(name[:-3] + ".mpy")
+                elif name.endswith(".mpy"):
+                    candidates.append(name[:-4] + ".py")
+                for candidate in candidates:
+                    try:
+                        os.remove(f"{mountpoint}/{candidate}")
+                    except OSError:
+                        pass
             tar = TarFile(fileobj=io.BytesIO(tar_bytes))
             for entry in tar:
                 if not entry or entry.type == DIRTYPE:
