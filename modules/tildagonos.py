@@ -23,7 +23,7 @@ led_colours = [
 
 class _tildagonos:
     def __init__(self):
-        self.leds = neopixel.NeoPixel(Pin(21), 19)
+        self.leds = neopixel.ComposedNeoPixel(neopixel.NeoPixel(Pin(21), 19))
 
     def init_gpio(self):
         print(
