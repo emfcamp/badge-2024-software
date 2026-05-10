@@ -558,7 +558,7 @@ def install_app(app):
         except OSError:
             pass
 
-        app_module_name = "_".join(prefix.split("-")[0:-1])
+        app_module_name = derive_app_module_name(prefix, app)
 
         t = TarFile(fileobj=tar_bytesio)
         for i in t:
@@ -604,11 +604,33 @@ def install_app(app):
         raise e
 
 
-def validate_app_files(tar):
-    prefix = find_app_root_dir(tar)
-    app_py_path = find_app_py_file(prefix, tar)
-    print(f"Found app.py at: {app_py_path}")
-    return prefix
+def derive_app_module_name(prefix, metadata):
+    # with a Github tarball (the default):
+    # the owner name is baked into the root directory
+    owner = ""
+
+    # and a hash is attached to the end, which we want to strip
+    final_index = -1
+
+    # with a Codeberg tarball:
+    if metadata["id"]["service"] == "codeberg":
+        # the owner name is not in the archive, so we need to supply it
+        owner = metadata["id"]["owner"]
+
+        # and there's no trailing hash, so we don't strip it (we want the whole array)
+        final_index = None
+
+    # we could add additional forges here which might have different requirements
+
+    return "_".join([owner] + prefix.split("-")[0:final_index])
+
+
+# I don't think this is ever called
+# def validate_app_files(tar):
+#     prefix = find_app_root_dir(tar)
+#     app_py_path = find_app_py_file(prefix, tar)
+#     print(f"Found app.py at: {app_py_path}")
+#     return prefix
 
 
 def find_app_root_dir(tar):
