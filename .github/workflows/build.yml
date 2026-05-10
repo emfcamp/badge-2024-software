@@ -73,7 +73,7 @@ jobs:
             micropython/ports/esp32/build-tildagon/tildagon.txt
       - name: Build merged image
         run: |
-          docker run --entrypoint=/firmware/scripts/merge-firmwares.sh -q --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.5.1
+          docker run --entrypoint=/firmware/scripts/merge-firmwares.sh -q --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.2.1
         if: ${{startsWith(github.event.ref, 'refs/tags/v') && !contains(github.event.ref, '-') }}
       - name: Move merged image
         run: |
