@@ -29,3 +29,4 @@ include(${CMAKE_CURRENT_LIST_DIR}/tildagon/micropython.cmake)
 
 # Add burnt-in HMAC
 include(${CMAKE_CURRENT_LIST_DIR}/tildagon_hmac/micropython.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/mp3/micropython.cmake)
