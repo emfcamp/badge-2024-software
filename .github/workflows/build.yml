@@ -77,7 +77,7 @@ jobs:
         if: ${{startsWith(github.event.ref, 'refs/tags/v') && !contains(github.event.ref, '-') }}
       - name: Move merged image
         run: |
-          cp micropython/ports/esp32/build-tildagon/merged-firmware.bin $GITHUB_WORKSPACE/flasher/
+          cp micropython/ports/esp32/merged-firmware.bin $GITHUB_WORKSPACE/flasher/
         if: ${{startsWith(github.event.ref, 'refs/tags/v') && !contains(github.event.ref, '-') }}
       - name: Deploy to GitHub Pages
         id: deployment
