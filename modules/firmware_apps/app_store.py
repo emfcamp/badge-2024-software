@@ -611,14 +611,6 @@ def install_app(app):
         raise e
 
 
-# I don't believe this is ever called
-# def validate_app_files(tar):
-#     prefix = find_app_root_dir(tar)
-#     app_py_path = find_app_py_file(prefix, tar)
-#     print(f"Found app.py at: {app_py_path}")
-#     return prefix
-
-
 def find_app_root_dir(tar):
     print("Finding root dir...")
     root_dir = None
