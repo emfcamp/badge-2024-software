@@ -157,7 +157,9 @@ class Launcher(App):
             except ImportError as e:
                 cwd = os.getcwd()
                 if "no module named 'apps'" in str(e) and cwd == "/remote":
-                    print("Failed to launch app from mpremote mount, launching from internal storage instead")
+                    print(
+                        "Failed to launch app from mpremote mount, launching from internal storage instead"
+                    )
                     os.chdir("/")
                     module = __import__(module_name, None, None, (fn,))
                     app = getattr(module, fn)()
