@@ -558,11 +558,6 @@ def install_app(app):
         except OSError:
             pass
 
-        # I think this is all we need
-        # So like
-        # https://whatever.forge/dave-user/tildagon-some-app
-        # resolves to
-        # dave_user_tildagon_some_app
         app_module_name = "_".join([app["id"]["owner"], app["id"]["title"]]).replace(
             "-", "_"
         )
