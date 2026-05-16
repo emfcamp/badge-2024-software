@@ -29,13 +29,10 @@ else:
 async def unblock(func, periodic_func, *args, **kwargs):
     def wrap(func, message, args, kwargs):
         nonlocal running
-        print("In thread")
         try:
-            print(func, args, kwargs)
             result = func(*args, **kwargs)
         except Exception as e:
             result = e
-        print(result)
         running = False
         message.set(result)  # Run the blocking function.
 
@@ -43,12 +40,10 @@ async def unblock(func, periodic_func, *args, **kwargs):
 
     async def periodic():
         while running:
-            print("Periodic")
             await periodic_func()
             await asyncio.sleep(0.1)
 
     msg = Message()
-    print("Starting thread")
     # _thread.start_new_thread(print, ("Test", ))
     _thread.start_new_thread(wrap, (func, msg, args, kwargs))
     # print(tid)
@@ -58,7 +53,6 @@ async def unblock(func, periodic_func, *args, **kwargs):
     periodic = asyncio.create_task(periodic())
     result, _ = await asyncio.gather(msg.wait(), periodic)
 
-    print(result)
     if isinstance(result, Exception):
         raise result
     else:
