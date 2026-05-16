@@ -6,11 +6,9 @@ import pygame
 
 
 def set_rgb(ix, r, g, b):
-    if r > 1:
+    if r > 1 or g > 1 or b > 1:
         r /= 255
-    if g > 1:
         g /= 255
-    if b > 1:
         b /= 255
     r = min(1.0, max(0.0, r))
     g = min(1.0, max(0.0, g))
