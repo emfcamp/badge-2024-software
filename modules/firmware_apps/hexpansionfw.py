@@ -4,6 +4,7 @@ import io
 import json
 import os
 import requests
+import settings
 import vfs
 from machine import I2C
 from tarfile import TarFile, DIRTYPE
@@ -21,51 +22,12 @@ from system.hexpansion.util import (
 )
 from system.notification.events import ShowNotificationEvent
 
-_FIRMWARE_URL = "https://github.com/MatthewWilkes/hexpansion-firmwares/releases/download/latest/firmware_0x{vid:04X}_0x{pid:04X}.tar.gz"
-_HEADER_URL = "https://github.com/MatthewWilkes/hexpansion-firmwares/releases/download/latest/firmware_0x{vid:04X}_0x{pid:04X}.json"
+DEFAULT_REPO = (
+    "https://github.com/emfcamp/hexpansion-firmwares/releases/download/latest/"
+)
+_FIRMWARE_URL = "{base}/firmware_0x{vid:04X}_0x{pid:04X}.tar.gz"
+_HEADER_URL = "{base}/firmware_0x{vid:04X}_0x{pid:04X}.json"
 _TMP_PATH = "/firmware_dl.tar.gz"
-
-
-def compare_firmware(vid, pid, port):
-    url = _FIRMWARE_URL.format(vid=vid, pid=pid)
-    mountpoint = f"/hexpansion_{port}"
-
-    print(f"Downloading {url}")
-    response = requests.get(url)
-    with open(_TMP_PATH, "wb") as f:
-        f.write(response.content)
-
-    try:
-        with open(_TMP_PATH, "rb") as f:
-            tar_bytes = gzip.decompress(f.read())
-
-        tar = TarFile(fileobj=io.BytesIO(tar_bytes))
-        for entry in tar:
-            if not entry or entry.type == DIRTYPE:
-                continue
-            name = entry.name.lstrip("./")
-            device_path = f"{mountpoint}/{name}"
-            print(f"Comparing {name}")
-            archive_file = tar.extractfile(entry)
-            if archive_file is None:
-                continue
-            archive_data = archive_file.read()
-            try:
-                with open(device_path, "rb") as f:
-                    device_data = f.read()
-                if device_data == archive_data:
-                    print("  match")
-                else:
-                    print(
-                        f"  mismatch (device {len(device_data)}B, archive {len(archive_data)}B)"
-                    )
-            except OSError:
-                print("  not found on device")
-    finally:
-        try:
-            os.remove(_TMP_PATH)
-        except OSError:
-            pass
 
 
 class HexpansionDetail:
@@ -148,7 +110,11 @@ class HexpansionDetail:
         if vid is None or pid is None:
             return True
         try:
-            url = _HEADER_URL.format(vid=vid, pid=pid)
+            url = _HEADER_URL.format(
+                base=settings.get("hexpansion_firmware_repo", DEFAULT_REPO),
+                vid=vid,
+                pid=pid,
+            )
             response = requests.get(url)
             data = json.loads(response.content)
             data["vid"] = self._parse_hex(data["vid"])
@@ -177,7 +143,11 @@ class HexpansionDetail:
             print(f"{mountpoint} is not mounted")
             return
 
-        url = _FIRMWARE_URL.format(vid=self.header.vid, pid=self.header.pid)
+        url = _FIRMWARE_URL.format(
+            base=settings.get("hexpansion_firmware_repo", DEFAULT_REPO),
+            vid=self.header.vid,
+            pid=self.header.pid,
+        )
         print(f"Downloading {url}")
         response = requests.get(url)
         with open(_TMP_PATH, "wb") as f:
@@ -253,7 +223,11 @@ class HexpansionDetail:
                 f.write(archive_file.read())
 
     def _factory_reset(self):
-        url = _FIRMWARE_URL.format(vid=self.header.vid, pid=self.header.pid)
+        url = _FIRMWARE_URL.format(
+            base=settings.get("hexpansion_firmware_repo", DEFAULT_REPO),
+            vid=self.header.vid,
+            pid=self.header.pid,
+        )
         print(f"Downloading {url}")
         response = requests.get(url)
         with open(_TMP_PATH, "wb") as f:
@@ -274,7 +248,11 @@ class HexpansionDetail:
         return True
 
     async def _bulk_provision(self):
-        url = _FIRMWARE_URL.format(vid=self.header.vid, pid=self.header.pid)
+        url = _FIRMWARE_URL.format(
+            base=settings.get("hexpansion_firmware_repo", DEFAULT_REPO),
+            vid=self.header.vid,
+            pid=self.header.pid,
+        )
         print(f"Downloading {url}")
         response = requests.get(url)
         with open(_TMP_PATH, "wb") as f:
