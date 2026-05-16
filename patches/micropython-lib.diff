@@ -1,8 +1,8 @@
 diff --git a/micropython/drivers/led/neopixel/neopixel.py b/micropython/drivers/led/neopixel/neopixel.py
-index caa12dc..2c5d676 100644
+index caa12dc..1e1bc29 100644
 --- a/micropython/drivers/led/neopixel/neopixel.py
 +++ b/micropython/drivers/led/neopixel/neopixel.py
-@@ -48,3 +48,137 @@ class NeoPixel:
+@@ -48,3 +48,142 @@ class NeoPixel:
      def write(self):
          # BITSTREAM_TYPE_HIGH_LOW = 0
          bitstream(self.pin, 0, self.timing, self.buf)
@@ -15,12 +15,12 @@ index caa12dc..2c5d676 100644
 +        self.n = len(indices)
 +
 +    def __setitem__(self, i, v):
-+        leds = self.indices.get(i, [])
++        leds = self.indices[i]
 +        for led in leds:
 +            self.string[led] = v
 +
 +    def __getitem__(self, i):
-+        leds = self.indices.get(i)
++        leds = self.indices[i]
 +        for led in leds:
 +            return self.string[led]
 +        raise KeyError("No such LED in this string")
@@ -87,7 +87,7 @@ index caa12dc..2c5d676 100644
 +        self.n = string.n
 +
 +    def __setitem__(self, i, v):
-+        alteration = self.alterations.get(i, None)
++        alteration = self.alterations[i]
 +        if alteration is not None:
 +            v = alteration(v)
 +        self.string[i] = v
@@ -103,11 +103,14 @@ index caa12dc..2c5d676 100644
 +        self.string.write()
 +
 +
-+def DimCorrection(amount):
-+    def DimCorrectionInner(v):
++class DimCorrection:
++    def __init__(self, amount):
++        self.amount = amount
++
++    def __call__(self, v):
 +        new_val = []
 +        for channel in v:
-+            channel *= amount
++            channel *= self.amount
 +            channel = int(channel)
 +            if channel > 255:
 +                channel = 255
@@ -116,13 +119,14 @@ index caa12dc..2c5d676 100644
 +            new_val.append(channel)
 +        return new_val
 +
-+    return DimCorrectionInner
 +
++class ColourCorrection:
++    def __init__(self, amounts):
++        self.amounts = amounts
 +
-+def ColourCorrection(amounts):
-+    def ColourCorrectionInner(v):
++    def __call__(self, v):
 +        new_val = []
-+        for channel, amount in zip(v, amounts):
++        for channel, amount in zip(v, self.amounts):
 +            channel *= amount
 +            channel = int(channel)
 +            if channel > 255:
@@ -132,14 +136,15 @@ index caa12dc..2c5d676 100644
 +            new_val.append(channel)
 +        return new_val
 +
-+    return ColourCorrectionInner
 +
++class CallbackCorrection:
++    def __init__(self, callback, **kwargs):
++        self.callback = callback
++        self.kwargs = kwargs
 +
-+def CallbackCorrection(callback, **kwargs):
-+    def CallbackCorrectionInner(v):
-+        return callback(v, **kwargs)
++    def __call__(self, v):
++        return self.callback(v, **self.kwargs)
 +
-+    return CallbackCorrectionInner
 diff --git a/python-ecosys/requests/requests/__init__.py b/python-ecosys/requests/requests/__init__.py
 index 68b4b18..2a1e72f 100644
 --- a/python-ecosys/requests/requests/__init__.py
