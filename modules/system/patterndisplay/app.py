@@ -112,7 +112,7 @@ class PatternDisplay(App):
                     next_frame = self._p.next()
                     if self.enabled:
                         for led in range(12):
-                            self.leds[led + 1] = next_frame[led]
+                            self.leds[led] = next_frame[led]
                         self.leds.write()
                     if not self._p.fps:
                         break
