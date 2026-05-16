@@ -1,3 +1,5 @@
+import async_helpers
+import asyncio
 import app
 import gzip
 import io
@@ -9,11 +11,14 @@ import vfs
 from machine import I2C
 from tarfile import TarFile, DIRTYPE
 from app_components import layout
-from app_components.dialog import HexDialog, YesNoDialog
+from app_components.dialog import HexDialog, NumberDialog, YesNoDialog, ProgressDialog
 from app_components.background import Background as bg
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
-from system.hexpansion.events import HexpansionInsertionEvent
+from system.hexpansion.events import (
+    HexpansionRemovalEvent,
+    HexpansionInsertionEvent,
+)
 from system.hexpansion.header import HexpansionHeader, write_header
 from system.hexpansion.util import (
     detect_eeprom_addr,
@@ -39,6 +44,7 @@ class HexpansionDetail:
         self._displays = {}
         self._layout = layout.LinearLayout(items=self._build_items())
         self.dialog = None
+        self.render_update = print
 
     def _build_items(self):
         items = []
@@ -52,10 +58,16 @@ class HexpansionDetail:
             display = layout.DefinitionDisplay(label, value)
             self._displays[field] = (display, parse, fmt)
             items.append(display)
-            if self.header is None and show_without_header:
+            if (
+                self.header is None
+                and field in {"vid", "pid"}
+                or self.header is not None
+                and field == "unique_id"
+            ):
                 items.append(
                     layout.ButtonDisplay(
-                        "Enter", button_handler=self._make_edit_handler(field, label)
+                        f"Enter {label}",
+                        button_handler=self._make_edit_handler(field, label),
                     )
                 )
         if self.header is None:
@@ -64,16 +76,18 @@ class HexpansionDetail:
             )
         else:
             items.append(
-                layout.ButtonDisplay("Update", button_handler=self.update_handler)
-            )
-            items.append(
                 layout.ButtonDisplay(
-                    "Bulk provision", button_handler=self.bulk_provision_handler
+                    "Update firmware", button_handler=self.update_handler
                 )
             )
             items.append(
                 layout.ButtonDisplay(
                     "Factory reset", button_handler=self.factory_reset_handler
+                )
+            )
+            items.append(
+                layout.ButtonDisplay(
+                    "Bulk provisioning", button_handler=self.bulk_provision_handler
                 )
             )
         return items
@@ -99,12 +113,15 @@ class HexpansionDetail:
                 pass
 
         async def handler(_event):
-            self.dialog = HexDialog(f"Enter {label}", self.app, on_complete=save)
+            if field in {"vid", "pid"}:
+                self.dialog = HexDialog(f"Enter {label}", self.app, on_complete=save)
+            if field in {"unique_id"}:
+                self.dialog = NumberDialog(f"Enter {label}", self.app, on_complete=save)
             return self.dialog
 
         return handler
 
-    async def search_handler(self, _event):
+    async def search_handler(self, _event, progress=None):
         vid = self._values.get("vid")
         pid = self._values.get("pid")
         if vid is None or pid is None:
@@ -115,7 +132,9 @@ class HexpansionDetail:
                 vid=vid,
                 pid=pid,
             )
-            response = requests.get(url)
+            if progress is None:
+                progress = self.render_update
+            response = await async_helpers.unblock(requests.get, progress, url)
             data = json.loads(response.content)
             data["vid"] = self._parse_hex(data["vid"])
             data["pid"] = self._parse_hex(data["pid"])
@@ -126,13 +145,25 @@ class HexpansionDetail:
             eventbus.emit(ShowNotificationEvent(message="No results"))
         return True
 
-    async def update_handler(self, _event):
+    async def update_handler(self, event):
+        self.dialog = YesNoDialog(
+            "Update?",
+            self.app,
+            on_yes=self._update_wrapper,
+        )
+        return True
+
+    async def _update_wrapper(self):
         try:
             await self._update()
         except Exception:
-            eventbus.emit(ShowNotificationEvent(message="Update failed"))
+            await eventbus.emit_async(ShowNotificationEvent(message="Update failed"))
         else:
-            eventbus.emit(ShowNotificationEvent(message="Updated"))
+            await eventbus.emit_async(ShowNotificationEvent(message="Updated"))
+            await asyncio.sleep(0.1)
+            await eventbus.emit_async(HexpansionRemovalEvent(port=self.port))
+            await asyncio.sleep(0.1)
+            await eventbus.emit_async(HexpansionInsertionEvent(port=self.port))
         return True
 
     async def _update(self):
@@ -148,15 +179,25 @@ class HexpansionDetail:
             vid=self.header.vid,
             pid=self.header.pid,
         )
+
+        await self.render_update()
+        self.dialog = ProgressDialog("Downloading firmware", self.app)
+        progress = self.dialog.make_progress_handler(self.render_update)
+
         print(f"Downloading {url}")
-        response = requests.get(url)
+        response = await async_helpers.unblock(requests.get, progress, url)
         with open(_TMP_PATH, "wb") as f:
             f.write(response.content)
 
+        self.dialog.message = "Writing EEPROM"
         try:
+            progress
             with open(_TMP_PATH, "rb") as f:
-                tar_bytes = gzip.decompress(f.read())
+                tar_bytes = await async_helpers.unblock(
+                    gzip.decompress, progress, f.read()
+                )
             for entry in TarFile(fileobj=io.BytesIO(tar_bytes)):
+                await progress()
                 if not entry or entry.type == DIRTYPE:
                     continue
                 name = entry.name.lstrip("./")
@@ -181,26 +222,33 @@ class HexpansionDetail:
                     continue
                 with open(f"{mountpoint}/{name}", "wb") as f:
                     f.write(archive_file.read())
+                    await progress()
         finally:
             try:
                 os.remove(_TMP_PATH)
+                self.dialog.result = True
             except OSError:
                 pass
 
     async def factory_reset_handler(self, event):
         self.dialog = YesNoDialog(
-            "Factory reset?", self.app, on_yes=self._factory_reset
+            "Factory reset?",
+            self.app,
+            on_yes=self._factory_reset_wrapper,
         )
         return True
 
-    def _provision_port(self, port):
+    async def _provision_port(self, port, progress):
         i2c = I2C(port)
+        await progress()
         addr, addr_len = detect_eeprom_addr(i2c)
         write_header(port, self.header, addr=addr, addr_len=addr_len)
         _, partition = get_hexpansion_block_devices(
             i2c, self.header, addr=addr, addr_len=addr_len
         )
+        await progress()
         vfs.VfsLfs2.mkfs(partition)
+        await progress()
         mountpoint = f"/hexpansion_{port}"
         try:
             vfs.umount(mountpoint)
@@ -209,9 +257,10 @@ class HexpansionDetail:
         vfs.mount(partition, mountpoint)
 
         with open(_TMP_PATH, "rb") as f:
-            tar_bytes = gzip.decompress(f.read())
+            tar_bytes = await async_helpers.unblock(gzip.decompress, progress, f.read())
         tar = TarFile(fileobj=io.BytesIO(tar_bytes))
         for entry in tar:
+            await progress()
             if not entry or entry.type == DIRTYPE:
                 continue
             name = entry.name.lstrip("./")
@@ -221,27 +270,49 @@ class HexpansionDetail:
                 continue
             with open(f"{mountpoint}/{name}", "wb") as f:
                 f.write(archive_file.read())
+                await progress()
 
-    def _factory_reset(self):
+    async def _factory_reset_wrapper(self):
+        try:
+            await self._factory_reset()
+        except Exception:
+            await eventbus.emit_async(ShowNotificationEvent(message="Reset failed"))
+        else:
+            await eventbus.emit_async(ShowNotificationEvent(message="Factory reset"))
+            await asyncio.sleep(0.1)
+            await eventbus.emit_async(HexpansionRemovalEvent(port=self.port))
+            await asyncio.sleep(0.1)
+            await eventbus.emit_async(HexpansionInsertionEvent(port=self.port))
+        return True
+
+    async def _factory_reset(self):
         url = _FIRMWARE_URL.format(
             base=settings.get("hexpansion_firmware_repo", DEFAULT_REPO),
             vid=self.header.vid,
             pid=self.header.pid,
         )
-        print(f"Downloading {url}")
-        response = requests.get(url)
+
+        await self.render_update()
+
+        self.dialog = ProgressDialog("Loading metadata", self.app)
+        uid = self._values.get("unique_id", 0)
+        progress = self.dialog.make_progress_handler(self.render_update)
+        await self.search_handler(None, progress)
+        self._values["unique_id"] = uid
+
+        self.dialog.message = "Downloading firmware"
+        response = await async_helpers.unblock(requests.get, progress, url)
         with open(_TMP_PATH, "wb") as f:
             f.write(response.content)
+        self.dialog.message = "Writing EEPROM"
         try:
-            self._provision_port(self.port)
-        except Exception:
-            eventbus.emit(ShowNotificationEvent(message="Failed to reset"))
+            await self._provision_port(self.port, progress)
         finally:
             try:
                 os.remove(_TMP_PATH)
             except OSError:
                 pass
-            eventbus.emit(ShowNotificationEvent(message="Reset complete"))
+            self.dialog.result = True
 
     async def bulk_provision_handler(self, _event):
         await self._bulk_provision()
@@ -254,21 +325,21 @@ class HexpansionDetail:
             pid=self.header.pid,
         )
         print(f"Downloading {url}")
-        response = requests.get(url)
+        response = await async_helpers.unblock(requests.get, self.render_update, url)
         with open(_TMP_PATH, "wb") as f:
             f.write(response.content)
 
         eventbus.emit(ShowNotificationEvent(message="Bulk mode enabled"))
-        eventbus.on(HexpansionInsertionEvent, self.bulk_insert, self.app)
+        eventbus.on_async(HexpansionInsertionEvent, self.bulk_insert, self.app)
 
     def _cleanup(self):
         eventbus.remove(HexpansionInsertionEvent, self.bulk_insert, self.app)
 
-    def bulk_insert(self, event):
+    async def bulk_insert(self, event):
         self.header.unique_id += 1
         print(f"Provisioning port {event.port} with unique_id {self.header.unique_id}")
         try:
-            self._provision_port(event.port)
+            await self._provision_port(event.port, self.render_update)
         except Exception:
             eventbus.emit(ShowNotificationEvent(message="Failed to provision"))
         else:
@@ -286,10 +357,13 @@ class HexpansionDetail:
         self._layout.draw(ctx)
 
     async def run(self, render_update):
+        self.render_update = render_update
         while True:
             if self.dialog:
+                dialog = self.dialog
                 await self.dialog.run(render_update)
-                self.dialog = None
+                if self.dialog == dialog:
+                    self.dialog = None
             await render_update()
 
 
@@ -299,7 +373,13 @@ class HexpansionInfoApp(app.App):
         self.config = config
         self._layout = layout.LinearLayout(items=self._build_items())
         eventbus.on_async(ButtonDownEvent, self._button_handler, self)
+        eventbus.on(HexpansionInsertionEvent, self._rebuild_items, self)
+        eventbus.on(HexpansionRemovalEvent, self._rebuild_items, self)
         self.submenu = None
+
+    def _rebuild_items(self, event=None):
+        self._layout.items = self._build_items()
+        self._layout.y_offset = 120
 
     def _build_items(self):
         items = []
