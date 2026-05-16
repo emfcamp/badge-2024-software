@@ -28,6 +28,9 @@ jobs:
       - name: Build firmware
         run: |
           docker run -q --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.5.1
+      - name: Build mpy-cross image
+        run: |
+          docker build -f Dockerfile.mpcross --build-arg IDF_VERSION=v5.5.1 -t ghcr.io/emfcamp/mpy-cross:v5.5.1 .
       - name: Archive firmware
         uses: actions/upload-artifact@v4
         with:
