@@ -5,4 +5,5 @@ class OffPattern(BasePattern):
     def __init__(self, num_leds=12):
         super().__init__()
         self.fps = 1
+        self.num_leds = num_leds
         self.frames = [[(0, 0, 0)] * self.num_leds]
