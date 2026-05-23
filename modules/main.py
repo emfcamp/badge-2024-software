@@ -9,9 +9,12 @@ from system.notification.app import NotificationService
 from system.launcher.app import Launcher
 from system.power.handler import PowerEventHandler
 from system.power.app import PowerManager
+from system.boopscreen.app import BoopSpinner
 
 from frontboards.twentyfour import TwentyTwentyFour
 
+# Start the spinning-tilde boop animation
+scheduler.start_app(BoopSpinner(), always_on_top=True)
 
 # Start front-board interface
 scheduler.start_app(TwentyTwentyFour())
