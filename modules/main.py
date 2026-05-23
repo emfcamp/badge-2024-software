@@ -15,6 +15,10 @@ import frontboard2026
 fb = detect_frontboard()
 
 print(hex(fb))
+from system.boopscreen.app import BoopSpinner
+
+from frontboards.twentyfour import TwentyTwentyFour
+
 # Start front-board interface
 if (fb & 0xFF00) == 0x2600:
     from frontboards.twentysix import TwentyTwentySix
@@ -30,6 +34,9 @@ else:
 
 # Start expansion interface
 scheduler.start_app(HexpansionManagerApp())
+
+# Start the spinning-tilde boop animation
+scheduler.start_app(BoopSpinner(), always_on_top=True)
 
 # Start led pattern displayer app
 scheduler.start_app(PatternDisplay())
