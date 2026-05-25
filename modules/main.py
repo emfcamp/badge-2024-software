@@ -9,12 +9,23 @@ from system.notification.app import NotificationService
 from system.launcher.app import Launcher
 from system.power.handler import PowerEventHandler
 from system.power.app import PowerManager
+from frontboards.utils import detect_frontboard
+import frontboard2026
 
-from frontboards.twentyfour import TwentyTwentyFour
-
+fb = detect_frontboard()
 
 # Start front-board interface
-scheduler.start_app(TwentyTwentyFour())
+if fb == 0x2600:
+    from frontboards.twentysix import TwentyTwentySix
+
+    frontboard2026.init()
+    scheduler.start_app(TwentyTwentySix())
+    print("entering 2026")
+else:
+    from frontboards.twentyfour import TwentyTwentyFour
+
+    scheduler.start_app(TwentyTwentyFour())
+    print("entering 2024")
 
 # Start expansion interface
 scheduler.start_app(HexpansionManagerApp())
