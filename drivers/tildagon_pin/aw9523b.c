@@ -18,20 +18,17 @@ static uint8_t aw9523b_portpin(aw9523b_pin_t pin) {
 }
 
 static esp_err_t aw9523b_readregs(aw9523b_device_t *dev, uint8_t reg, uint8_t *regs, size_t nregs) {
-    
-    tildagon_mux_i2c_obj_t *mux = tildagon_get_mux_obj(7);
     mp_machine_i2c_buf_t buffer[2] = { { .len = 1, .buf = &reg },
                                        { .len = nregs, .buf = regs } };
-    return tildagon_mux_i2c_transaction(mux, dev->i2c_addr, 2, (mp_machine_i2c_buf_t*)&buffer, READ);
+    return tildagon_mux_i2c_transaction(dev->mux, dev->i2c_addr, 2, (mp_machine_i2c_buf_t*)&buffer, READ);
 }
 
 static esp_err_t aw9523b_writeregs(aw9523b_device_t *dev, uint8_t reg, const uint8_t *regs, size_t nregs) {
     uint8_t buf[nregs+1];
     buf[0] = reg;
     memcpy(buf+1, regs, nregs);
-    tildagon_mux_i2c_obj_t *mux = tildagon_get_mux_obj(7);
     mp_machine_i2c_buf_t buffer[1] = { { .len = nregs+1, .buf = buf } };
-    return tildagon_mux_i2c_transaction(mux, dev->i2c_addr, 1, (mp_machine_i2c_buf_t*)&buffer, WRITE);
+    return tildagon_mux_i2c_transaction(dev->mux, dev->i2c_addr, 1, (mp_machine_i2c_buf_t*)&buffer, WRITE);
 }
 
 void aw9523b_init(aw9523b_device_t *dev) 
