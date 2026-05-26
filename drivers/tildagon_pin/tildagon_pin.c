@@ -56,22 +56,32 @@
 // this is outside of machine.Pins defines
 #define EGPIO_MODE_PWM 8
 
-aw9523b_device_t ext_pin[3] = {
+aw9523b_device_t ext_pin[4] = {
     {
-        .i2c_port = TILDAGON_SYS_I2C_PORT,
         .i2c_addr = 0x58,
     },
     {
-        .i2c_port = TILDAGON_SYS_I2C_PORT,
         .i2c_addr = 0x59,
     },
     {
-        .i2c_port = TILDAGON_SYS_I2C_PORT,
         .i2c_addr = 0x5a,
+    },
+    {
+        .mux = NULL,
+        .i2c_addr = 0x00,
     }
 };
+uint8_t max_bank = 3U;
 
-
+void tildagon_pins_set_aux( aw9523b_device_t aux_pin, uint8_t index )
+{
+    if ( index < 1 )
+    {
+        ext_pin[ 3 + index ] = aux_pin;
+        max_bank = 4U;
+    }
+}
+ 
 static const tildagon_pin_obj_t *tildagon_pin_find_named(const mp_obj_dict_t *named_pins, mp_obj_t name) {
     const mp_map_t *named_map = &named_pins->map;
     mp_map_elem_t *named_elem = mp_map_lookup((mp_map_t *)named_map, name, MP_MAP_LOOKUP);
@@ -85,7 +95,7 @@ void tildagon_pins_init(void)
 {
     for (int i = 0; i < 3; i++)
     {
-        ext_pin[i].mux = tildagon_get_i2c_mux();
+        ext_pin[i].mux = tildagon_get_mux_obj(TILDAGON_SYS_I2C_PORT);
         aw9523b_init(&ext_pin[i]);
     }
     // setup outputs mux [2] 2, 4 and 5. 5v sw, usb mux and led sw 
@@ -95,7 +105,6 @@ void tildagon_pins_init(void)
     aw9523b_pin_set_output( &ext_pin[2], 4,  false );
     aw9523b_pin_set_direction( &ext_pin[2], 5,  false );
     aw9523b_pin_set_output( &ext_pin[2], 5,  false );
-    //memset(&MP_STATE_PORT(tildagon_pin_irq_handler[0]), 0, sizeof(MP_STATE_PORT(tildagon_pin_irq_handler)));
 }
 
 void tildagon_pins_generate_isr( void )
@@ -115,7 +124,7 @@ static void tildagon_pin_isr_handler(void *arg, uint8_t event)
     uint8_t index = PIN_OBJ_PTR_INDEX(self);
     if ( event == GPIO_INTR_NEGEDGE )
     {
-        index += GPIO_PIN_COUNT;
+        index += GPIO_EXT_NUM_MAX;
     }
     mp_obj_t handler = MP_STATE_PORT(tildagon_pin_irq_handler)[index];
     mp_sched_schedule(handler, MP_OBJ_FROM_PTR(self));
@@ -134,7 +143,7 @@ static const tildagon_pin_obj_t *tildagon_pin_find(mp_obj_t pin_in) {
         if (len == 2) {
             mp_int_t bank = mp_obj_get_int(items[0]);
             mp_int_t index = mp_obj_get_int(items[1]);
-            if (0 <= bank && bank < 3 && 0 <= index && index < 16) {
+            if (0 <= bank && bank < max_bank && 0 <= index && index < 16) {
                 const tildagon_pin_obj_t *self = &tildagon_pin_obj_table[bank*16 + index];
                 if (self->base.type != NULL) {
                     return self;
@@ -297,7 +306,6 @@ static mp_obj_t tildagon_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map
         uint8_t index = PIN_OBJ_PTR_INDEX(self);
         mp_obj_t handler = args[ARG_handler].u_obj;
         mp_uint_t trigger = args[ARG_trigger].u_int;
-        
         if (handler != mp_const_none) 
         {
             aw9523b_irq_register(dev, pin, tildagon_pin_isr_handler, self);
@@ -313,10 +321,10 @@ static mp_obj_t tildagon_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map
         }
         if ( trigger & GPIO_INTR_NEGEDGE )
         {
-            MP_STATE_PORT(tildagon_pin_irq_handler)[index + GPIO_PIN_COUNT] = handler;
+            MP_STATE_PORT(tildagon_pin_irq_handler)[index + GPIO_EXT_NUM_MAX] = handler;
         }
         if (
-              ( MP_STATE_PORT(tildagon_pin_irq_handler)[index + GPIO_PIN_COUNT] == MP_OBJ_NULL )
+              ( MP_STATE_PORT(tildagon_pin_irq_handler)[index + GPIO_EXT_NUM_MAX] == MP_OBJ_NULL )
            && (  MP_STATE_PORT(tildagon_pin_irq_handler)[index] == MP_OBJ_NULL )
         )
         {
@@ -429,4 +437,4 @@ MP_DEFINE_CONST_OBJ_TYPE(
     locals_dict, &tildagon_pin_locals_dict
     );
 
-MP_REGISTER_ROOT_POINTER(mp_obj_t tildagon_pin_irq_handler[GPIO_PIN_COUNT*2]);
+MP_REGISTER_ROOT_POINTER(mp_obj_t tildagon_pin_irq_handler[64*2]);
