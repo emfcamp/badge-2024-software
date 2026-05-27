@@ -70,7 +70,7 @@ int st3m_imu_write(uint8_t reg_addr, uint8_t *reg_data, uint8_t len) {
     return bmi2_i2c_write(reg_addr, reg_data, len, &_imu );
 }
 
-void st3m_imu_task(void *data) {
+void st3m_imu_task(void) {
     TickType_t last_wake = xTaskGetTickCount();
     esp_err_t ret;
     float a, b, c, temperature;

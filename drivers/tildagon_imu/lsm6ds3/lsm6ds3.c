@@ -148,7 +148,7 @@ int lsm6ds3_read(uint8_t reg_addr, uint8_t *reg_data, uint8_t len )
 /**
  * @brief update task
  */
-void lsm6ds3_task( void* data ) 
+void lsm6ds3_task( void ) 
 {
     TickType_t last_wake = xTaskGetTickCount();
     while (1) 

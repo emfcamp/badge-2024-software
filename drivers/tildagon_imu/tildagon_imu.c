@@ -8,6 +8,8 @@
 #include "st3m_imu.h"
 #include "lsm6ds3.h"
 
+#include "tildagon_imu.h"
+
 typedef enum
 { 
     ST3M,
@@ -16,12 +18,11 @@ typedef enum
     MAX_DEVICES,
 } which_imu_t;
 
-typedef void (*updatefuncptr_t) ( void* data );
-typedef void (*accfuncptr_t) ( float* x, float*y, float*z );
-typedef void (*gyrfuncptr_t) ( float* x, float*y, float*z );
 typedef void (*stepfuncptr_t) ( uint32_t* steps );
 typedef void (*tempfuncptr_t) ( float* temperature );
 typedef int  (*i2cfuncptr_t) ( uint8_t reg_addr, uint8_t *reg_data, uint8_t len );
+
+void imu_run( void* data );
 
 i2cfuncptr_t i2c_write[MAX_DEVICES] =
 {
@@ -41,13 +42,13 @@ updatefuncptr_t update[MAX_DEVICES] =
     /* LSM6DS3 */ lsm6ds3_task,
 };
 
-accfuncptr_t accel_read[MAX_DEVICES] =
+sensorfuncptr_t accel_read[MAX_DEVICES] =
 {
     /* ST3M */     st3m_imu_read_acc_mps,
     /* LSM6DS3 */  lsm6ds3_read_acc_mps,
 };
 
-gyrfuncptr_t gyro_read[MAX_DEVICES] =
+sensorfuncptr_t gyro_read[MAX_DEVICES] =
 {
     /* ST3M */     st3m_imu_read_gyro_dps,
     /* LSM6DS3 */  lsm6ds3_read_gyro_dps,
@@ -65,6 +66,8 @@ tempfuncptr_t temp_read[MAX_DEVICES] =
     /* LSM6DS3 */  lsm6ds3_read_temperature,
 };
 
+sensorfuncptr_t compass_readptr = NULL;
+
 static char st3m_id[]  = "bmi270";
 static char lsm6ds3_id[]  = "lsm6ds3";
 static char* id_list[MAX_DEVICES] = 
@@ -74,6 +77,7 @@ static char* id_list[MAX_DEVICES] =
 };
 
 which_imu_t imu = MAX_DEVICES;
+static updatefuncptr_t compass_funcptr = NULL;
 
 void tildagon_imu_init( void )
 {
@@ -89,7 +93,7 @@ void tildagon_imu_init( void )
     if ( imu < MAX_DEVICES )
     {
         /* create task */
-        xTaskCreate( update[imu], "imu", 4096, NULL, configMAX_PRIORITIES - 2, NULL);
+        xTaskCreate( imu_run, "imu", 4096, NULL, configMAX_PRIORITIES - 2, NULL);
     }
 }
 
@@ -179,5 +183,28 @@ int tildagon_imu_read( uint8_t address, uint8_t length, uint8_t* buffer )
     else
     {
         return -MP_ENODEV;
+    }
+}
+
+void tildagon_imu_register_compass( updatefuncptr_t compass_update, sensorfuncptr_t compass_read )
+{
+    compass_funcptr = compass_update;
+    compass_readptr = compass_read;
+}
+
+void tildagon_imu_compass_read( float* x, float*y, float*z )
+{
+    if ( compass_readptr != NULL )
+    {
+        compass_readptr( x, y, z );
+    }
+}
+
+void imu_run( void* data )
+{
+    update[imu]();
+    if ( compass_funcptr != NULL )
+    {
+        compass_funcptr();
     }
 }
