@@ -15,6 +15,7 @@ from system.eventbus import eventbus
 from app_components.utils import path_isfile
 from firmware_apps.settings_app import PAT_DIR
 from system.notification.events import ShowNotificationEvent
+from frontboards.twentysix import TwentyTwentySix
 
 
 class PatternDisplay(App):
@@ -31,6 +32,20 @@ class PatternDisplay(App):
             neopixel.ComposedNeoPixel(tildagonos.leds, -1),
             [self.correction] * 12 + [None] * 6,
         )
+        self.TOUCH_KEYS = [
+            "TOUCH1",
+            "TOUCH2",
+            "TOUCH3",
+            "TOUCH4",
+            "TOUCH5",
+            "TOUCH6",
+            "TOUCH7",
+            "TOUCH8",
+            "TOUCH9",
+            "TOUCH10",
+            "TOUCH11",
+            "TOUCH12",
+        ]
 
     def load_pattern(self):
         self.pattern = settings.get("pattern", ("rainbow", None))
@@ -112,7 +127,10 @@ class PatternDisplay(App):
                     next_frame = self._p.next()
                     if self.enabled:
                         for led in range(12):
-                            self.leds[led] = next_frame[led]
+                            if TwentyTwentySix.touch_states[self.TOUCH_KEYS[led]][0]:
+                                self.leds[led] = (255, 255, 255)
+                            else:
+                                self.leds[led] = next_frame[led]
                         self.leds.write()
                     if not self._p.fps:
                         break
