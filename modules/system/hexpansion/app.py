@@ -29,6 +29,7 @@ from egpio import ePin
 from system.eventbus import eventbus
 from machine import I2C
 from events.input import Buttons
+import asyncio
 import vfs
 import sys
 import settings
@@ -235,8 +236,11 @@ class HexpansionManagerApp(app.App):
         print(event)
         i2c = I2C(event.port)
 
-        # Autodetect eeprom addr
+        # Autodetect eeprom addr, retry once after 100ms if not found
         addr, addr_len = detect_eeprom_addr(i2c)
+        if addr is None:
+            await asyncio.sleep(0.1)
+            addr, addr_len = detect_eeprom_addr(i2c)
         if addr is None:
             print("Scan found no eeproms")
             return
