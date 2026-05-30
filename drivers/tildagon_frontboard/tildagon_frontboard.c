@@ -6,6 +6,7 @@
 #include "driver/gpio.h"
 #include "tildagon_frontboard.h"
 #include "tildagon_pin.h"
+#include "tildagon_imu.h"
 #include "mp_frontboard.h"
 #include "esp_err.h"
     
