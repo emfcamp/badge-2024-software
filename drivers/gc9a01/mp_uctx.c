@@ -5,7 +5,12 @@
 #include "py/runtime.h"
 
 #include "mp_uctx.h"
-#include "st3m_scope.h"
+
+#ifdef EMSCRIPTEN
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
+#pragma GCC diagnostic ignored "-Wfloat-conversion"
+Ctx *ctx_host(void);
+#endif
 
 void gc_collect(void);
 #ifdef EMSCRIPTEN
@@ -241,13 +246,6 @@ MP_CTX_COMMON_FUN_4F(conic_gradient);
 MP_CTX_COMMON_FUN_6F(radial_gradient);
 
 MP_CTX_COMMON_FUN_3F(logo);
-
-static mp_obj_t mp_ctx_scope(mp_obj_t self_in) {
-    mp_ctx_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    st3m_scope_draw(self->ctx);
-    return self_in;
-}
-MP_DEFINE_CONST_FUN_OBJ_1(mp_ctx_scope_obj, mp_ctx_scope);
 
 
 #if 0
@@ -654,7 +652,7 @@ static mp_obj_t mp_ctx_make_new(const mp_obj_type_t *type, size_t n_args,
         return MP_OBJ_FROM_PTR(o);
     }
 #ifdef EMSCRIPTEN
-    o->ctx = ctx_wasm_get_context(memory_budget);
+    o->ctx = ctx_host();
 #else
     o->ctx = ctx_new(width, height, NULL);
 #endif
@@ -873,7 +871,6 @@ static const mp_rom_map_elem_t mp_ctx_locals_dict_table[] = {
 #endif
 #endif
     MP_CTX_METHOD(logo),
-    MP_CTX_METHOD(scope),
 
     // Instance attributes
     MP_CTX_ATTR(x),

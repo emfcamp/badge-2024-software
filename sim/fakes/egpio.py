@@ -48,3 +48,8 @@ class ePin:
                 
     def irq(self, handler, trigger):
         pass
+
+    def __call__(self, value=None):
+        if value is None:
+            return self.value()
+        self.value(value)

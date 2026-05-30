@@ -28,6 +28,13 @@ jobs:
       - name: Build firmware
         run: |
           docker run -q --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.5.1
+      - name: Set up Emscripten
+        uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: 5.0.3
+      - name: Build WASM firmware
+        run: |
+          bash scripts/build_wasm.sh
       - name: Build mpy-cross image
         run: |
           docker build -f Dockerfile.mpcross --build-arg IDF_VERSION=v5.5.1 -t ghcr.io/emfcamp/mpy-cross:v5.5.1 .
@@ -43,6 +50,8 @@ jobs:
             micropython/ports/esp32/build-tildagon/partition_table/partition-table.bin
             micropython/ports/esp32/build-tildagon/ota_data_initial.bin
             micropython/ports/esp32/build-tildagon/tildagon.txt
+            micropython/ports/webassembly/build-tildagon/micropython.mjs
+            micropython/ports/webassembly/build-tildagon/micropython.wasm
       - name: Create latest release for tags
         uses: "marvinpinto/action-automatic-releases@latest"
         if: ${{startsWith(github.event.ref, 'refs/tags/v') && !contains(github.event.ref, '-') }}
@@ -54,6 +63,8 @@ jobs:
           files: |
             micropython/ports/esp32/build-tildagon/micropython.bin
             micropython/ports/esp32/build-tildagon/tildagon.txt
+            micropython/ports/webassembly/build-tildagon/micropython.mjs
+            micropython/ports/webassembly/build-tildagon/micropython.wasm
       - name: Create specific release for tags
         uses: "marvinpinto/action-automatic-releases@latest"
         if: ${{startsWith(github.event.ref, 'refs/tags/v')}}
@@ -63,6 +74,8 @@ jobs:
           files: |
             micropython/ports/esp32/build-tildagon/micropython.bin
             micropython/ports/esp32/build-tildagon/tildagon.txt
+            micropython/ports/webassembly/build-tildagon/micropython.mjs
+            micropython/ports/webassembly/build-tildagon/micropython.wasm
       - name: Create preview release for rc tags
         uses: "marvinpinto/action-automatic-releases@latest"
         if: ${{startsWith(github.event.ref, 'refs/tags/v') && contains(github.event.ref, '-') }}
@@ -74,6 +87,8 @@ jobs:
           files: |
             micropython/ports/esp32/build-tildagon/micropython.bin
             micropython/ports/esp32/build-tildagon/tildagon.txt
+            micropython/ports/webassembly/build-tildagon/micropython.mjs
+            micropython/ports/webassembly/build-tildagon/micropython.wasm
       - name: Build merged image
         run: |
           docker run --entrypoint=/firmware/scripts/merge-firmwares.sh -q --rm --env "TARGET=esp32s3" -v "$(pwd)"/:/firmware ghcr.io/emfcamp/esp_idf:v5.5.1
