@@ -231,7 +231,10 @@ class TwentyTwentySix(FrontBoard):
             if booped:
                 now = time.ticks_ms()
                 for i, gpio in enumerate(
-                    map(lambda i: self.BUTTON_PINS[BUTTONS[i]], "ABCDEF")
+                    map(
+                        lambda i: self.BUTTON_PINS[BUTTONS[i]],
+                        ["A", "B", "C", "D", "E", "CANCEL"],
+                    )
                 ):
                     state = TwentyTwentySix.hexpansion_states[i + 1]
                     if state and time.ticks_diff(now, state) > 4000:

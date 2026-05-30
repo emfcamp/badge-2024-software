@@ -7,6 +7,7 @@
 #include "tildagon_frontboard.h"
 #include "tildagon_pin.h"
 #include "mp_frontboard.h"
+#include "esp_err.h"
     
 #define READ ( MP_MACHINE_I2C_FLAG_WRITE1 | MP_MACHINE_I2C_FLAG_READ | MP_MACHINE_I2C_FLAG_STOP )
 #define WRITE MP_MACHINE_I2C_FLAG_STOP
@@ -41,7 +42,10 @@ void tildagon_frontboard_2026_init( void )
     aw9523b_pin_set_mode( &ext_pin[3], reset, AW9523B_PIN_MODE_GPIO );
     aw9523b_pin_set_output( &ext_pin[3], reset, true );
     
-    qmc6309_init();
+    if ( qmc6309_init() == ESP_OK )
+    {
+        tildagon_imu_register_compass( qmc6309_update, qmc6309_read );
+    }
     cy8cmbrx_init( tildagon_get_mux_obj( TILDAGON_TOP_I2C_PORT ) );
 }
 
