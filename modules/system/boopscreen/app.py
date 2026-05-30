@@ -28,7 +28,7 @@ class BoopSpinner(app.App):
         self.logo.scale = 0
         self.logo.opacity = 1
 
-        self.leds = LEDLighter(brightness=0)
+        self.leds = LEDLighter(brightness=conf["leds"]["start"])
 
     def update(self, _):
         """Update."""
@@ -46,8 +46,6 @@ class BoopSpinner(app.App):
 
         if self.fading:
             self.logo.fade()
-            if self.leds.brightness > 0:
-                self.leds.brightness -= conf["leds"]["increment"]
 
         elif self.leds.brightness < conf["leds"]["max"]:
             self.leds.brightness += conf["leds"]["increment"]

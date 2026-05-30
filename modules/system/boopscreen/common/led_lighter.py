@@ -25,10 +25,7 @@ class LEDLighter:
     def from_rgb(self, rgb, secondary_rgb=None):
         """Light lights from an RGB."""
         colour = rgb
-        for i in range(18):
-            if secondary_rgb and i > 11:
-                colour = secondary_rgb
-
+        for i in range(12):
             tildagonos.leds[i + 1] = [
                 gamma_corrections[int(i * self.brightness)] for i in colour
             ]

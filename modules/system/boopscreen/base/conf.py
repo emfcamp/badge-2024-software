@@ -5,7 +5,7 @@ conf = {
     "fade-rate": 0.1,
     "growth-rate": 10,
     "hue-increment": 0.03,
-    "leds": {"increment": 0.01, "max": 0.5},
+    "leds": {"increment": 0.02, "start": 0.1, "max": 1.0},
     "max-scale": 120,
     "rotation": {"rate": 0.3, "start": 2},
     "tilde": {
