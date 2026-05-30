@@ -33,31 +33,36 @@ def detect_frontboard():
     i2c = I2C(0)
 
     addr, addr_len = detect_eeprom_addr(i2c)
-    header = read_hexpansion_header(i2c, addr, set_read_addr=True, addr_len=addr_len)
+    if addr is not None and addr_len is not None:
+        header = read_hexpansion_header(
+            i2c, addr, set_read_addr=True, addr_len=addr_len
+        )
 
-    if header is None:
-        devices = i2c.scan()
-        if 0x58 in devices and 0x57 in devices:
-            header = HexpansionHeader(
-                manifest_version="2026",
-                fs_offset=32,
-                eeprom_page_size=32,
-                eeprom_total_size=1024 * 8,
-                vid=0xBAD3,
-                pid=0x2600,
-                unique_id=0x0,
-                friendly_name="Spaceagon",
-            )
-        else:
-            header = HexpansionHeader(
-                manifest_version="2024",
-                fs_offset=32,
-                eeprom_page_size=32,
-                eeprom_total_size=1024 * 8,
-                vid=0xBAD3,
-                pid=0x2400,
-                unique_id=0x0,
-                friendly_name="TwentyTwentyFour",
-            )
-        populate_fb(header, 2)
-    return header.pid
+        if header is None:
+            devices = i2c.scan()
+            if 0x58 in devices and 0x57 in devices:
+                header = HexpansionHeader(
+                    manifest_version="2026",
+                    fs_offset=32,
+                    eeprom_page_size=32,
+                    eeprom_total_size=1024 * 8,
+                    vid=0xBAD3,
+                    pid=0x2600,
+                    unique_id=0x0,
+                    friendly_name="Spaceagon",
+                )
+            else:
+                header = HexpansionHeader(
+                    manifest_version="2024",
+                    fs_offset=32,
+                    eeprom_page_size=32,
+                    eeprom_total_size=1024 * 8,
+                    vid=0xBAD3,
+                    pid=0x2400,
+                    unique_id=0x0,
+                    friendly_name="TwentyTwentyFour",
+                )
+            populate_fb(header, 2)
+        return header.pid
+    print("No eeprom detected, defaulting to 2024")
+    return 0x2400
