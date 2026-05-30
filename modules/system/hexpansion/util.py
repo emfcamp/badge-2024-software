@@ -2,8 +2,6 @@ from eeprom_i2c import EEPROM
 
 from eeprom_partition import EEPROMPartition
 from system.hexpansion.header import HexpansionHeader
-from . import app
-
 
 import typing
 
@@ -88,6 +86,8 @@ def get_hexpansion_block_devices(i2c, header, addr=0x50, addr_len=2):
 
 
 def get_slots_by_vid_pid(vid, pid):
+    from . import app
+
     value = []
     for port, header in app._hexpansion_manager.hexpansion_headers.items():
         if header is None:
@@ -98,6 +98,8 @@ def get_slots_by_vid_pid(vid, pid):
 
 
 def get_app_by_slot(slot):
+    from . import app
+
     return app._hexpansion_manager.hexpansion_apps.get(slot, None)
 
 
