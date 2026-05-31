@@ -1,4 +1,5 @@
 import asyncio
+import math
 
 import display
 from events.input import BUTTON_TYPES, ButtonDownEvent
@@ -20,6 +21,8 @@ SPECIAL_KEY_SPACE = "Space"
 LOWERCASE_ALPHABET = list("abcdefghijklmnopqrstuvwxyz")
 UPPERCASE_ALPHABET = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890")
 SYMBOL_ALPHABET = list("-=!\"£$%^&*()_+[];'#,./{}:@~<>?") + [SPECIAL_KEY_SPACE]
+HEX_ALPHABET = list("ABCDEF0123456789")
+NUM_ALPHABET = list("0123456789.")
 
 
 class YesNoDialog:
@@ -30,7 +33,7 @@ class YesNoDialog:
         self.no_handler = on_no
         self.yes_handler = on_yes
         self._result = None
-        eventbus.on(ButtonDownEvent, self._handle_buttondown, self.app)
+        eventbus.on_async(ButtonDownEvent, self._handle_buttondown, self.app)
 
     def _cleanup(self):
         eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
@@ -63,25 +66,85 @@ class YesNoDialog:
 
     def draw(self, ctx):
         ctx.save()
-        ctx.rgba(0, 0, 0, 0.5)
+        ctx.rgba(0, 0, 0, 0.8)
         display.hexagon(ctx, 0, 0, 120)
 
         self.draw_message(ctx)
         button_labels(ctx, confirm_label="Yes", cancel_label="No")
         ctx.restore()
 
-    def _handle_buttondown(self, event: ButtonDownEvent):
+    async def _handle_buttondown(self, event: ButtonDownEvent):
         if BUTTON_TYPES["CANCEL"] in event.button:
             self._cleanup()
             self._result = False
             if self.no_handler is not None:
-                self.no_handler()
+                result = await self.no_handler()
+                if hasattr(result, "pend_throw"):
+                    await result
 
         if BUTTON_TYPES["CONFIRM"] in event.button:
             self._cleanup()
             self._result = True
             if self.yes_handler is not None:
-                self.yes_handler()
+                result = self.yes_handler()
+                if hasattr(result, "pend_throw"):
+                    await result
+
+
+class ProgressDialog:
+    def __init__(self, message, app):
+        self.open = True
+        self.app = app
+        self.message = message
+        self.progress = 0
+        self.result = None
+
+    def make_progress_handler(self, render_update):
+        async def handler():
+            self.progress += 1
+            await render_update()
+
+        return handler
+
+    def _cleanup(self):
+        return
+
+    async def run(self, render_update):
+        # Render once, when the dialogue opens
+        self.app.overlays.append(self)
+        await render_update()
+
+        # Tightly loop, waiting for a result, then return it
+        while self.result is None:
+            await asyncio.sleep(0.05)
+        self.app.overlays.pop()
+        await render_update()
+        return self.result
+
+    def draw_message(self, ctx):
+        ctx.font_size = label_font_size
+        ctx.text_align = ctx.CENTER
+        ctx.text_baseline = ctx.MIDDLE
+        text_height = ctx.font_size
+
+        set_color(ctx, "label")
+
+        if isinstance(self.message, list):
+            for idx, line in enumerate(self.message):
+                ctx.move_to(0, idx * text_height).text(line)
+        else:
+            ctx.move_to(0, 0).text(self.message)
+
+    def draw(self, ctx):
+        ctx.save()
+        ctx.rgba(0, 0, 0, 0.8)
+        ctx.save()
+        ctx.rotate(self.progress * 20 * math.pi / 180)
+        display.hexagon(ctx, 0, 0, 120)
+        ctx.restore()
+
+        self.draw_message(ctx)
+        ctx.restore()
 
 
 class TextDialog:
@@ -93,6 +156,8 @@ class TextDialog:
         self.complete_handler = on_complete
         self.masked = masked
         self.text = ""
+        self._default_alphabet = LOWERCASE_ALPHABET
+        self._shifted_alphabet = UPPERCASE_ALPHABET
         self._current_alphabet = LOWERCASE_ALPHABET
         self._keys = []
         self._caps = False
@@ -256,7 +321,7 @@ class TextDialog:
             elif selected == SPECIAL_KEY_SYMBOL:
                 self._layer = 0
                 if self._sym:
-                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._current_alphabet = self._default_alphabet
                     self._sym = False
                     self._caps = False
                 else:
@@ -266,28 +331,70 @@ class TextDialog:
                 self._layer = 0
                 self._shift = not self._shift
                 if self._shift:
-                    self._current_alphabet = UPPERCASE_ALPHABET
+                    self._current_alphabet = self._shifted_alphabet
                 else:
-                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._current_alphabet = self._default_alphabet
             elif selected == SPECIAL_KEY_CAPS:
                 self._layer = 0
                 self._caps = not self._caps
                 if self._caps:
-                    self._current_alphabet = UPPERCASE_ALPHABET
+                    self._current_alphabet = self._shifted_alphabet
                 else:
-                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._current_alphabet = self._default_alphabet
             else:
                 self.text += selected
                 if self._shift:
                     self._shift = False
-                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._current_alphabet = self._default_alphabet
                 self._layer = 0
                 if self._caps:
-                    self._current_alphabet = UPPERCASE_ALPHABET
+                    self._current_alphabet = self.self._shifted_alphabet
                 else:
-                    self._current_alphabet = LOWERCASE_ALPHABET
+                    self._current_alphabet = self._default_alphabet
         elif len(selected) > 0:
             self._current_alphabet = selected
             self._layer = 1
 
         self._update_keys()
+
+
+class HexDialog(TextDialog):
+    def __init__(self, message, app, masked=False, on_complete=None, on_cancel=None):
+        super().__init__(message, app, masked, on_complete, on_cancel)
+        self._current_alphabet = HEX_ALPHABET
+        self._default_alphabet = self._shifted_alphabet = HEX_ALPHABET
+        self._update_keys()
+
+    def _update_keys(self):
+        if self._layer == -1:
+            self._keys = [
+                [SPECIAL_KEY_CANCEL],
+                [],
+                [],
+                [SPECIAL_KEY_DONE],
+                [SPECIAL_KEY_BACKSPACE],
+                [SPECIAL_KEY_BACK],
+            ]
+            return
+        return super()._update_keys()
+
+
+class NumberDialog(TextDialog):
+    def __init__(self, message, app, masked=False, on_complete=None, on_cancel=None):
+        super().__init__(message, app, masked, on_complete, on_cancel)
+        self._current_alphabet = NUM_ALPHABET
+        self._default_alphabet = self._shifted_alphabet = NUM_ALPHABET
+        self._update_keys()
+
+    def _update_keys(self):
+        if self._layer == -1:
+            self._keys = [
+                [SPECIAL_KEY_CANCEL],
+                [],
+                [],
+                [SPECIAL_KEY_DONE],
+                [SPECIAL_KEY_BACKSPACE],
+                [SPECIAL_KEY_BACK],
+            ]
+            return
+        return super()._update_keys()

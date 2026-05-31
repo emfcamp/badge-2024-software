@@ -1,5 +1,152 @@
+diff --git a/micropython/drivers/led/neopixel/neopixel.py b/micropython/drivers/led/neopixel/neopixel.py
+index caa12dc..1e1bc29 100644
+--- a/micropython/drivers/led/neopixel/neopixel.py
++++ b/micropython/drivers/led/neopixel/neopixel.py
+@@ -48,3 +48,142 @@ class NeoPixel:
+     def write(self):
+         # BITSTREAM_TYPE_HIGH_LOW = 0
+         bitstream(self.pin, 0, self.timing, self.buf)
++
++
++class MergedNeoPixel:
++    def __init__(self, string, indices):
++        self.string = string
++        self.indices = indices
++        self.n = len(indices)
++
++    def __setitem__(self, i, v):
++        leds = self.indices[i]
++        for led in leds:
++            self.string[led] = v
++
++    def __getitem__(self, i):
++        leds = self.indices[i]
++        for led in leds:
++            return self.string[led]
++        raise KeyError("No such LED in this string")
++
++    def fill(self, v):
++        self.string.fill(v)
++
++    def write(self):
++        self.string.write()
++
++
++class ComposedNeoPixel:
++    def __init__(self, string, offset=0):
++        self.strings = []
++        self.offsets = []
++        self.lengths = []
++        self.add_string(string, offset)
++
++    def add_string(self, string, offset):
++        self.strings.append(string)
++        self.offsets.append(offset)
++        self.lengths.append(string.n)
++
++    def __setitem__(self, i, v):
++        bad_indexes = []
++        for string_idx, (string, offset, length) in enumerate(
++            zip(self.strings, self.offsets, self.lengths)
++        ):
++            index = i - offset
++            if index >= 0 and index < length:
++                try:
++                    string[index] = v
++                except:
++                    bad_indexes.append(string_idx)
++        for bad_idx in sorted(bad_indexes, reverse=True):
++            del self.strings[bad_idx]
++            del self.offsets[bad_idx]
++            del self.lengths[bad_idx]
++
++    def __getitem__(self, i):
++        for string, offset, length in zip(self.strings, self.offsets, self.lengths):
++            index = i - offset
++            if index >= 0 and index < length:
++                return string[index]
++        raise KeyError("No such LED in this string")
++
++    def fill(self, v):
++        for string in self.strings:
++            string.fill(v)
++
++    def write(self):
++        for string in self.strings:
++            string.write()
++
++    @property
++    def n(self):
++        return max(offset + length for (offset, length) in zip(self.offsets, self.lengths))
++
++
++class CorrectedNeoPixel:
++    def __init__(self, string, alterations):
++        self.string = string
++        self.alterations = alterations
++        self.n = string.n
++
++    def __setitem__(self, i, v):
++        alteration = self.alterations[i]
++        if alteration is not None:
++            v = alteration(v)
++        self.string[i] = v
++
++    def __getitem__(self, i):
++        return self.string[i]
++
++    def fill(self, v):
++        for i in range(self.n):
++            self[i] = v
++
++    def write(self):
++        self.string.write()
++
++
++class DimCorrection:
++    def __init__(self, amount):
++        self.amount = amount
++
++    def __call__(self, v):
++        new_val = []
++        for channel in v:
++            channel *= self.amount
++            channel = int(channel)
++            if channel > 255:
++                channel = 255
++            if channel < 0:
++                channel = 0
++            new_val.append(channel)
++        return new_val
++
++
++class ColourCorrection:
++    def __init__(self, amounts):
++        self.amounts = amounts
++
++    def __call__(self, v):
++        new_val = []
++        for channel, amount in zip(v, self.amounts):
++            channel *= amount
++            channel = int(channel)
++            if channel > 255:
++                channel = 255
++            if channel < 0:
++                channel = 0
++            new_val.append(channel)
++        return new_val
++
++
++class CallbackCorrection:
++    def __init__(self, callback, **kwargs):
++        self.callback = callback
++        self.kwargs = kwargs
++
++    def __call__(self, v):
++        return self.callback(v, **self.kwargs)
++
 diff --git a/python-ecosys/requests/requests/__init__.py b/python-ecosys/requests/requests/__init__.py
-index 7401029..e55840b 100644
+index 68b4b18..2a1e72f 100644
 --- a/python-ecosys/requests/requests/__init__.py
 +++ b/python-ecosys/requests/requests/__init__.py
 @@ -43,6 +43,7 @@ def request(
@@ -8,14 +155,14 @@ index 7401029..e55840b 100644
      parse_headers=True,
 +    allow_redirects=True,
  ):
-     redirect = None  # redirection url, None means no redirection
-     chunked_data = data and getattr(data, "__next__", None) and not getattr(data, "__len__", None)
-@@ -159,7 +160,7 @@ def request(
+     if headers is None:
+         headers = {}
+@@ -180,7 +181,7 @@ def request(
          s.close()
          raise
  
 -    if redirect:
 +    if redirect and allow_redirects:
          s.close()
-         if status in [301, 302, 303]:
-             return request("GET", redirect, None, None, headers, stream)
+         # Use the host specified in the redirect URL, as it may not be the same as the original URL.
+         headers.pop("Host", None)

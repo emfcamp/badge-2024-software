@@ -6,7 +6,9 @@ from system.hexpansion.events import (
     HexpansionRemovalEvent,
     HexpansionInsertionEvent, 
     HexpansionAppRequestStartEvent,
-    HexpansionAppRequestStopEvent
+    HexpansionAppRequestStopEvent,
+    HexpansionMountedEvent,
+    HexpansionUnmountedEvent,
 )
 from system.hexpansion.util import (
     read_hexpansion_header,
@@ -29,6 +31,7 @@ from egpio import ePin
 from system.eventbus import eventbus
 from machine import I2C
 from events.input import Buttons
+import asyncio
 import vfs
 import sys
 import settings
@@ -68,6 +71,8 @@ class HexpansionManagerApp(app.App):
 
     def __init__(self, autolaunch=True):
         super().__init__()
+        global _hexpansion_manager
+        _hexpansion_manager = self
         eventbus.on_async(
             HexpansionInsertionEvent, self.handle_hexpansion_insertion, self
         )
@@ -81,6 +86,7 @@ class HexpansionManagerApp(app.App):
         self.format_dialog_port = None
         self.buttons = Buttons(self)
         self.hexpansion_apps = {}
+        self.hexpansion_headers = {}
         self.autolaunch = autolaunch
         tildagonos.set_led_power(True)
         self.inserted_hexpansions = {}
@@ -164,7 +170,7 @@ class HexpansionManagerApp(app.App):
             _package = __import__(f"{mount}.app")
             package = _package.app
             print(f"Found app package: {package}")
-        except ImportError as e:
+        except (ImportError, SyntaxError) as e:
             print(e)
             print("App module not found")
             self._cleanup_import_path(old_cwd, old_sys_path)
@@ -274,16 +280,32 @@ class HexpansionManagerApp(app.App):
         print(event)
         i2c = I2C(event.port)
 
-        # Autodetect eeprom addr
+        # Autodetect eeprom addr, retry once after 100ms if not found
         addr, addr_len = detect_eeprom_addr(i2c)
+        if addr is None:
+            await asyncio.sleep(0.1)
+            addr, addr_len = detect_eeprom_addr(i2c)
         if addr is None:
             print("Scan found no eeproms")
             return
 
         # Do we have a header?
-        header = read_hexpansion_header(i2c, addr, addr_len=addr_len)
-        if header is None:
+        try:
+            header = read_hexpansion_header(i2c, addr, addr_len=addr_len)
+        except OSError:
+            # We failed to read from the hexpansion header, skip
+            eventbus.emit(
+                ShowNotificationEvent(message="Failed to read EEPROM", port=event.port)
+            )
             return
+        else:
+            if header is None:
+                eventbus.emit(
+                    ShowNotificationEvent(
+                        message="Failed to read header", port=event.port
+                    )
+                )
+                return
 
         if header.friendly_name != "":
             eventbus.emit(
@@ -292,6 +314,7 @@ class HexpansionManagerApp(app.App):
 
         print("Found hexpansion header:")
         print(header)
+        self.hexpansion_headers[event.port] = header
 
         # Try creating block devices, one for the whole eeprom,
         # one for the partition with the filesystem on it
@@ -308,11 +331,18 @@ class HexpansionManagerApp(app.App):
         if eep is not None and partition is not None:
             self._mount_eeprom(partition, event.port)
 
+        eventbus.emit(HexpansionMountedEvent(port=event.port, header=header))
+
     async def handle_hexpansion_removal(self, event):
         print(event)
+        header = None
 
         if event.port in self.hexpansion_apps:
             self._stop_hexpansion_app(self.hexpansion_apps[event.port], event.port)
+
+        if event.port in self.hexpansion_headers:
+            header = self.hexpansion_headers[event.port]
+            self.hexpansion_headers[event.port] = None
 
         if event.port in self.mountpoints:
             print(f"Unmounting {self.mountpoints[event.port]}")
@@ -330,3 +360,8 @@ class HexpansionManagerApp(app.App):
 
         for hs in HexpansionConfig(event.port).pin:
             hs.init(hs.IN)
+
+        eventbus.emit(HexpansionUnmountedEvent(port=event.port, header=header))
+
+
+_hexpansion_manager = None

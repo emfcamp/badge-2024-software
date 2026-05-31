@@ -30,7 +30,7 @@ led_colours=[
 
 class _tildagonos:
     
-    leds = neopixel.NeoPixel()
+    leds = neopixel.NeoPixel(None, 13)
     
     def __init__(self):
         pass

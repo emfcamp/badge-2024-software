@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 from app import App
 from app_components import clear_background
@@ -158,6 +159,7 @@ class Launcher(App):
             # ("Accelerometer", "accel_app", "Accel"),
             # ("Magnetometer", "magnet_app", "Magnetometer"),
             ("Update", "system.ota.ota", "OtaUpdate"),
+            ("Hexpansions", "firmware_apps.hexpansionfw", "HexpansionInfoApp"),
             ("Power Off", "firmware_apps.poweroff", "PowerOff"),
             ("Settings", "firmware_apps.settings_app", "SettingsApp"),
             # ("Settings", "settings_app", "SettingsApp"),
@@ -201,6 +203,7 @@ class Launcher(App):
                     app = getattr(module, fn)()
                 except Exception as e:
                     print(f"Error creating app: {e}")
+                    sys.print_exception(e, sys.stderr)
                     eventbus.emit(
                         ShowNotificationEvent(message=f"{item['name']} has crashed")
                     )

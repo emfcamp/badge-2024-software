@@ -1,8 +1,8 @@
 class BasePattern:
-    def __init__(self):
+    def __init__(self, num_leds=12):
         self._current_frame_id = 0
         self.fps = 1
-        self.frames = [[(255, 255, 255)] * 12]
+        self.frames = [[(255, 255, 255)] * num_leds]
 
     def next(self):
         self._current_frame_id += 1

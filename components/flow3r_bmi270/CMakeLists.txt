@@ -4,7 +4,4 @@ idf_component_register(
         bmi2.c
     INCLUDE_DIRS
         .
-        ../st3m
-    REQUIRES
-		main_esp32s3
 )

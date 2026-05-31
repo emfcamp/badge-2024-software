@@ -205,4 +205,23 @@ MP_DEFINE_CONST_OBJ_TYPE(
     locals_dict, &mp_machine_i2c_locals_dict
     );
 
+esp_err_t tildagon_i2c_reg_read(uint8_t port, uint16_t addr, uint8_t reg_addr, uint8_t *data, uint32_t len) {
+    tildagon_mux_i2c_obj_t *mux_obj = tildagon_get_mux_obj(port);
+    uint8_t tx[] = { reg_addr };
+    mp_machine_i2c_buf_t bufs[2] = { { .len = 1, .buf = tx }, { .len = len, .buf = data } };
+    int ret = tildagon_mux_i2c_transaction(mux_obj, addr, 2, bufs,
+        MP_MACHINE_I2C_FLAG_WRITE1 | MP_MACHINE_I2C_FLAG_READ | MP_MACHINE_I2C_FLAG_STOP);
+    return ret < 0 ? ESP_FAIL : ESP_OK;
+}
+
+esp_err_t tildagon_i2c_reg_write(uint8_t port, uint16_t addr, uint8_t reg_addr, const uint8_t *data, uint32_t len) {
+    tildagon_mux_i2c_obj_t *mux_obj = tildagon_get_mux_obj(port);
+    uint8_t tx[len + 1];
+    tx[0] = reg_addr;
+    memcpy(tx + 1, data, len);
+    mp_machine_i2c_buf_t bufs[1] = { { .len = len + 1, .buf = tx } };
+    int ret = tildagon_mux_i2c_transaction(mux_obj, addr, 1, bufs, MP_MACHINE_I2C_FLAG_STOP);
+    return ret < 0 ? ESP_FAIL : ESP_OK;
+}
+
 #endif

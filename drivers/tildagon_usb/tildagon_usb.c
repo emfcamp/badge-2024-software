@@ -1,6 +1,7 @@
 #include "driver/gpio.h"
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/idf_additions.h"
 #include "freertos/task.h"
 
 #define DEBUG_LED GPIO_NUM_35

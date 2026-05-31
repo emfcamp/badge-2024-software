@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e -o pipefail
 
-source ~/.profile
-
 find /firmware -name '.git' -exec bash -c 'git config --global --add safe.directory ${0%/.git}' {} \;
 
 cd /firmware
