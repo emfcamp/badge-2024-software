@@ -488,6 +488,8 @@ class CodeInstall:
         eventbus.on(ButtonDownEvent, self._handle_buttondown, app)
 
     def _handle_buttondown(self, event: ButtonDownEvent):
+        kbd_button = event.button.find_parent_in_group("Keyboard")
+
         if BUTTON_TYPES["UP"] in event.button:
             self.id += "0"
         elif BUTTON_TYPES["RIGHT"] in event.button:
@@ -500,6 +502,8 @@ class CodeInstall:
             self.id += "4"
         elif BUTTON_TYPES["CANCEL"] in event.button:
             self.id += "5"
+        elif kbd_button is not None and kbd_button.name in "012345":
+            self.id += kbd_button.name
 
         if len(self.id) == 8:
             self._cleanup()
