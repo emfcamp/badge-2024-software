@@ -37,10 +37,10 @@ def dir_exists(filename):
 
 APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
 
-CODE_INSTALL = "CodeInstall"
-AVAILABLE = "StoreInstall"
+CODE_INSTALL = "Use Code"
+AVAILABLE = "Browse Apps"
 INSTALLED = "Uninstall"
-UPDATE = "Update"
+UPDATE = "Update Apps"
 REFRESH = "Refresh Apps"
 
 
@@ -250,8 +250,8 @@ class AppStoreApp(app.App):
         self.menu = Menu(
             self,
             menu_items=[
-                CODE_INSTALL,
                 AVAILABLE,
+                CODE_INSTALL,
                 UPDATE,
                 INSTALLED,
             ],
