@@ -44,18 +44,22 @@ class Notification:
 
     def get_text_for_line(self, ctx, text, line):
         width_for_line = 240
-        if line < (len(self.width_limits)):
+        if line < len(self.width_limits):
             width_for_line = self.width_limits[line]
 
-        extra_text = ""
-        text_that_fits = text
-        text_width = ctx.text_width(text_that_fits)
-        while text_width > width_for_line:
-            character = text_that_fits[-1]
-            text_that_fits = text_that_fits[:-1]
-            extra_text = character + extra_text
-            text_width = ctx.text_width(text_that_fits)
-        return text_that_fits, extra_text
+        split = len(text)
+        for i in range(1, len(text) + 1):
+            # Attempt to break on a word boundary
+            if i < len(text) and text[i] == " ":
+                split = i + 1
+
+            # But if there are no spaces, just hard break
+            if ctx.text_width(text[:i]) > width_for_line:
+                if split == len(text):
+                    split = i
+                break
+
+        return text[:split], text[split:]
 
     def draw(self, ctx):
         if not self._is_closed():
