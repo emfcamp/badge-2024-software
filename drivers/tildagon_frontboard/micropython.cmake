@@ -14,6 +14,7 @@ target_include_directories(usermod_tildagon_frontboard INTERFACE
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/cy8cmbrx
     ${CMAKE_CURRENT_LIST_DIR}/../tildagon_imu/qmc6309
+    ${CMAKE_CURRENT_LIST_DIR}/../tildagon_imu
 )
 
 # Link our INTERFACE library to the usermod target.

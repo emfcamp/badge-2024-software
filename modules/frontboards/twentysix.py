@@ -131,7 +131,7 @@ class TwentyTwentySix(FrontBoard):
     JOY_PINS = {
         JOYSTICK["UP"]: (2, 6),
         JOYSTICK["DOWN"]: (1, 1),
-        JOYSTICK["LEFT"]: (1, 2),
+        JOYSTICK["LEFT"]: (1, 3),
         JOYSTICK["RIGHT"]: (2, 7),
         JOYSTICK["CONFIRM"]: (1, 0),
     }
