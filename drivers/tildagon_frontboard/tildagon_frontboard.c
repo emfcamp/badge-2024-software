@@ -15,7 +15,7 @@
 
 const uint8_t reset = 7U;
 const uint8_t int_clear = 6U;
-const uint8_t iox_int = 3U;
+const uint8_t iox_int = 2U;
 const uint8_t ls1 = 15U;
 
 aw9523b_device_t top_egpio = 
