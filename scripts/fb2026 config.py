@@ -245,8 +245,11 @@ def cy8cmbr3116_init():
     config_crc = cy8cmbr_crc(cy8cmbr3116_config)
     if device_crc[0] != config_crc[0] or device_crc[1] != config_crc[1]:
         print ("configuring touch")
-        top.writeto_mem(0x37, 0x00, bytes(cy8cmbr3116_config + config_crc))
-        top.writeto_mem(0x37, 0x86, bytes([0x02]))
+        try:
+            top.writeto_mem(0x37, 0x00, bytes(cy8cmbr3116_config + config_crc))
+            top.writeto_mem(0x37, 0x86, bytes([0x02]))
+        except:
+            print("i2c write failed")
     else:
         print("touch already configured")
 

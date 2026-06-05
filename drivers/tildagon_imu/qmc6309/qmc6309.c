@@ -20,13 +20,8 @@ esp_err_t qmc6309_init( void )
 {
     _mu = xSemaphoreCreateMutex();
 
-    uint8_t reset = 0x80U;
-    tildagon_i2c_reg_write(TILDAGON_TOP_I2C_PORT, ADDRESS, CTRL_REG2, &reset, 1);
-    reset = 0x00U;
-    tildagon_i2c_reg_write(TILDAGON_TOP_I2C_PORT, ADDRESS, CTRL_REG2, &reset, 1);
-
-    uint8_t config[3] = { 0x03U, 0x00U, 0x00U };
-    return tildagon_i2c_reg_write(TILDAGON_TOP_I2C_PORT, ADDRESS, CTRL_REG1, config, 3);
+    uint8_t config[3] = { 0x03U, 0x00U };
+    return tildagon_i2c_reg_write(TILDAGON_TOP_I2C_PORT, ADDRESS, CTRL_REG1, config, 2);
 
 }
 
@@ -35,9 +30,11 @@ void qmc6309_update( void )
     uint8_t buffer[6] = { 0U };
     if ( tildagon_i2c_reg_read( TILDAGON_TOP_I2C_PORT, ADDRESS, DATA_OUTPUT_REG, buffer, 6U ) == ESP_OK )
     {
+        LOCK;
         qmc_x = buffer[0] + ((uint16_t)buffer[1] << 8);
         qmc_y = buffer[2] + ((uint16_t)buffer[3] << 8);
         qmc_z = buffer[4] + ((uint16_t)buffer[5] << 8);
+        UNLOCK;
     }    
 }
 

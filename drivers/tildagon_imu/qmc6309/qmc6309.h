@@ -5,8 +5,8 @@
 
 esp_err_t qmc6309_init( void );
 
-void qmc6309_update( void );
+extern void qmc6309_update( void );
 
-void qmc6309_read( float* x, float*y, float*z );
+extern void qmc6309_read( float* x, float*y, float*z );
 
 #endif
