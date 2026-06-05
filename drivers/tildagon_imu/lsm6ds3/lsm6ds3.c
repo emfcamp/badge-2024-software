@@ -150,45 +150,41 @@ int lsm6ds3_read(uint8_t reg_addr, uint8_t *reg_data, uint8_t len )
  */
 void lsm6ds3_task( void ) 
 {
-    TickType_t last_wake = xTaskGetTickCount();
-    while (1) 
+    /* read temperature, gyro and accelerometer together to reduce i2c traffic */
+    uint8_t write_buffer[2] = { OUT_TEMP_L, 0x16 };
+    uint8_t read_buffer[14] = { 0U };
+    mp_machine_i2c_buf_t buffer[2] = { { .len = 1, .buf = write_buffer }, 
+                                       { .len = 14, .buf = read_buffer } };
+    esp_err_t ret = tildagon_mux_i2c_transaction( mux_port, ADDRESS, 2, buffer, READ );
+    if (ret >= 0) 
     {
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(10));  // 100 Hz
-        /* read temperature, gyro and accelerometer together to reduce i2c traffic */
-        uint8_t write_buffer[2] = { OUT_TEMP_L, 0x16 };
-        uint8_t read_buffer[14] = { 0U };
-        mp_machine_i2c_buf_t buffer[2] = { { .len = 1, .buf = write_buffer }, 
-                                           { .len = 14, .buf = read_buffer } };
-        esp_err_t ret = tildagon_mux_i2c_transaction( mux_port, ADDRESS, 2, buffer, READ );
-        if (ret >= 0) 
-        {
-            LOCK;
-            _temperature = (((float)((int16_t)(read_buffer[0] + ( (uint16_t)read_buffer[1] << 8 )))) * 0.001953125F) + 23.0F;
-            const float gyroscaling = (2000.0F / 32768.0F);
-            gyro_x = ((float)((int16_t)( read_buffer[2] + ( (uint16_t)read_buffer[3] << 8 ) ))) * gyroscaling;
-            gyro_y = ((float)((int16_t)( read_buffer[4] + ( (uint16_t)read_buffer[5] << 8 ) ))) * gyroscaling;
-            gyro_z = ((float)((int16_t)( read_buffer[6] + ( (uint16_t)read_buffer[7] << 8 ) ))) * gyroscaling;
-            /* 2g fsd, 1g = 9.80665m/s */
-            const float accelscaling = (2.0F * 9.80665F) / 32768.0F; 
-            acc_x = ((float)((int16_t)( read_buffer[8] + ( (uint16_t)read_buffer[9] << 8 ) ))) * accelscaling;
-            acc_y = ((float)((int16_t)( read_buffer[10] + ( (uint16_t)read_buffer[11] << 8 ) ))) * accelscaling;
-            acc_z = ((float)((int16_t)( read_buffer[12] + ( (uint16_t)read_buffer[13] << 8 ) ))) * accelscaling;
-            UNLOCK;
-        }
-        write_buffer[0] = STEP_COUNTER_L;
-        buffer[1].len = 2;
-        ret = tildagon_mux_i2c_transaction( mux_port, ADDRESS, 2, buffer, READ );
-        if (ret >= 0) 
-        {
-            LOCK;
-            _steps += read_buffer[0] + ( (uint16_t)read_buffer[1] << 8 );
-            /* reset step count */
-            buffer[0].len = 2;
-            write_buffer[0] = CTRL10_C;
-            tildagon_mux_i2c_transaction( mux_port, ADDRESS, 1, buffer, WRITE );
-            UNLOCK;
-        }
-    }        
+        LOCK;
+        _temperature = (((float)((int16_t)(read_buffer[0] + ( (uint16_t)read_buffer[1] << 8 )))) * 0.001953125F) + 23.0F;
+        const float gyroscaling = (2000.0F / 32768.0F);
+        gyro_x = ((float)((int16_t)( read_buffer[2] + ( (uint16_t)read_buffer[3] << 8 ) ))) * gyroscaling;
+        gyro_y = ((float)((int16_t)( read_buffer[4] + ( (uint16_t)read_buffer[5] << 8 ) ))) * gyroscaling;
+        gyro_z = ((float)((int16_t)( read_buffer[6] + ( (uint16_t)read_buffer[7] << 8 ) ))) * gyroscaling;
+        /* 2g fsd, 1g = 9.80665m/s */
+        const float accelscaling = (2.0F * 9.80665F) / 32768.0F; 
+        acc_x = ((float)((int16_t)( read_buffer[8] + ( (uint16_t)read_buffer[9] << 8 ) ))) * accelscaling;
+        acc_y = ((float)((int16_t)( read_buffer[10] + ( (uint16_t)read_buffer[11] << 8 ) ))) * accelscaling;
+        acc_z = ((float)((int16_t)( read_buffer[12] + ( (uint16_t)read_buffer[13] << 8 ) ))) * accelscaling;
+        UNLOCK;
+    }
+    write_buffer[0] = STEP_COUNTER_L;
+    buffer[1].len = 2;
+    ret = tildagon_mux_i2c_transaction( mux_port, ADDRESS, 2, buffer, READ );
+    if (ret >= 0) 
+    {
+        LOCK;
+        _steps += read_buffer[0] + ( (uint16_t)read_buffer[1] << 8 );
+        /* reset step count */
+        buffer[0].len = 2;
+        write_buffer[0] = CTRL10_C;
+        tildagon_mux_i2c_transaction( mux_port, ADDRESS, 1, buffer, WRITE );
+        UNLOCK;
+    }
+       
 }
 
 /**

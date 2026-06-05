@@ -66,7 +66,8 @@ tempfuncptr_t temp_read[MAX_DEVICES] =
     /* LSM6DS3 */  lsm6ds3_read_temperature,
 };
 
-sensorfuncptr_t compass_readptr = NULL;
+static sensorfuncptr_t compass_readptr = NULL;
+static updatefuncptr_t compass_funcptr = NULL;
 
 static char st3m_id[]  = "bmi270";
 static char lsm6ds3_id[]  = "lsm6ds3";
@@ -77,7 +78,6 @@ static char* id_list[MAX_DEVICES] =
 };
 
 which_imu_t imu = MAX_DEVICES;
-static updatefuncptr_t compass_funcptr = NULL;
 
 void tildagon_imu_init( void )
 {
@@ -202,9 +202,15 @@ void tildagon_imu_compass_read( float* x, float*y, float*z )
 
 void imu_run( void* data )
 {
-    update[imu]();
-    if ( compass_funcptr != NULL )
+    TickType_t last_wake = xTaskGetTickCount();
+    while (1) 
     {
-        compass_funcptr();
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(10));  // 100 Hz
+
+        update[imu]();
+        if ( compass_funcptr != NULL )
+        {
+            compass_funcptr();
+        }
     }
 }
