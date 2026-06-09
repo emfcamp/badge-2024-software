@@ -16,7 +16,7 @@ class PatternInhibit(app.App):
         self._inhibiting = True
 
     def _make_red(self):
-        asyncio.sleep(0.5)
+        await asyncio.sleep(0.5)
         for i in range(1, 13):
             tildagonos.leds[i] = (int(i * (255 / 12)), 0, 0)
         tildagonos.leds.write()
