@@ -47,6 +47,34 @@ ui_colors = {
     "active_button_text": colors["black"],
 }
 
+# Available highlight colours for the focused menu item, in cycle order.
+# Keys are stored in settings under "menu_highlight_color".
+MENU_HIGHLIGHT_COLORS = {
+    "yellow": colors["yellow"],
+    "pink": colors["pink"],
+    "white": colors["white"],
+    "green": colors["pale_green"],
+    "orange": colors["orange"],
+    "blue": colors["blue"],
+}
+
+# Ordered list used by the settings app to cycle through options.
+MENU_HIGHLIGHT_COLOR_NAMES = ["yellow", "pink", "white", "green", "orange", "blue"]
+
+
+def get_focused_menu_color():
+    """Return the RGB tuple for the focused/highlighted menu item.
+
+    Reads the 'menu_highlight_color' key from settings at call time so the
+    change takes effect immediately without a restart. Defaults to yellow if
+    no preference has been saved or the stored value is unrecognised.
+    """
+    import settings as _settings
+    key = _settings.get("menu_highlight_color", "yellow")
+    if not key or key not in MENU_HIGHLIGHT_COLORS:
+        key = "yellow"
+    return MENU_HIGHLIGHT_COLORS[key]
+
 
 def clear_background(ctx):
     ctx.rgb(*colors["dark_green"]).rectangle(-120, -120, display_x, display_y).fill()
