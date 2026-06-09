@@ -333,7 +333,6 @@ class SettingsApp(app.App):
                     self.layout.items.append(entry)
 
                 if id == "menu_highlight_color":
-                    # Replace the generic entry just added with our colour-aware version
                     self.layout.items.pop()
                     highlight_entry = HighlightColorDisplay(
                         label, menu_highlight_formatter(settings.get(id))
