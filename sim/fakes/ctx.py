@@ -503,15 +503,7 @@ class Context:
 
     def get_font_name(self, i):
         return [
-            "Arimo Regular",
-            "Arimo Bold",
-            "Arimo Italic",
-            "Arimo Bold Italic",
-            "Camp Font 1",
-            "Camp Font 2",
-            "Camp Font 3",
-            "Material Icons",
-            "Comic Mono",
+            "EMF Camp Font"
         ][i]
 
     def scope(self):
