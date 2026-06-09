@@ -163,7 +163,7 @@ class Menu:
             num_menu_items = len(self.menu_items)
             pos = self.position % num_menu_items if num_menu_items > 0 else 0
 
-            # Current (focused) menu item — drawn in the user's chosen highlight colour
+            # Current menu item
             ctx.font_size = self.item_font_size + animation_progress * (
                 self.focused_item_font_size_arr[pos] - self.item_font_size
             )
@@ -171,7 +171,6 @@ class Menu:
             label = self.menu_items[pos] if num_menu_items > 0 else "Empty Menu"
             ctx.move_to(0, y_offset).text(label)
 
-            # Surrounding items — standard white label colour
             set_color(ctx, "label")
             ctx.font_size = self.item_font_size
 
