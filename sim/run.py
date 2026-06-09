@@ -101,10 +101,7 @@ def _path_replace(p):
         dir = os.path.dirname(__file__)
         p = f"{dir}{p}"
         return p
-    # Redirect bare badge root paths to the sim directory.
-    # These are short top-level paths used by the badge firmware
-    # (e.g. /settings.json, /backgrounds, /pattern, /eeprom)
-    # but NOT host absolute paths like /home/... or /tmp/...
+    # Redirect bare badge root paths (e.g. /settings.json) to the sim directory
     _BADGE_ROOT_PATHS = (
         "/settings.json",
         "/backgrounds",
