@@ -74,6 +74,15 @@ esp_err_t flow3r_bsp_gc9a01_blit_osd(flow3r_bsp_gc9a01_t *gc9a01,
                                      const void *osd_fb, int osd_x0, int osd_y0,
                                      int osd_x1, int osd_y1);
 
+// Send pre-rendered pixel data to a rectangular region of the display.
+// Data must be w*h pixels in 16bpp RGB565 byteswapped format, packed
+// contiguously (row-major, no stride gaps).
+// Coordinates are clamped to display bounds.
+esp_err_t flow3r_bsp_gc9a01_blit_rect(flow3r_bsp_gc9a01_t *gc9a01,
+                                       const void *data,
+                                       uint16_t x, uint16_t y,
+                                       uint16_t w, uint16_t h);
+
 // Set backlight for display, using integer percent value (0-100, clamped).
 esp_err_t flow3r_bsp_gc9a01_backlight_set(flow3r_bsp_gc9a01_t *gc9a01,
                                           uint8_t value);
