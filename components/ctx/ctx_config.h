@@ -28,7 +28,8 @@
 #define CTX_LIMIT_FORMATS                  1
 #define CTX_32BIT_SEGMENTS                 0
 #define CTX_RASTERIZER                     1
-#define CTX_RASTERIZER_AA                  5
+#define CTX_RASTERIZER_AA                  3
+#define CTX_COMPOSITE_SPEED_OVER_SAFETY    1
 #define CTX_ENABLE_RGB565                  1
 #define CTX_ENABLE_RGB565_BYTESWAPPED      1
 #define CTX_COMPOSITING_GROUPS             0
@@ -36,7 +37,6 @@
 #define CTX_EVENTS                         1
 #define CTX_TERMINAL_EVENTS                0
 #define CTX_THREADS                        0
-#define CTX_TILED                          0
 #define CTX_BAREMETAL                      1
 #define CTX_ONE_FONT_ENGINE                1
 #define CTX_GET_CONTENTS                   1
@@ -68,7 +68,7 @@
 #define CTX_HASH_COLS                      5
 #define CTX_HASH_ROWS                      5
 #define CTX_STROKE_1PX                     1
-
+#define CTX_MATH                           1
 
 #define CTX_COMPOSITE_O3                1
 #define CTX_RASTERIZER_O2               0
