@@ -4,17 +4,17 @@
 #include "mp_uctx.h"
 #include <math.h>
 
-#define TILDAGON_CTX_SHOW_FPS        1 // shows fps counter at top of display
+#define TILDAGON_CTX_SHOW_FPS        0 // shows fps counter at top of display
 
 #define TILDAGON_CTX_DRAWLIST_MODE   1 // accumulates draw commands in drawlists
    // and render changed sub-regions of display, the opposite is
    // DIRECT mode
    //
-#define TILDAGON_CTX_DRAWLIST_FB     0 // keep fb in ram no tearing, 
+#define TILDAGON_CTX_DRAWLIST_FB     1 // keep fb in ram no tearing,
    // if 0 then enough memory to compute TILDAGON_SCRATCH_ROWS of pixels is used
 #define TILDAGON_SCRATCH_ROWS       30 //
 
-#define TILDAGON_CTX_IRAM            1 // put ctx scratch/framebuffer in IRAM
+#define TILDAGON_CTX_IRAM            0 // put ctx scratch/framebuffer in IRAM
 
 bool gfx_inited = false;
 
