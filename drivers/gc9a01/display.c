@@ -69,6 +69,17 @@ void tildagon_blit_fb (void)
 void tildagon_end_frame(Ctx *ctx)
 {
   ctx_restore (ctx);
+  ctx_save (ctx);
+  ctx_rectangle (ctx, 0, 0, 240, 15);
+  ctx_rgba (ctx, 0, 0, 0, 1.0);
+  ctx_fill (ctx);
+  ctx_rgba (ctx, 1, 1, 1, 1.0);
+  ctx_font_size (ctx, 15);
+  ctx_move_to (ctx, 100, 14);
+  char buf[23];
+  sprintf (buf, "%.2f", st3m_gfx_fps());
+  ctx_text (ctx, buf);
+  ctx_restore (ctx);
   tildagon_blit_fb ();
   // display.end_frame() cannot call ctx_end_frame() directly here: that resets
   // rasterizer state, including the framebuffer clip bounds, which leaves
