@@ -27,6 +27,12 @@ void flow3r_bsp_display_send_fb_osd(void *fb_data, int bits, int scale,
                                     void *osd_data, int osd_x0, int osd_y0,
                                     int osd_x1, int osd_y1);
 
+// Send pre-rendered pixel data to a rectangular region of the display.
+// Data is w*h pixels of 16bpp RGB565 byteswapped, contiguous row-major.
+void flow3r_bsp_display_send_rect(const void *data,
+                                   uint16_t x, uint16_t y,
+                                   uint16_t w, uint16_t h);
+
 // Set display backlight, as integer percent value (from 0 to 100, clamped).
 // No-op if display hasn't been successfully initialized.
 void flow3r_bsp_display_set_backlight(uint8_t percent);

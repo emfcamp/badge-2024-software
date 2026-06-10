@@ -1096,3 +1096,23 @@ esp_err_t flow3r_bsp_gc9a01_blit_full(flow3r_bsp_gc9a01_t *gc9a01,
                                       const void *fb, int bits) {
     return flow3r_bsp_gc9a01_blit_osd(gc9a01, fb, bits, 1, NULL, 0, 0, 0, 0);
 }
+
+esp_err_t flow3r_bsp_gc9a01_blit_rect(flow3r_bsp_gc9a01_t *gc9a01,
+                                       const void *data,
+                                       uint16_t x, uint16_t y,
+                                       uint16_t w, uint16_t h) {
+    if (x >= 240 || y >= 240 || w == 0 || h == 0) return ESP_OK;
+    if (x + w > 240) w = 240 - x;
+    if (y + h > 240) h = 240 - y;
+
+    esp_err_t ret;
+    ret = flow3r_bsp_gc9a01_column_set(gc9a01, x, x + w - 1);
+    if (ret != ESP_OK) return ret;
+    ret = flow3r_bsp_gc9a01_row_set(gc9a01, y, y + h - 1);
+    if (ret != ESP_OK) return ret;
+    ret = flow3r_bsp_gc9a01_cmd_sync(gc9a01, Cmd_RAMWR);
+    if (ret != ESP_OK) return ret;
+    ret = flow3r_bsp_gc9a01_data_sync(gc9a01, data, w * h * 2);
+
+    return ret;
+}
