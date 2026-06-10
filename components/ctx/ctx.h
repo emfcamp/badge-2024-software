@@ -55049,7 +55049,7 @@ Ctx *ctx_new_cb (int width, int height, CtxCbConfig *config)
 #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0))
     pthread_attr_t attr;          // on lower esp-idf versions the default ptread stack size should be set instead
     pthread_attr_init (&attr);
-    pthread_attr_setstacksize (&attr, 10 * 1024);
+    //pthread_attr_setstacksize (&attr, 10 * 1024);
     pthread_create(&tid, &attr, (void*)ctx_cb_render_thread, (void*)cb_backend);
 #else
     thrd_create(&tid, (void*)ctx_cb_render_thread, (void*) cb_backend);

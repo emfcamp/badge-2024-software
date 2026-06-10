@@ -4,6 +4,18 @@
 #include "mp_uctx.h"
 #include <math.h>
 
+#define TILDAGON_CTX_SHOW_FPS        1 // shows fps counter at top of display
+
+#define TILDAGON_CTX_DRAWLIST_MODE   1 // accumulates draw commands in drawlists
+   // and render changed sub-regions of display, the opposite is
+   // DIRECT mode
+   //
+#define TILDAGON_CTX_DRAWLIST_FB     0 // keep fb in ram no tearing, 
+   // if 0 then enough memory to compute TILDAGON_SCRATCH_ROWS of pixels is used
+#define TILDAGON_SCRATCH_ROWS       30 //
+
+#define TILDAGON_CTX_IRAM            1 // put ctx scratch/framebuffer in IRAM
+
 bool gfx_inited = false;
 
 static mp_obj_t bsp_init() {
@@ -32,52 +44,94 @@ static MP_DEFINE_CONST_FUN_OBJ_0(get_fps_obj, get_fps);
 
 static Ctx *tildagon_ctx = NULL;
 
-// #define TILDAGON_CTX_CB_MODE
+#if TILDAGON_CTX_SHOW_FPS
+/* draw a tiny live fps tracker at top of display
+ */
+static void tildagon_fps_display (Ctx *ctx)
+{
+  ctx_save (ctx);
+  ctx_rectangle (ctx, 0, 0, 240, 10);
+  ctx_rgba (ctx, 0, 0, 0, 1.0);
+  ctx_fill (ctx);
+  ctx_rgba (ctx, 1, 1, 1, 1.0);
+  ctx_font_size (ctx, 12);
+  ctx_move_to (ctx, 112, 8);
+  static char buf[23]="";
+  sprintf (buf, "%.0f", st3m_gfx_fps());
+  ctx_text (ctx, buf);
+  ctx_restore (ctx);
+}
+#endif /* TILDAGON_CTX_SHOW_FPS */
 
-#ifdef TILDAGON_CTX_CB_MODE
+#if (TILDAGON_CTX_DRAWLIST_MODE==0) || (TILDAGON_CTX_DRAWLIST_FB==1)
+#undef TILDAGON_SCRATCH_ROWS
+#define TILDAGON_SCRATCH_ROWS TILDAGON_DISPLAY_HEIGHT
+#endif
 
-#define TILDAGON_SCRATCH_ROWS 32
+#if TILDAGON_CTX_IRAM==0
+EXT_RAM_BSS_ATTR
+#endif
+static uint8_t tildagon_fb[TILDAGON_DISPLAY_WIDTH * TILDAGON_SCRATCH_ROWS * 2];
 
-// EXT_RAM_BSS_ATTR
-static uint8_t tildagon_scratch[TILDAGON_DISPLAY_WIDTH * TILDAGON_SCRATCH_ROWS * 2];
+#if TILDAGON_CTX_DRAWLIST_MODE
 
-static void tildagon_set_pixels(Ctx *ctx, void *user_data,
-                                int x, int y, int w, int h, void *buf) {
+static void tildagon_set_pixels (Ctx *ctx, void *user_data,
+                                 int x, int y, int w, int h, void *buf) {
     flow3r_bsp_display_send_rect(buf, x, y, w, h);
 }
 
+#else
+
+static void tildagon_blit_fb (void)
+{
+  flow3r_bsp_display_send_fb (tildagon_fb, 16);
+}
+
+#endif /* TILDAGON_CTX_DRAWLIST_MODE */
+
+#if (TILDAGON_CTX_DRAWLIST_MODE==1 && TILDAGON_CTX_DRAWLIST_FB==1)
+
+static int tildagon_blit_fb_ctx (Ctx *ctx, void *data,
+		                 int x, int y, int width, int height)
+{
+  tildagon_set_pixels (ctx, data, 0, y, TILDAGON_DISPLAY_WIDTH, height,
+                       &tildagon_fb [y * TILDAGON_DISPLAY_WIDTH* 2]);
+  return 0;
+}
+#endif
+
+#if TILDAGON_CTX_DRAWLIST_MODE
+
+
 Ctx *tildagon_gfx_ctx(void)
 {
-  if (tildagon_ctx == NULL)
-  {
-    tildagon_ctx = ctx_new_cb(TILDAGON_DISPLAY_WIDTH, TILDAGON_DISPLAY_HEIGHT,
-                              CTX_FORMAT_RGB565_BYTESWAPPED,
-                              tildagon_set_pixels, NULL,
-                              NULL, NULL,
-                              sizeof(tildagon_scratch),
-                              tildagon_scratch,
-                              CTX_FLAG_HASH_CACHE);
+  if (tildagon_ctx == NULL) {
+    CtxCbConfig config = {
+      .format = CTX_FORMAT_RGB565_BYTESWAPPED,
+#if TILDAGON_CTX_DRAWLIST_FB
+      .fb        = tildagon_fb,
+      .update_fb = tildagon_blit_fb_ctx,
+#else // not keeping framebuffer in RAM, relying on displays own storage
+      .set_pixels  = tildagon_set_pixels,
+      .buffer_size = sizeof (tildagon_fb),
+      .buffer      = tildagon_fb,
+#endif /* TILDAGON_CTX_DRAWLIST_FB */
+      .flags = CTX_FLAG_HASH_CACHE
+    };
+
+    tildagon_ctx = ctx_new_cb (TILDAGON_DISPLAY_WIDTH, TILDAGON_DISPLAY_HEIGHT,
+		               &config);
   }
   return tildagon_ctx;
 }
 
-void tildagon_end_frame(Ctx *ctx)
-{
-  ctx_restore (ctx);
-  ctx_end_frame (ctx);
-  st3m_gfx_fps_update ();
-}
 
-#else /* framebuffer mode */
-
-EXT_RAM_BSS_ATTR
-static uint8_t tildagon_fb[TILDAGON_DISPLAY_WIDTH * TILDAGON_DISPLAY_HEIGHT * 2];
+#else /* direct mode */
 
 Ctx *tildagon_gfx_ctx(void)
 {
-  if (tildagon_ctx == NULL)
-  {
-    tildagon_ctx = ctx_new_for_framebuffer(tildagon_fb,
+  if (tildagon_ctx == NULL) {
+    tildagon_ctx = ctx_new_for_framebuffer (tildagon_fb,
                               TILDAGON_DISPLAY_WIDTH, TILDAGON_DISPLAY_HEIGHT,
                               TILDAGON_DISPLAY_WIDTH * 2,
                               CTX_FORMAT_RGB565_BYTESWAPPED);
@@ -85,48 +139,45 @@ Ctx *tildagon_gfx_ctx(void)
   return tildagon_ctx;
 }
 
-static void tildagon_blit_fb(void)
-{
-  flow3r_bsp_display_send_fb(tildagon_fb, 16);
-}
+#endif /* TILDAGON_CTX_DRAWLIST_MODE */
+
 
 void tildagon_end_frame(Ctx *ctx)
 {
   ctx_restore (ctx);
-  ctx_save (ctx);
-  ctx_rectangle (ctx, 0, 0, 240, 15);
-  ctx_rgba (ctx, 0, 0, 0, 1.0);
-  ctx_fill (ctx);
-  ctx_rgba (ctx, 1, 1, 1, 1.0);
-  ctx_font_size (ctx, 15);
-  ctx_move_to (ctx, 100, 14);
-  char buf[23];
-  sprintf (buf, "%.2f", st3m_gfx_fps());
-  ctx_text (ctx, buf);
-  ctx_restore (ctx);
+#if TILDAGON_CTX_SHOW_FPS
+  tildagon_fps_display (ctx);
+#endif
+
+#if TILDAGON_CTX_DRAWLIST_MODE
+  ctx_end_frame (ctx);
+#else /* DIRECT mode */
   tildagon_blit_fb ();
   // display.end_frame() cannot call ctx_end_frame() directly here: that resets
   // rasterizer state, including the framebuffer clip bounds, which leaves
   // subsequent frames blank. Advance only the texture eviction clock.
   ctx_set_textureclock (ctx, ctx_textureclock (ctx) + 1);
+#endif 
   st3m_gfx_fps_update ();
 }
-
-#endif /* TILDAGON_CTX_CB_MODE */
 
 void tildagon_start_frame(Ctx *ctx)
 {
   int32_t offset_x = FLOW3R_BSP_DISPLAY_WIDTH / 2;
   int32_t offset_y = FLOW3R_BSP_DISPLAY_HEIGHT / 2;
 
+#if TILDAGON_CTX_DRAWLIST_MODE
+  ctx_start_frame (ctx);
   ctx_save (ctx);
-#ifndef TILDAGON_CTX_CB_MODE
+#else
+  ctx_save (ctx);
   // In framebuffer mode, identity resets any leftover state since
   // ctx_end_frame() is never called. In cb mode ctx_end_frame() resets
   // the state and the identity would override the tile offset that the
   // cb backend applies via ctx_translate before replaying the drawlist.
   ctx_identity (ctx);
 #endif
+
   ctx_apply_transform (ctx, 1.0f, 0.0f, offset_x, 0.0f, 1.0f, offset_y, 0.0f, 0.0f, 1.0f);
 }
 
@@ -196,7 +247,6 @@ static mp_obj_t hexagon(size_t n_args, const mp_obj_t *args) {
     return args[0];
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR(hexagon_obj, 4, hexagon);
-
 
 static const mp_rom_map_elem_t display_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_display) },

@@ -65,10 +65,10 @@
 #define CTX_MAX_KEYBINDINGS                16
 #define CTX_MAX_CBS                        8
 #define CTX_MAX_LISTEN_FDS                 1
-#define CTX_HASH_COLS                      5
-#define CTX_HASH_ROWS                      5
+#define CTX_HASH_COLS                      4
+#define CTX_HASH_ROWS                      4
 #define CTX_STROKE_1PX                     1
-#define CTX_MATH                           1
+#define CTX_MATH                           0
 
 #define CTX_COMPOSITE_O3                1
 #define CTX_RASTERIZER_O2               0
