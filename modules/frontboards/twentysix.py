@@ -9,6 +9,7 @@ from . import FrontBoard
 from system.hexpansion.events import HexpansionInsertionEvent, HexpansionRemovalEvent
 import time
 import frontboard2026
+from frontboards.utils import detect_frontboard
 
 try:
     from _sim import _sim
@@ -66,11 +67,12 @@ def buttondown(epin):
                 now = time.ticks_ms()
                 if TwentyTwentySix.hexpansion_states[hexindex] is None:
                     TwentyTwentySix.hexpansion_states[hexindex] = now
-                    await eventbus.emit_async(HexpansionInsertionEvent(port=hexindex))
+                    eventbus.emit(HexpansionInsertionEvent(port=hexindex))
                 hexindex += 1
             else:
                 eventbus.emit(ButtonDownEvent(button=BUTTONS[key]))
                 TwentyTwentySix.button_states[key][0] = True
+                print(f"{key} down")
 
 
 def buttonup(epin):
@@ -79,6 +81,7 @@ def buttonup(epin):
             eventbus.emit(ButtonUpEvent(button=BUTTONS[key]))
             TwentyTwentySix.button_states[key][0] = False
             TwentyTwentySix.button_states[key][1] = 0
+            print(f"{key} up")
 
 
 def joy_down(epin):
@@ -86,6 +89,7 @@ def joy_down(epin):
         if TwentyTwentySix.joy_assignment[key] is epin:
             eventbus.emit(ButtonDownEvent(button=JOYSTICK[key]))
             TwentyTwentySix.joystick_states[key][0] = True
+            print(f"{key} down")
 
 
 def joy_up(epin):
@@ -94,6 +98,7 @@ def joy_up(epin):
             eventbus.emit(ButtonUpEvent(button=JOYSTICK[key]))
             TwentyTwentySix.joystick_states[key][0] = False
             TwentyTwentySix.joystick_states[key][1] = 0
+            print(f"{key} up")
 
 
 def prox_down(prox):
@@ -161,6 +166,9 @@ class TwentyTwentySix(FrontBoard):
         "TOUCH11": frontboard2026.TOUCH11,
         "TOUCH12": frontboard2026.TOUCH12,
     }
+
+    if detect_frontboard() == 0x2601:
+        JOY_PINS[JOYSTICK["LEFT"]] = (1, 2)
 
     joy_assignment = {key: None for key in JOYSTICK.keys()}
     pin_assignment = {key: None for key in BUTTONS.keys()}

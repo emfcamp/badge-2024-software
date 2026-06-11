@@ -21,12 +21,13 @@ void mp_frontboard2026_push_event( uint8_t event, uint8_t trigger )
  * @brief initialise the frontboard, setting up touch and 
  * proximity and creating the additinal port expander
  */
-static mp_obj_t mp_frontboard2026_init( void ) 
+static mp_obj_t mp_frontboard2026_init( mp_obj_t frontboard_id ) 
 {
-    tildagon_frontboard_2026_init();
+    uint16_t id = mp_obj_get_int( frontboard_id );
+    tildagon_frontboard_init(id);
     return mp_const_none;
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(mp_frontboard2026_init_obj, mp_frontboard2026_init);
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_frontboard2026_init_obj, mp_frontboard2026_init);
 
 
 /**

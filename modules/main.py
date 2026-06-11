@@ -14,11 +14,12 @@ import frontboard2026
 
 fb = detect_frontboard()
 
+print(hex(fb))
 # Start front-board interface
-if fb == 0x2600:
+if (fb & 0xFF00) == 0x2600:
     from frontboards.twentysix import TwentyTwentySix
 
-    frontboard2026.init()
+    frontboard2026.init(fb)
     scheduler.start_app(TwentyTwentySix())
     print("entering 2026")
 else:
