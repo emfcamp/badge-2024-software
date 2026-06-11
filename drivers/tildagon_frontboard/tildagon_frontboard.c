@@ -15,7 +15,7 @@
 
 const uint8_t reset = 7U;
 const uint8_t int_clear = 6U;
-const uint8_t iox_int = 2U;
+uint8_t iox_int = 2U;
 const uint8_t ls1 = 15U;
 
 aw9523b_device_t top_egpio = 
@@ -28,8 +28,12 @@ static void iox_cb ( void* args, uint8_t event );
 /**
  * @brief initialise the frontboard
  */
-void tildagon_frontboard_2026_init( void )
+void tildagon_frontboard_init( uint16_t board_id )
 {
+    if ( ( board_id & 0x00FF ) == 0x01 )
+    {
+        iox_int = 3;
+    }
     /* setup frontboard port expander */
     top_egpio.mux = tildagon_get_mux_obj( TILDAGON_TOP_I2C_PORT ),
     tildagon_pins_set_aux( top_egpio, 0 );
