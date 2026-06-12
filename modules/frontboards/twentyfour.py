@@ -36,7 +36,7 @@ def buttondown(epin):
                 now = time.ticks_ms()
                 if TwentyTwentyFour.hexpansion_states[hexindex] is None:
                     TwentyTwentyFour.hexpansion_states[hexindex] = now
-                    eventbus.emit_async(HexpansionInsertionEvent(port=hexindex))
+                    eventbus.emit(HexpansionInsertionEvent(port=hexindex))
                 hexindex += 1
             else:
                 eventbus.emit(ButtonDownEvent(button=BUTTONS[key]))
