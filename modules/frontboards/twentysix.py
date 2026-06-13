@@ -20,41 +20,41 @@ except ImportError:
 
 
 BUTTONS = {
-    "A": Button("A", "TwentyTwentySix", BUTTON_TYPES["A"]),
-    "B": Button("B", "TwentyTwentySix", BUTTON_TYPES["B"]),
-    "C": Button("C", "TwentyTwentySix", BUTTON_TYPES["C"]),
-    "D": Button("D", "TwentyTwentySix", BUTTON_TYPES["D"]),
-    "E": Button("E", "TwentyTwentySix", BUTTON_TYPES["E"]),
-    "CANCEL": Button("CANCEL", "TwentyTwentySix", BUTTON_TYPES["CANCEL"]),
+    "A": Button("A", "TwentyTwentySix", BUTTON_TYPES["UP"]),
+    "B": Button("B", "TwentyTwentySix", BUTTON_TYPES["RIGHT"]),
+    "C": Button("C", "TwentyTwentySix", BUTTON_TYPES["CONFIRM"]),
+    "D": Button("D", "TwentyTwentySix", BUTTON_TYPES["DOWN"]),
+    "E": Button("E", "TwentyTwentySix", BUTTON_TYPES["LEFT"]),
+    "F": Button("F", "TwentyTwentySix", BUTTON_TYPES["CANCEL"]),
 }
 
 JOYSTICK = {
-    "UP": Button("UP", "TwentyTwentySix", BUTTON_TYPES["UP"]),
-    "DOWN": Button("DOWN", "TwentyTwentySix", BUTTON_TYPES["DOWN"]),
-    "LEFT": Button("LEFT", "TwentyTwentySix", BUTTON_TYPES["LEFT"]),
-    "RIGHT": Button("RIGHT", "TwentyTwentySix", BUTTON_TYPES["RIGHT"]),
-    "CONFIRM": Button("CONFIRM", "TwentyTwentySix", BUTTON_TYPES["CONFIRM"]),
+    "UP": Button("JOYUP", "TwentyTwentySix", BUTTON_TYPES["UP"]),
+    "DOWN": Button("JOYDOWN", "TwentyTwentySix", BUTTON_TYPES["DOWN"]),
+    "LEFT": Button("JOYLEFT", "TwentyTwentySix", BUTTON_TYPES["LEFT"]),
+    "RIGHT": Button("JOYRIGHT", "TwentyTwentySix", BUTTON_TYPES["RIGHT"]),
+    "FIRE": Button("JOYFIRE", "TwentyTwentySix", BUTTON_TYPES["CONFIRM"]),
 }
 
 
 PROX = {
-    "LEFTPROX": Button("LEFTPROX", "TwentyTwentySix", BUTTON_TYPES["LEFTPROX"]),
-    "RIGHTPROX": Button("RIGHTPROX", "TwentyTwentySix", BUTTON_TYPES["RIGHTPROX"]),
+    "LEFTPROX": Button("LEFTPROX", "TwentyTwentySix"),
+    "RIGHTPROX": Button("RIGHTPROX", "TwentyTwentySix"),
 }
 
 TOUCH = {
-    "TOUCH1": Button("TOUCH1", "TwentyTwentySix", BUTTON_TYPES["TOUCH1"]),
-    "TOUCH2": Button("TOUCH2", "TwentyTwentySix", BUTTON_TYPES["TOUCH2"]),
-    "TOUCH3": Button("TOUCH3", "TwentyTwentySix", BUTTON_TYPES["TOUCH3"]),
-    "TOUCH4": Button("TOUCH4", "TwentyTwentySix", BUTTON_TYPES["TOUCH4"]),
-    "TOUCH5": Button("TOUCH5", "TwentyTwentySix", BUTTON_TYPES["TOUCH5"]),
-    "TOUCH6": Button("TOUCH6", "TwentyTwentySix", BUTTON_TYPES["TOUCH6"]),
-    "TOUCH7": Button("TOUCH7", "TwentyTwentySix", BUTTON_TYPES["TOUCH7"]),
-    "TOUCH8": Button("TOUCH8", "TwentyTwentySix", BUTTON_TYPES["TOUCH8"]),
-    "TOUCH9": Button("TOUCH9", "TwentyTwentySix", BUTTON_TYPES["TOUCH9"]),
-    "TOUCH10": Button("TOUCH10", "TwentyTwentySix", BUTTON_TYPES["TOUCH10"]),
-    "TOUCH11": Button("TOUCH11", "TwentyTwentySix", BUTTON_TYPES["TOUCH11"]),
-    "TOUCH12": Button("TOUCH12", "TwentyTwentySix", BUTTON_TYPES["TOUCH12"]),
+    "TOUCH1": Button("TOUCH1", "TwentyTwentySix"),
+    "TOUCH2": Button("TOUCH2", "TwentyTwentySix"),
+    "TOUCH3": Button("TOUCH3", "TwentyTwentySix"),
+    "TOUCH4": Button("TOUCH4", "TwentyTwentySix"),
+    "TOUCH5": Button("TOUCH5", "TwentyTwentySix"),
+    "TOUCH6": Button("TOUCH6", "TwentyTwentySix"),
+    "TOUCH7": Button("TOUCH7", "TwentyTwentySix"),
+    "TOUCH8": Button("TOUCH8", "TwentyTwentySix"),
+    "TOUCH9": Button("TOUCH9", "TwentyTwentySix"),
+    "TOUCH10": Button("TOUCH10", "TwentyTwentySix"),
+    "TOUCH11": Button("TOUCH11", "TwentyTwentySix"),
+    "TOUCH12": Button("TOUCH12", "TwentyTwentySix"),
 }
 
 
@@ -138,7 +138,7 @@ class TwentyTwentySix(FrontBoard):
         JOYSTICK["DOWN"]: (1, 1),
         JOYSTICK["LEFT"]: (1, 3),
         JOYSTICK["RIGHT"]: (2, 7),
-        JOYSTICK["CONFIRM"]: (1, 0),
+        JOYSTICK["FIRE"]: (1, 0),
     }
     BUTTON_PINS = {
         BUTTONS["A"]: (3, 10),
@@ -146,7 +146,7 @@ class TwentyTwentySix(FrontBoard):
         BUTTONS["C"]: (3, 8),
         BUTTONS["D"]: (3, 13),
         BUTTONS["E"]: (3, 12),
-        BUTTONS["CANCEL"]: (3, 11),
+        BUTTONS["F"]: (3, 11),
     }
     PROX_INPUTS = {
         "LEFTPROX": frontboard2026.PROX1,
