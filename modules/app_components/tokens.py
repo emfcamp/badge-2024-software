@@ -47,6 +47,26 @@ ui_colors = {
     "active_button_text": colors["black"],
 }
 
+# Menu highlight colours - stored in settings under "menu_highlight_color"
+MENU_HIGHLIGHT_COLORS = {
+    "yellow": colors["yellow"],
+    "pink": colors["pink"],
+    "white": colors["white"],
+    "green": colors["pale_green"],
+    "orange": colors["orange"],
+    "blue": colors["blue"],
+}
+
+MENU_HIGHLIGHT_COLOR_NAMES = ["yellow", "pink", "white", "green", "orange", "blue"]
+
+
+def get_focused_menu_color():
+    import settings as _settings
+    key = _settings.get("menu_highlight_color", "yellow")
+    if not key or key not in MENU_HIGHLIGHT_COLORS:
+        key = "yellow"
+    return MENU_HIGHLIGHT_COLORS[key]
+
 
 symbols = {
     "arrows": {

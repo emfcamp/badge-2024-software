@@ -100,6 +100,17 @@ def _path_replace(p):
     if p.startswith("/apps"):
         dir = os.path.dirname(__file__)
         p = f"{dir}{p}"
+        return p
+    # Redirect bare badge root paths (e.g. /settings.json) to the sim directory
+    _BADGE_ROOT_PATHS = (
+        "/settings.json",
+        "/backgrounds",
+        "/pattern",
+        "/eeprom",
+        "/lastapplaunch.txt",
+    )
+    if p.startswith(_BADGE_ROOT_PATHS):
+        p = simpath + p
     return p
 
 

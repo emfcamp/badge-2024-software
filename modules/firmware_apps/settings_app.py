@@ -9,6 +9,9 @@ from system.patterndisplay.events import PatternReload
 from app_components.background import Background as bg
 from system.launcher.app import load_info
 from system.scheduler.events import RequestForegroundPushEvent
+from app_components.tokens import MENU_HIGHLIGHT_COLOR_NAMES, get_focused_menu_color
+import app_components.tokens as tokens
+from app_components import utils
 
 BG_DIR = "/backgrounds"
 PAT_DIR = "/pattern"
@@ -54,6 +57,12 @@ def on_off_formatter(value):
         return "No"
 
 
+def menu_highlight_formatter(value):
+    if value is None:
+        return "Yellow"
+    return value.capitalize()
+
+
 def reset_wifi_settings():
     print("RESET WIFI")
     for s in ["wifi_ssid", "wifi_password", "wifi_wpa2ent_username"]:
@@ -62,6 +71,55 @@ def reset_wifi_settings():
 
 BRIGHTNESSES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 CHANNELS = ["latest", "preview"]
+
+
+class HighlightColorDisplay(layout.DefinitionDisplay):
+    """DefinitionDisplay subclass that draws the value text in the currently
+    selected menu highlight colour, giving an instant live preview."""
+
+    def draw(self, ctx, focused=False):
+        ctx.save()
+        ctx.text_align = ctx.LEFT
+
+        # Pre-compute label line geometry (happens once)
+        if self._label_lines is None:
+            ctx.font_size = tokens.one_pt * 8
+            self._label_lines = utils.wrap_text(ctx, self.label, tokens.label_font_size)
+            self._label_widths = [ctx.text_width(line) for line in self._label_lines]
+            self._label_height = len(self._label_lines) * ctx.font_size
+
+        # Pre-compute value line geometry (recomputed whenever value changes)
+        if self._value_lines is None:
+            ctx.font_size = tokens.ten_pt
+            self._value_lines = utils.wrap_text(
+                ctx, self._value, tokens.label_font_size, 230
+            )
+            self._value_widths = [ctx.text_width(line) for line in self._value_lines]
+            self._value_height = len(self._value_lines) * ctx.font_size
+
+        self.height = self._label_height + self._value_height
+
+        # Draw label (same as DefinitionDisplay)
+        ctx.font_size = tokens.one_pt * 8
+        if focused:
+            ctx.rgb(*tokens.colors["orange"])
+        else:
+            ctx.rgb(*tokens.colors["yellow"])
+        y = 0
+        for line, width in zip(self._label_lines, self._label_widths):
+            ctx.move_to(115 - width / 2, y)
+            ctx.text(line)
+            y += tokens.one_pt * 8
+
+        # Draw value in the currently chosen highlight colour — live preview!
+        ctx.rgb(*get_focused_menu_color())
+        ctx.font_size = tokens.ten_pt
+        for line, width in zip(self._value_lines, self._value_widths):
+            ctx.move_to(115 - width / 2, y)
+            ctx.text(line)
+            y += tokens.ten_pt
+
+        ctx.restore()
 
 
 class SettingsApp(app.App):
@@ -116,14 +174,17 @@ class SettingsApp(app.App):
             layout_handled = await self.layout.button_event(event)
             if not layout_handled:
                 if BUTTON_TYPES["CANCEL"] in event.button:
-                    settings.save()
+                    try:
+                        settings.save()
+                    except Exception as e:
+                        print(f"Warning: could not save settings: {e}")
                     self.minimise()
         else:
             return True
 
     async def update_values(self):
         for item in self.layout.items:
-            if isinstance(item, layout.DefinitionDisplay):
+            if isinstance(item, layout.DefinitionDisplay):  # also catches HighlightColorDisplay
                 for id, label, formatter, editor in self.settings_options():
                     if item.label == label:
                         value = settings.get(id)
@@ -271,6 +332,37 @@ class SettingsApp(app.App):
                     )
                     self.layout.items.append(entry)
 
+                if id == "menu_highlight_color":
+                    self.layout.items.pop()
+                    highlight_entry = HighlightColorDisplay(
+                        label, menu_highlight_formatter(settings.get(id))
+                    )
+                    self.layout.items.append(highlight_entry)
+
+                    async def _button_event_highlight_toggle(event):
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            current = settings.get("menu_highlight_color", "yellow")
+                            try:
+                                idx = MENU_HIGHLIGHT_COLOR_NAMES.index(current) + 1
+                            except ValueError:
+                                idx = 0
+                            if idx >= len(MENU_HIGHLIGHT_COLOR_NAMES):
+                                idx = 0
+                            settings.set(
+                                "menu_highlight_color",
+                                MENU_HIGHLIGHT_COLOR_NAMES[idx],
+                            )
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry = layout.ButtonDisplay(
+                        "Next colour",
+                        button_handler=_button_event_highlight_toggle,
+                    )
+                    self.layout.items.append(entry)
+
             async def _button_event_w(event):
                 print(event)
                 if BUTTON_TYPES["CONFIRM"] in event.button:
@@ -309,6 +401,7 @@ class SettingsApp(app.App):
             ("pattern_brightness", "Pattern brightness", pct_formatter, None),
             ("pattern_mirror_hexpansions", "Mirror pattern", on_off_formatter, None),
             ("background", "Background", tuple_formatter, None),
+            ("menu_highlight_color", "Menu highlight", menu_highlight_formatter, None),
             ("update_channel", "Update channel", string_formatter, None),
             ("wifi_tx_power", "WiFi TX power", string_formatter, None),
             (
