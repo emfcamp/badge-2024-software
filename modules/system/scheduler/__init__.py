@@ -3,7 +3,9 @@ import display
 import sys
 import time
 
+from system.a11y.events import ReplaceAccessibiltiyHandlerEvent
 from perf_timer import PerfTimer
+from system.a11y import printer
 from system.eventbus import eventbus
 from system.scheduler.events import (
     RequestForegroundPushEvent,
@@ -49,6 +51,11 @@ class _Scheduler:
         eventbus.on_async(
             RequestForegroundPopEvent, self._handle_request_foreground_pop, self
         )
+
+        eventbus.on_async(
+            ReplaceAccessibiltiyHandlerEvent, self._handle_new_a11y_handler, self
+        )
+        self.a11y_handler = printer._printa11y
 
         eventbus.on_async(RequestStartAppEvent, self._handle_start_app, self)
         eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)
@@ -213,6 +220,7 @@ class _Scheduler:
 
             with PerfTimer("render"):
                 ctx = display.get_ctx()
+                ctx.a11y = self.a11y_handler
                 for app in self.foreground_stack[-1:] + self.on_top_stack:
                     with PerfTimer(f"rendering {app}"):
                         ctx.save()
@@ -228,7 +236,17 @@ class _Scheduler:
                             )
                         ctx.restore()
                 display.end_frame(ctx)
+                if ctx.a11y:
+                    try:
+                        await ctx.a11y.finalise_frame()
+                        ctx.a11y.reset()
+                    except Exception as e:
+                        print(e)
+                        pass
             await asyncio.sleep(0)
+
+    async def _handle_new_a11y_handler(self, event):
+        self.a11y_handler = event.klass()
 
     async def _main(self):
         update_tasks = []

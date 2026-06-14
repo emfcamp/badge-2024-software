@@ -202,6 +202,7 @@ class Context:
         self._ctx = _ctx
         self._font_size = 0
         self._line_width = 0
+        self.a11y = None
 
     @property
     def image_smoothing(self):
@@ -394,6 +395,8 @@ class Context:
 
     def text(self, s):
         self._emit(f'text "{s}"')
+        if self.a11y:
+            self.a11y.collect_text(s)
         return self
 
     def round_rectangle(self, x, y, width, height, radius):
