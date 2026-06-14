@@ -178,6 +178,12 @@ void gc_collect(void);
     static mp_obj_t mp_ctx_##name(size_t n_args, const mp_obj_t *args) { \
         assert(n_args == 2);                                             \
         mp_ctx_obj_t *self = MP_OBJ_TO_PTR(args[0]);                     \
+        mp_obj_t callee[3];                                              \
+        if (self->a11y != MP_OBJ_NULL && self->a11y != mp_const_none) {  \
+            mp_load_method(self->a11y, MP_QSTR_collect_text, callee);    \
+            callee[2] = args[1];                                         \
+            mp_call_method_n_kw(1, 0, callee);                           \
+        }                                                                \
         ctx_##name(self->ctx, mp_obj_str_get_str(args[1]));              \
         return args[0];                                                  \
     }                                                                    \
@@ -573,6 +579,7 @@ mp_obj_t mp_ctx_from_ctx(Ctx *ctx) {
     mp_ctx_obj_t *o = m_new_obj(mp_ctx_obj_t);
     o->base.type = &mp_ctx_type;
     o->ctx = ctx;
+    o->a11y = mp_const_none;
     return MP_OBJ_FROM_PTR(o);
 }
 
@@ -580,6 +587,7 @@ static mp_obj_t mp_ctx_make_new(const mp_obj_type_t *type, size_t n_args,
                                 size_t n_kw, const mp_obj_t *all_args) {
     mp_ctx_obj_t *o = m_new_obj(mp_ctx_obj_t);
     o->base.type = type;
+    o->a11y = mp_const_none;
     enum {
         ARG_width,
         ARG_height,
@@ -712,6 +720,8 @@ STATIC mp_obj_t mp_ctx_attr_op(mp_obj_t self_in, qstr attr, mp_obj_t set_val) {
                 return mp_obj_new_float(ctx_x(self->ctx));
             case MP_QSTR_y:
                 return mp_obj_new_float(ctx_y(self->ctx));
+            case MP_QSTR_a11y:
+                return self->a11y;
         }
     } else {
         switch (attr) {
@@ -773,6 +783,9 @@ STATIC mp_obj_t mp_ctx_attr_op(mp_obj_t self_in, qstr attr, mp_obj_t set_val) {
             case MP_QSTR_font_size:
                 ctx_font_size(self->ctx, (float)mp_obj_get_float(set_val));
                 break;
+            case MP_QSTR_a11y:
+                self->a11y = set_val;
+                break;
         }
         return set_val;
     }
@@ -792,7 +805,8 @@ STATIC void mp_ctx_attr(mp_obj_t obj, qstr attr, mp_obj_t *dest) {
         attr == MP_QSTR_wrap_left || attr == MP_QSTR_wrap_right ||
         attr == MP_QSTR_miter_limit || attr == MP_QSTR_global_alpha ||
         attr == MP_QSTR_font_size || attr == MP_QSTR_font ||
-        attr == MP_QSTR_x || attr == MP_QSTR_y) {
+        attr == MP_QSTR_x || attr == MP_QSTR_y ||
+        attr == MP_QSTR_a11y) {
         if (dest[0] == MP_OBJ_NULL) {
             // load attribute
             mp_obj_t val = mp_ctx_attr_op(obj, attr, MP_OBJ_NULL);
