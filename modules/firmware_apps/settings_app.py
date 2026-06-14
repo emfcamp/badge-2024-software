@@ -57,7 +57,8 @@ def on_off_formatter(value):
 def reset_wifi_settings():
     print("RESET WIFI")
     for s in ["wifi_ssid", "wifi_password", "wifi_wpa2ent_username"]:
-        settings.set(s, None)
+        if settings.get(s) is not None:
+            settings.set(s, None)
 
 
 BRIGHTNESSES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
