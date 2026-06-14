@@ -4,7 +4,6 @@
 #include "py/objarray.h"
 #include "py/objstr.h"
 #include "py/runtime.h"
-#include "esp_random.h"
 
 #include "mp_uctx.h"
 
@@ -13,6 +12,12 @@
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
 #pragma GCC diagnostic ignored "-Wfloat-conversion"
 Ctx *ctx_host(void);
+
+#define esp_random rand
+#endif
+
+#ifndef EMSCRIPTEN
+#include "esp_random.h"
 #endif
 
 void gc_collect(void);
