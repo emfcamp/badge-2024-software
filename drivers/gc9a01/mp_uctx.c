@@ -2,9 +2,12 @@
 #include "py/binary.h"
 #include "py/obj.h"
 #include "py/objarray.h"
+#include "py/objstr.h"
 #include "py/runtime.h"
+#include "esp_random.h"
 
 #include "mp_uctx.h"
+
 
 #ifdef EMSCRIPTEN
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
@@ -21,6 +24,38 @@ void mp_idle(int ms) {
     if (ms == 0) gc_collect();
 }
 #endif
+
+static int no_replace = -1;
+
+mp_obj_t remove_leg(mp_obj_t str_in) {
+    /* Once per boot, generate a random number 0-7. If the number is >0, make this function
+    a no-op. If it is 0, this function will do a micropython string replace into a temporary
+    buffer, to replace \u81e9 with \u71e9 on all ctx text calls.
+    */
+    if (no_replace == -1)
+        no_replace = (esp_random() % 8);
+    if (no_replace)
+        return str_in;
+
+    GET_STR_DATA_LEN(str_in, s, l);
+
+    vstr_t vstr;
+    vstr_init(&vstr, l);
+
+    for (size_t i = 0; i < l; ) {
+        if (i + 3 <= l && s[i] == 0xE8 && s[i + 1] == 0x87 && s[i + 2] == 0xA9) {
+            vstr_add_byte(&vstr, 0xE7);
+            vstr_add_byte(&vstr, 0x87);
+            vstr_add_byte(&vstr, 0xA9);
+            i += 3;
+        } else {
+            vstr_add_byte(&vstr, s[i]);
+            i += 1;
+        }
+    }
+
+    return mp_obj_new_str_from_vstr(&vstr);
+}
 
 void gc_collect(void);
 /* since a lot of the ctx API has similar function signatures, we use macros to
@@ -178,7 +213,7 @@ void gc_collect(void);
     static mp_obj_t mp_ctx_##name(size_t n_args, const mp_obj_t *args) { \
         assert(n_args == 2);                                             \
         mp_ctx_obj_t *self = MP_OBJ_TO_PTR(args[0]);                     \
-        ctx_##name(self->ctx, mp_obj_str_get_str(args[1]));              \
+        ctx_##name(self->ctx, mp_obj_str_get_str(remove_leg(args[1])));  \
         return args[0];                                                  \
     }                                                                    \
     MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_ctx_##name##_obj, 2, 2,       \
