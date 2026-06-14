@@ -70,19 +70,15 @@ int st3m_imu_write(uint8_t reg_addr, uint8_t *reg_data, uint8_t len) {
     return bmi2_i2c_write(reg_addr, reg_data, len, &_imu );
 }
 
-void st3m_imu_task(void *data) {
-    TickType_t last_wake = xTaskGetTickCount();
+void st3m_imu_task(void) {
+    
     esp_err_t ret;
     float a, b, c, temperature;
     uint32_t steps;
-    while (1) {
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(10));  // 100 Hz
 
-        ret = flow3r_bsp_imu_update(&_imu);
-        if (ret != ESP_OK) {
-            continue;
-        }
-
+    ret = flow3r_bsp_imu_update(&_imu);
+    if (ret == ESP_OK) 
+    {    
         LOCK;
         ret = flow3r_bsp_imu_read_acc_mps(&_imu, &a, &b, &c);
         if (ret == ESP_OK) {
