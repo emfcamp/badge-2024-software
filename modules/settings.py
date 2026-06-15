@@ -26,7 +26,8 @@ def set(k, v):
     if _settings is None:
         load()
     if v is None:
-        del _settings[k]
+        if k in _settings:
+            del _settings[k]
     else:
         _settings[k] = v
     _modified = True
