@@ -10,6 +10,7 @@ from system.hexpansion.events import HexpansionInsertionEvent, HexpansionRemoval
 import time
 import frontboard2026
 from frontboards.utils import detect_frontboard
+from frontboards.cy8cmbrx import cy8cmbr3116_init
 
 try:
     from _sim import _sim
@@ -183,7 +184,7 @@ class TwentyTwentySix(FrontBoard):
         global sim
         reset = ePin((3, 7))
         display.gfx_init()
-        # cy8cmbr3116_init()
+        cy8cmbr3116_init()
         reset.off()
         reset.on()
 

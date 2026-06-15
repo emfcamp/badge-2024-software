@@ -3,6 +3,8 @@ from machine import I2C
 # from tildagon import ePin
 
 
+# follow section 6 of https://www.infineon.com/assets/row/public/documents/30/42/infineon-an90071-cy8cmbr3xxx-capsenser-design-guide-applicationnotes-en.pdf
+# to configure this.
 cy8cmbr3116_config = [
     CY8CMBRX.CS0_ENABLE
     | CY8CMBRX.CS1_ENABLE
@@ -19,7 +21,7 @@ cy8cmbr3116_config = [
     | CY8CMBRX.CS12_ENABLE
     | CY8CMBRX.CS13_ENABLE
     | CY8CMBRX.CS14_ENABLE,  # 0x01 SENSOR_EN MSB
-    0x00,  # 0x02 FSS_EN LSB
+    0x00,  # 0x02 FSS_EN LSB turning these on means only one touch is detected.
     0x00,  # 0x03 FSS_EN MSB
     0x00,  # 0x04 TOGGLE_EN LSB
     0x00,  # 0x05 TOGGLE_EN MSB
@@ -102,7 +104,7 @@ cy8cmbr3116_config = [
     0x00,  # 0x4C SPO_CFG
     CY8CMBRX.IIR_EN,  # 0x4D DEVICE_CFG0
     CY8CMBRX.SYSD_EN,  # 0x4E DEVICE_CFG1
-    CY8CMBRX.ATH_EN | CY8CMBRX.GUARD_EN,  # 0x4F DEVICE_CFG2
+    CY8CMBRX.ATH_EN,  # 0x4F DEVICE_CFG2
     0x00,  # 0x50 DEVICE_CFG3
     0x37,  # 0x51 I2C_ADDR don't change this!!
     0x01,  # 0x52 REFRESH_CTRL
@@ -167,7 +169,6 @@ def cy8cmbr3116_init():
         import time
 
         time.sleep(0.5)
-        # reset moved to frontboard2026
         # todo eliminate the sleep? it only happens when the ic needs configuring.
 
 
