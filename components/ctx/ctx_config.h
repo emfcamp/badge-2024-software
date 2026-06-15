@@ -97,9 +97,10 @@
 
 #define CTX_MAX_FONTS 3
 
-#include "Arimo-Regular.h"
-#define CTX_FONT_0 CTX_STATIC_FONT(Arimo_Regular)
-
+#include "EMFCampFont.h"
+#define CTX_FONT_0 CTX_STATIC_FONT(EMF_Camp_Font)
+// #include "MaterialIcons.h"
+// #define CTX_FONT_1 CTX_STATIC_FONT(MaterialIcons)
 // there is room for a mono font, but then the partition is full
 //
 //#include "Comic-Mono.h"

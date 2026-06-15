@@ -1,0 +1,78 @@
+diff --git a/ports/webassembly/api.js b/ports/webassembly/api.js
+index 0718d13d6..8e15438d1 100644
+--- a/ports/webassembly/api.js
++++ b/ports/webassembly/api.js
+@@ -147,16 +147,17 @@ export async function loadMicroPython(options) {
+             Module._free(buf);
+             return proxy_convert_mp_to_js_obj_jsside_with_free(value);
+         },
+-        runPythonAsync(code) {
++        async runPythonAsync(code) {
+             const len = Module.lengthBytesUTF8(code);
+             const buf = Module._malloc(len + 1);
+             Module.stringToUTF8(code, buf, len + 1);
+             const value = Module._malloc(3 * 4);
+-            Module.ccall(
++            await Module.ccall(
+                 "mp_js_do_exec_async",
+                 "number",
+                 ["pointer", "number", "pointer"],
+                 [buf, len, value],
++                { async: true },
+             );
+             Module._free(buf);
+             const ret = proxy_convert_mp_to_js_obj_jsside_with_free(value);
+diff --git a/ports/webassembly/mphalport.c b/ports/webassembly/mphalport.c
+index 3935068b9..20f8a195f 100644
+--- a/ports/webassembly/mphalport.c
++++ b/ports/webassembly/mphalport.c
+@@ -25,6 +25,7 @@
+  */
+ 
+ #include <unistd.h>
++#include <emscripten.h>
+ #include "py/mphal.h"
+ #include "library.h"
+ 
+@@ -40,9 +41,7 @@ mp_uint_t mp_hal_stdout_tx_strn(const char *str, size_t len) {
+ }
+ 
+ void mp_hal_delay_ms(mp_uint_t ms) {
+-    uint32_t start = mp_hal_ticks_ms();
+-    while (mp_hal_ticks_ms() - start < ms) {
+-    }
++    emscripten_sleep(ms);
+ }
+ 
+ void mp_hal_delay_us(mp_uint_t us) {
+diff --git a/ports/webassembly/modtime.c b/ports/webassembly/modtime.c
+index b6c0cda96..eb9cea21a 100644
+--- a/ports/webassembly/modtime.c
++++ b/ports/webassembly/modtime.c
+@@ -30,10 +30,12 @@
+ 
+ // Get the localtime.
+ static void mp_time_localtime_get(timeutils_struct_time_t *tm) {
+-    timeutils_seconds_since_epoch_to_struct_time(mp_hal_time_ms() / 1000, tm);
++    timeutils_seconds_since_epoch_to_struct_time(
++        timeutils_seconds_since_epoch_from_nanoseconds_since_1970(mp_hal_time_ns()), tm);
+ }
+ 
+ // Returns the number of seconds, as a float, since the Epoch.
+ static mp_obj_t mp_time_time_get(void) {
+-    return mp_obj_new_float((mp_float_t)mp_hal_time_ms() / 1000);
++    return mp_obj_new_float(
++        (mp_float_t)timeutils_seconds_since_epoch_from_nanoseconds_since_1970(mp_hal_time_ns()));
+ }
+diff --git a/ports/webassembly/mpconfigport.h b/ports/webassembly/mpconfigport.h
+index b4aad22db..0d01c03c8 100644
+--- a/ports/webassembly/mpconfigport.h
++++ b/ports/webassembly/mpconfigport.h
+@@ -54,7 +54,6 @@
+ #define MICROPY_USE_INTERNAL_ERRNO  (1)
+ #define MICROPY_USE_INTERNAL_PRINTF (0)
+ 
+-#define MICROPY_EPOCH_IS_1970       (1)
+ #define MICROPY_PY_ASYNCIO_TASK_QUEUE_PUSH_CALLBACK (1)
+ #define MICROPY_PY_RANDOM_SEED_INIT_FUNC (mp_js_random_u32())
+ #define MICROPY_PY_TIME_GMTIME_LOCALTIME_MKTIME (1)
