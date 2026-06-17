@@ -80,6 +80,8 @@ symbols = {
     "shark": "ǩ",
     "duck": "⇩",
     "spider": "臩",
+    "bat_open": "멺",
+    "bat_closed": "멻",
 }
 
 
