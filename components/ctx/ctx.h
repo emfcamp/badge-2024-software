@@ -24613,10 +24613,20 @@ ctx_rasterizer_rasterize_edges2 (CtxRasterizer *rasterizer, const int fill_rule
 
   ctx_sort_edges (rasterizer);
 
-  rasterizer->scanline = scan_start;
+  /* If the shape starts above the blit window (banded rendering),
+   * warm up from its real top with output suppressed so that edge
+   * state evolves exactly as in an unbanded render; otherwise a
+   * different state at the first visible scanline yields different
+   * coverage than an unclipped render of the same scene.        */
+  const int emit_start = scan_start;
+  if (rasterizer->scan_min < scan_start)
+    rasterizer->scanline = rasterizer->scan_min;
+  else
+    rasterizer->scanline = scan_start;
 
   while (rasterizer->scanline <= scan_end)
     {
+      const int emit = (rasterizer->scanline >= emit_start);
       int c0 = minx;
       int c1 = maxx;
       int aa = ctx_rasterizer_feed_edges_full (rasterizer, 0.0f);
@@ -24625,7 +24635,7 @@ ctx_rasterizer_rasterize_edges2 (CtxRasterizer *rasterizer, const int fill_rule
       {
         case -1: /* no edges */
           rasterizer->scanline += CTX_FULL_AA;
-          dst += blit_stride;
+          dst += emit * blit_stride;
           continue;
         case 0: /* the scanline transitions does not contain multiple intersections - each aa segment is a linear ramp */
 #if CTX_RASTERIZER_ALLOW_DIRECT
@@ -24644,12 +24654,12 @@ ctx_rasterizer_rasterize_edges2 (CtxRasterizer *rasterizer, const int fill_rule
 								// code path of two direct fills, more complex scanlines benefit
 								// from building the coverage and then compositing.
           {
-	    if (rasterizer->active_edges > 1)
+	    if ((rasterizer->active_edges > 1) & emit)
               apply_grads (rasterizer, minx, maxx, coverage, is_winding, apply_coverage);
             rasterizer->scanline += CTX_AA_HALFSTEP;
             ctx_rasterizer_increment_edges (rasterizer, CTX_FULL_AA);
     
-            dst += blit_stride;
+            dst += emit * blit_stride;
             continue;
           }
 #endif
@@ -24757,7 +24767,7 @@ ctx_rasterizer_rasterize_edges2 (CtxRasterizer *rasterizer, const int fill_rule
 #endif
       }
   
-      if (c1 >= c0)
+      if ((c1 >= c0) & emit)
       {
         ctx_coverage_post_process (rasterizer, c0, c1, coverage - minx);
         apply_coverage (c1-c0+1,
@@ -24766,7 +24776,7 @@ ctx_rasterizer_rasterize_edges2 (CtxRasterizer *rasterizer, const int fill_rule
                         coverage + (c0-minx),
                         rasterizer, c0);
       }
-      dst += blit_stride;
+      dst += emit * blit_stride;
 
     }
 
