@@ -8,13 +8,14 @@ import time
 from tarfile import DIRTYPE, TarFile
 from typing import Any, Callable
 from perf_timer import PerfTimer
-
+from math import radians
 import app
 import async_helpers
 import wifi
 import shutil
 import machine
-from app_components import Menu, fourteen_pt, sixteen_pt, ten_pt
+from app_components import Menu, fourteen_pt, sixteen_pt, ten_pt, seven_pt
+from app_components.tokens import set_color
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from requests import get
 from system.eventbus import eventbus
@@ -513,14 +514,39 @@ class CodeInstall:
         eventbus.remove(ButtonDownEvent, self._handle_buttondown, self)
 
     def draw(self, ctx):
+        self.draw_numbers(ctx)
         ctx.save()
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
         ctx.font_size = ten_pt
-        ctx.gray(1).move_to(0, -3 * ten_pt).text("Enter code:")
+        ctx.gray(1).move_to(0, -1.5 * ten_pt).text("Enter code:")
         ctx.font_size = sixteen_pt
         ctx.gray(1).move_to(0, 0).text(self.id)
         ctx.restore()
+
+    def draw_numbers(self, ctx):
+        """Draw indicator numbers."""
+        triangle_height = 35
+        triangle_offset = 10
+        triangle_width = 30
+
+        ctx.text_align = ctx.CENTER
+        ctx.text_baseline = ctx.MIDDLE
+        ctx.font_size = seven_pt
+
+        for i in range(6):
+            set_color(ctx, "mid_green")
+            ctx.move_to(0, -120 + triangle_offset)
+            ctx.line_to(triangle_width / 2, -120 + triangle_height)
+            ctx.line_to(-triangle_width / 2, -120 + triangle_height)
+
+            ctx.close_path()
+            ctx.fill()
+
+            set_color(ctx, "dark_green")
+            ctx.move_to(0, -5.1 * seven_pt)
+            ctx.text(i)
+            ctx.rotate(radians(60))
 
 
 def install_app(app):
