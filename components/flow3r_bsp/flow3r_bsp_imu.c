@@ -190,23 +190,35 @@ esp_err_t flow3r_bsp_imu_read_gyro_dps(flow3r_bsp_imu_t *imu, float *x,
 }
 
 esp_err_t flow3r_bsp_imu_read_steps(flow3r_bsp_imu_t *imu, uint32_t *steps) {
-    uint16_t int_status;
-
-    int8_t rslt = bmi2_get_int_status(&int_status, &(imu->bmi));
+    /* The step_counter_output register always holds the live cumulative step
+     * count, so read it directly. The watermark interrupt is only a
+     * notification (and INT_STATUS_0 self-clears on read), so gating the read
+     * on it means we almost always miss the count and report 0. */
+    int8_t rslt = bmi270_get_feature_data(&_bmi_feat_data, 1, &(imu->bmi));
     bmi2_error_codes_print_result(rslt);
     if (rslt != BMI2_OK) return ESP_FAIL;
 
-    if (int_status & BMI270_STEP_CNT_STATUS_MASK)
-    {
-        /* Step counter interrupt occurred when watermark level (20 steps) is reached */
-        rslt = bmi270_get_feature_data(&_bmi_feat_data, 1, &(imu->bmi));
-        bmi2_error_codes_print_result(rslt);
-        if (rslt != BMI2_OK) return ESP_FAIL;
+    *steps = _bmi_feat_data.sens_data.step_counter_output;
+    return ESP_OK;
+}
 
-        *steps = _bmi_feat_data.sens_data.step_counter_output;
-        return ESP_OK;
-    }
-    return ESP_ERR_NOT_FOUND;
+esp_err_t flow3r_bsp_imu_reset_steps(flow3r_bsp_imu_t *imu) {
+    struct bmi2_sens_config config;
+    config.type = BMI2_STEP_COUNTER;
+
+    /* Read the current step counter config so we preserve the watermark level,
+     * then set the (self-clearing) reset_counter bit to zero the count. */
+    int8_t rslt = bmi270_get_sensor_config(&config, 1, &(imu->bmi));
+    bmi2_error_codes_print_result(rslt);
+    if (rslt != BMI2_OK) return ESP_FAIL;
+
+    config.cfg.step_counter.reset_counter = 1;
+
+    rslt = bmi270_set_sensor_config(&config, 1, &(imu->bmi));
+    bmi2_error_codes_print_result(rslt);
+    if (rslt != BMI2_OK) return ESP_FAIL;
+
+    return ESP_OK;
 }
 
 /*!

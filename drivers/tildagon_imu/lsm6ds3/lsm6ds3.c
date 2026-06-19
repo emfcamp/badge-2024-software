@@ -95,10 +95,20 @@ void lsm6ds3_read_gyro_dps(float *x, float *y, float *z)
  * @brief get step count
  * @param steps pointer for data
  */
-void lsm6ds3_read_steps(uint32_t *steps) 
+void lsm6ds3_read_steps(uint32_t *steps)
 {
     LOCK;
     *steps = _steps;
+    _steps = 0;
+    UNLOCK;
+}
+
+/**
+ * @brief reset step count
+ */
+void lsm6ds3_reset_steps(void)
+{
+    LOCK;
     _steps = 0;
     UNLOCK;
 }
