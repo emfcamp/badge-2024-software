@@ -20,6 +20,7 @@ typedef void (*updatefuncptr_t) ( void* data );
 typedef void (*accfuncptr_t) ( float* x, float*y, float*z );
 typedef void (*gyrfuncptr_t) ( float* x, float*y, float*z );
 typedef void (*stepfuncptr_t) ( uint32_t* steps );
+typedef void (*stepresetfuncptr_t) ( void );
 typedef void (*tempfuncptr_t) ( float* temperature );
 typedef int  (*i2cfuncptr_t) ( uint8_t reg_addr, uint8_t *reg_data, uint8_t len );
 
@@ -57,6 +58,12 @@ stepfuncptr_t step_read[MAX_DEVICES] =
 {
     /* ST3M */     st3m_imu_read_steps,
     /* LSM6DS3 */  lsm6ds3_read_steps,
+};
+
+stepresetfuncptr_t step_reset[MAX_DEVICES] =
+{
+    /* ST3M */     st3m_imu_reset_steps,
+    /* LSM6DS3 */  lsm6ds3_reset_steps,
 };
 
 tempfuncptr_t temp_read[MAX_DEVICES] =
@@ -130,6 +137,14 @@ void tildagon_imu_step_counter_read( uint32_t* steps )
     else
     {
         *steps = 0xFFFFFFFF;
+    }
+}
+
+void tildagon_imu_step_counter_reset( void )
+{
+    if ( imu < MAX_DEVICES)
+    {
+        ( *step_reset[imu] )();
     }
 }
 

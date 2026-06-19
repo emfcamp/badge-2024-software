@@ -56,6 +56,14 @@ void st3m_imu_read_steps(uint32_t *steps) {
     UNLOCK;
 }
 
+void st3m_imu_reset_steps(void) {
+    LOCK;
+    if (flow3r_bsp_imu_reset_steps(&_imu) == ESP_OK) {
+        _steps = 0;
+    }
+    UNLOCK;
+}
+
 void st3m_imu_read_temperature(float *temperature) {
     LOCK;
     *temperature = _temperature;

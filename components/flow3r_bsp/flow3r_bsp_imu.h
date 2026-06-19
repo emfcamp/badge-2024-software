@@ -68,6 +68,11 @@ esp_err_t flow3r_bsp_imu_read_gyro_dps(flow3r_bsp_imu_t *imu, float *x,
 // Retrurns the number of steps counted.
 esp_err_t flow3r_bsp_imu_read_steps(flow3r_bsp_imu_t *imu, uint32_t *steps);
 
+// Reset the step counter back to zero.
+//
+// Returns ESP_FAIL if the sensor could not be reset (e.g. I2C unavailable).
+esp_err_t flow3r_bsp_imu_reset_steps(flow3r_bsp_imu_t *imu);
+
 // Get temperature
 //
 // Returns ESP_FAIL if the sensor could not be read (e.g. I2C unavailable).
