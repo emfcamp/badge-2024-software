@@ -64,7 +64,7 @@ stepfuncptr_t step_read[MAX_DEVICES] =
 stepresetfuncptr_t step_reset[MAX_DEVICES] =
 {
     /* ST3M */     st3m_imu_reset_steps,
-    /* LSM6DS3 */  lsm6ds3_reset_steps,
+    /* LSM6DS3 */  NULL,  /* resets its count on each read, no explicit reset */
 };
 
 tempfuncptr_t temp_read[MAX_DEVICES] =
@@ -146,7 +146,7 @@ void tildagon_imu_step_counter_read( uint32_t* steps )
 
 void tildagon_imu_step_counter_reset( void )
 {
-    if ( imu < MAX_DEVICES)
+    if ( imu < MAX_DEVICES && step_reset[imu] != NULL )
     {
         ( *step_reset[imu] )();
     }
