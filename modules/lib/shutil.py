@@ -38,13 +38,14 @@ def copyfileobj(src, dest, length=512):
             dest.write(buf)
 
 def copytree(src, dst, **kwargs):
+    os.mkdir(dst)
     for name, type, *_ in os.ilistdir(src):
         if type & 0x4000:
             # it's a directory
             copytree(f"{src}/{name}", f"{dst}/{name}")
         else:
             with open(f"{src}/{name}", "rb") as fr:
-                with open(f"{src}/{name}", "wb") as fw:
+                with open(f"{dst}/{name}", "wb") as fw:
                     copyfileobj(fr, fw)
 
 def move(src, dst, **kwargs):
