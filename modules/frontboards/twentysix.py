@@ -2,6 +2,7 @@ import asyncio
 
 import display
 from events.input import Button, BUTTON_TYPES, ButtonDownEvent, ButtonUpEvent
+from events.joystick import JOYSTICK_BUTTON_TYPES
 import machine
 from system.eventbus import eventbus
 from tildagon import ePin
@@ -11,6 +12,7 @@ import time
 import frontboard2026
 from frontboards.utils import detect_frontboard
 from frontboards.cy8cmbrx import cy8cmbr3116_init
+from frontboards.common import FRONTBOARD_BUTTON_TYPES
 
 try:
     from _sim import _sim
@@ -21,20 +23,50 @@ except ImportError:
 
 
 BUTTONS = {
-    "A": Button("A", "TwentyTwentySix", BUTTON_TYPES["UP"]),
-    "B": Button("B", "TwentyTwentySix", BUTTON_TYPES["RIGHT"]),
-    "C": Button("C", "TwentyTwentySix", BUTTON_TYPES["CONFIRM"]),
-    "D": Button("D", "TwentyTwentySix", BUTTON_TYPES["DOWN"]),
-    "E": Button("E", "TwentyTwentySix", BUTTON_TYPES["LEFT"]),
-    "F": Button("F", "TwentyTwentySix", BUTTON_TYPES["CANCEL"]),
+    "A": Button(
+        "A", "TwentyTwentySix", [BUTTON_TYPES["UP"], FRONTBOARD_BUTTON_TYPES["A"]]
+    ),
+    "B": Button(
+        "B", "TwentyTwentySix", [BUTTON_TYPES["RIGHT"], FRONTBOARD_BUTTON_TYPES["B"]]
+    ),
+    "C": Button(
+        "C", "TwentyTwentySix", [BUTTON_TYPES["CONFIRM"], FRONTBOARD_BUTTON_TYPES["C"]]
+    ),
+    "D": Button(
+        "D", "TwentyTwentySix", [BUTTON_TYPES["DOWN"], FRONTBOARD_BUTTON_TYPES["D"]]
+    ),
+    "E": Button(
+        "E", "TwentyTwentySix", [BUTTON_TYPES["LEFT"], FRONTBOARD_BUTTON_TYPES["E"]]
+    ),
+    "F": Button(
+        "F", "TwentyTwentySix", [BUTTON_TYPES["CANCEL"], FRONTBOARD_BUTTON_TYPES["F"]]
+    ),
 }
 
 JOYSTICK = {
-    "UP": Button("JOYUP", "TwentyTwentySix", BUTTON_TYPES["UP"]),
-    "DOWN": Button("JOYDOWN", "TwentyTwentySix", BUTTON_TYPES["DOWN"]),
-    "LEFT": Button("JOYLEFT", "TwentyTwentySix", BUTTON_TYPES["LEFT"]),
-    "RIGHT": Button("JOYRIGHT", "TwentyTwentySix", BUTTON_TYPES["RIGHT"]),
-    "FIRE": Button("JOYFIRE", "TwentyTwentySix", BUTTON_TYPES["CONFIRM"]),
+    "UP": Button(
+        "JOYUP", "TwentyTwentySix", [BUTTON_TYPES["UP"], JOYSTICK_BUTTON_TYPES["UP"]]
+    ),
+    "DOWN": Button(
+        "JOYDOWN",
+        "TwentyTwentySix",
+        [BUTTON_TYPES["DOWN"], JOYSTICK_BUTTON_TYPES["DOWN"]],
+    ),
+    "LEFT": Button(
+        "JOYLEFT",
+        "TwentyTwentySix",
+        [BUTTON_TYPES["LEFT"], JOYSTICK_BUTTON_TYPES["LEFT"]],
+    ),
+    "RIGHT": Button(
+        "JOYRIGHT",
+        "TwentyTwentySix",
+        [BUTTON_TYPES["RIGHT"], JOYSTICK_BUTTON_TYPES["RIGHT"]],
+    ),
+    "FIRE": Button(
+        "JOYFIRE",
+        "TwentyTwentySix",
+        [BUTTON_TYPES["CONFIRM"], JOYSTICK_BUTTON_TYPES["A"]],
+    ),
 }
 
 

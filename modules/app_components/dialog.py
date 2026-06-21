@@ -3,6 +3,7 @@ import math
 
 import display
 from events.input import BUTTON_TYPES, ButtonDownEvent
+from frontboards.common import FRONTBOARD_BUTTON_TYPES
 from events.keyboard import KEYBOARD_BUTTONS
 from system.eventbus import eventbus
 
@@ -272,17 +273,17 @@ class TextDialog:
 
         kbd_button = event.button.find_parent_in_group("Keyboard")
 
-        if BUTTON_TYPES["UP"] in event.button:
+        if FRONTBOARD_BUTTON_TYPES["A"] in event.button:
             key = 0
-        elif BUTTON_TYPES["RIGHT"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["B"] in event.button:
             key = 1
-        elif BUTTON_TYPES["DOWN"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["D"] in event.button:
             key = 3
-        elif BUTTON_TYPES["LEFT"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["E"] in event.button:
             key = 4
-        elif BUTTON_TYPES["CANCEL"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["F"] in event.button:
             key = 5
-        elif BUTTON_TYPES["CONFIRM"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["C"] in event.button:
             key = 2
 
         elif kbd_button is not None:
@@ -306,6 +307,18 @@ class TextDialog:
             elif kbd_button.name in SYMBOL_ALPHABET:
                 key = -2
                 final = kbd_button.name
+
+        # The following are generics not caught by either frontboard corner buttons
+        # or keyboard events. They are, therefore, secondary confirm/cancel/etc buttons
+        elif BUTTON_TYPES["CONFIRM"] in event.button:
+            key = -2
+            final = SPECIAL_KEY_DONE
+        elif BUTTON_TYPES["UP"] in event.button:
+            key = -2
+            final = SPECIAL_KEY_CAPS
+        elif BUTTON_TYPES["LEFT"] in event.button:
+            key = -2
+            final = SPECIAL_KEY_BACKSPACE
 
         if key == -1:
             return
