@@ -20,6 +20,7 @@ from requests import get
 from system.eventbus import eventbus
 from system.launcher.app import (
     APP_DIR,
+    APP_INSTALL_DIR,
     load_info,
     InstallNotificationEvent,
 )
@@ -74,12 +75,12 @@ def list_apps(dir, callable):
 
 
 def list_all_apps():
-    return (
-        list_apps(APP_DIR, "__app_export__")
-        + list_apps(BG_DIR, "__Background__")
-        + list_apps(PAT_DIR, "__Pattern_Export__")
-    )
-
+    app_list = []
+    for d in APP_DIR:
+        app_list.extend(list_apps(d, "__app_export__"))
+    app_list += list_apps(BG_DIR, "__Background__")
+    app_list += list_apps(PAT_DIR, "__Pattern_Export__")
+    return app_list
 
 class AppStoreApp(app.App):
     state = "init"
@@ -555,7 +556,7 @@ def install_app(app):
         elif app["manifest"]["app"].get("category") == "Pattern":
             TARGET_DIR = "/pattern"
         else:
-            TARGET_DIR = APP_DIR
+            TARGET_DIR = APP_INSTALL_DIR
         # Make sure apps dir exists
         try:
             os.mkdir(TARGET_DIR)
