@@ -180,6 +180,55 @@ class TwentyTwentySix(FrontBoard):
     year = 2026
     num_pattern_leds = 12
 
+    colors = {
+        "pale_blue": (46, 173, 217),
+        "mid_blue": (0, 93, 150),
+        "dark_blue": (0, 7, 48),
+        "green": (42, 226, 140),
+        "yellow": (249, 226, 0),
+        "orange": (247, 127, 2),
+        "pink": (245, 81, 94),
+        "black": (0, 0, 0),
+        "white": (255, 255, 255),
+        # Duplicates of last year's special names, switched, for backwards compatibility
+        "pale_green": (175, 201, 68),
+        "mid_green": (82, 131, 41),
+        "dark_green": (33, 48, 24),
+        "blue": (42, 226, 140),
+    }
+
+    colors = {
+        name: (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0) for (name, c) in colors.items()
+    }
+
+    def header_gradient(self, ctx):
+        return (
+            ctx.linear_gradient(
+                0.18 * 240 - 120, 0.5 * 240 - 120, 0.95 * 240 - 120, 0.5 * 240 - 120
+            )
+            .add_stop(0.0, self.colors["white"], 1.0)
+            .add_stop(0.25, self.colors["yellow"], 1.0)
+            .add_stop(0.5, self.colors["orange"], 1.0)
+            .add_stop(0.75, self.colors["pink"], 1.0)
+        )
+
+    @property
+    def ui_colors(self):
+        return {
+            "background": self.colors["dark_blue"],
+            "label": self.colors["white"],
+            "header": self.header_gradient,
+            "menu_item": self.colors["white"],
+            "active_menu_item": self.header_gradient,
+            "button_background": self.colors["orange"],
+            "button_radius": 5,
+            "button_text": self.colors["black"],
+            "active_button_background": self.colors["yellow"],
+            "active_button_text": self.colors["black"],
+            "notification": self.colors["pink"],
+            "notification_text": self.colors["black"],
+        }
+
     async def background_task(self):
         global sim
         reset = ePin((3, 7))

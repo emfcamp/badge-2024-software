@@ -1,4 +1,15 @@
-from frontboards.twentyfour import TwentyTwentyFour
+from frontboards.utils import detect_frontboard
+
+fb = detect_frontboard()
+
+if (fb & 0xFF00) == 0x2600:
+    from frontboards.twentysix import TwentyTwentySix
+
+    frontboard = TwentyTwentySix()
+else:
+    from frontboards.twentyfour import TwentyTwentyFour
+
+    frontboard = TwentyTwentyFour()
 
 # Display
 display_x = 240
@@ -22,8 +33,8 @@ heading_font_size = eighteen_pt
 line_height = 1.5
 
 # Colors
-colors = TwentyTwentyFour().colors
-ui_colors = TwentyTwentyFour().ui_colors
+colors = frontboard.colors
+ui_colors = frontboard.ui_colors
 
 symbols = {
     "arrows": {
