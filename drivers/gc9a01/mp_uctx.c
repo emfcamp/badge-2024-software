@@ -785,6 +785,17 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_ctx_add_stop_obj, 3, 4, mp_ctx_add_stop);
 #endif
 
 
+static mp_obj_t mp_ctx_load_font_ctx(mp_obj_t self_in, mp_obj_t name_in, mp_obj_t buffer_in) {
+    mp_buffer_info_t buffer_info;
+    if (!mp_get_buffer(buffer_in, &buffer_info, MP_BUFFER_READ)) {
+        mp_raise_TypeError(MP_ERROR_TEXT("not a buffer"));
+    }
+    const char *name = mp_obj_str_get_str(name_in);
+    ctx_load_font_ctx(name, buffer_info.buf, buffer_info.len);
+    return self_in;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mp_ctx_load_font_ctx_obj, mp_ctx_load_font_ctx);
+
 #if 0
 #if CTX_TINYVG
 static mp_obj_t mp_ctx_tinyvg_get_size(mp_obj_t self_in, mp_obj_t buffer_in) {
@@ -1141,6 +1152,7 @@ static const mp_rom_map_elem_t mp_ctx_locals_dict_table[] = {
     MP_CTX_METHOD(start_frame),
     MP_CTX_METHOD(end_frame),
     MP_CTX_METHOD(get_font_name),
+    MP_CTX_METHOD(load_font_ctx),
 
 #if CTX_EVENTS
     MP_CTX_METHOD(listen),
