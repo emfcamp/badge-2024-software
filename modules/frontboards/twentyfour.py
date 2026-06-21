@@ -110,6 +110,8 @@ class TwentyTwentyFour(FrontBoard):
         "button_text": colors["black"],
         "active_button_background": colors["yellow"],
         "active_button_text": colors["black"],
+        "notification": colors["pale_green"],
+        "notification_text": colors["black"],
     }
 
     async def background_task(self):
