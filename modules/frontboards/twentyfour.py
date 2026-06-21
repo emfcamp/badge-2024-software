@@ -8,6 +8,7 @@ from tildagon import ePin
 from . import FrontBoard
 from system.hexpansion.events import HexpansionInsertionEvent, HexpansionRemovalEvent
 import time
+from frontboards.common import FRONTBOARD_BUTTON_TYPES
 
 try:
     from _sim import _sim
@@ -18,12 +19,24 @@ except ImportError:
 
 
 BUTTONS = {
-    "A": Button("A", "TwentyTwentyFour", BUTTON_TYPES["UP"]),
-    "B": Button("B", "TwentyTwentyFour", BUTTON_TYPES["RIGHT"]),
-    "C": Button("C", "TwentyTwentyFour", BUTTON_TYPES["CONFIRM"]),
-    "D": Button("D", "TwentyTwentyFour", BUTTON_TYPES["DOWN"]),
-    "E": Button("E", "TwentyTwentyFour", BUTTON_TYPES["LEFT"]),
-    "F": Button("F", "TwentyTwentyFour", BUTTON_TYPES["CANCEL"]),
+    "A": Button(
+        "A", "TwentyTwentyFour", [BUTTON_TYPES["UP"], FRONTBOARD_BUTTON_TYPES["A"]]
+    ),
+    "B": Button(
+        "B", "TwentyTwentyFour", [BUTTON_TYPES["RIGHT"], FRONTBOARD_BUTTON_TYPES["B"]]
+    ),
+    "C": Button(
+        "C", "TwentyTwentyFour", [BUTTON_TYPES["CONFIRM"], FRONTBOARD_BUTTON_TYPES["C"]]
+    ),
+    "D": Button(
+        "D", "TwentyTwentyFour", [BUTTON_TYPES["DOWN"], FRONTBOARD_BUTTON_TYPES["D"]]
+    ),
+    "E": Button(
+        "E", "TwentyTwentyFour", [BUTTON_TYPES["LEFT"], FRONTBOARD_BUTTON_TYPES["E"]]
+    ),
+    "F": Button(
+        "F", "TwentyTwentyFour", [BUTTON_TYPES["CANCEL"], FRONTBOARD_BUTTON_TYPES["F"]]
+    ),
 }
 
 

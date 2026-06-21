@@ -16,7 +16,8 @@ import shutil
 import machine
 from app_components import Menu, fourteen_pt, sixteen_pt, ten_pt, seven_pt
 from app_components.tokens import set_color
-from events.input import BUTTON_TYPES, ButtonDownEvent
+from events.input import ButtonDownEvent
+from frontboards.common import FRONTBOARD_BUTTON_TYPES
 from requests import get
 from system.eventbus import eventbus
 from system.launcher.app import (
@@ -529,17 +530,17 @@ class CodeInstall:
     def _handle_buttondown(self, event: ButtonDownEvent):
         kbd_button = event.button.find_parent_in_group("Keyboard")
 
-        if BUTTON_TYPES["UP"] in event.button:
+        if FRONTBOARD_BUTTON_TYPES["A"] in event.button:
             self.id += "0"
-        elif BUTTON_TYPES["RIGHT"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["B"] in event.button:
             self.id += "1"
-        elif BUTTON_TYPES["CONFIRM"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["C"] in event.button:
             self.id += "2"
-        elif BUTTON_TYPES["DOWN"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["D"] in event.button:
             self.id += "3"
-        elif BUTTON_TYPES["LEFT"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["E"] in event.button:
             self.id += "4"
-        elif BUTTON_TYPES["CANCEL"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["F"] in event.button:
             self.id += "5"
         elif kbd_button is not None and kbd_button.name in "012345":
             self.id += kbd_button.name

@@ -3,19 +3,26 @@ from events import Event
 
 
 class Button:
-    __slots__ = ("name", "group", "parent")
+    __slots__ = ("name", "group", "parent", "_all_parents")
 
     def __init__(self, name, group, parent=None):
         self.name = name
         self.group = group
-        self.parent = parent
+        if isinstance(parent, Button):
+            self.parents = [parent]
+        if parent is None:
+            self.parents = []
+        else:
+            self.parents = parent
+        self._all_parents = None
 
     def __hash__(self):
         return hash((self.name, self.group))
 
     def _inner_repr(self):
-        parents_clause = (
-            f" - {self.parent._inner_repr()}" if self.parent is not None else ""
+        parents_clause = "".join(
+            f" - {parent._inner_repr()}" if parent is not None else ""
+            for parent in self.parents
         )
         return f"{self.group}.{self.name}{parents_clause}"
 
@@ -25,26 +32,30 @@ class Button:
     def __eq__(self, other):
         return self.name == other.name and self.group == other.group
 
+    @property
+    def all_parents(self):
+        if self._all_parents is not None:
+            return self._all_parents
+        self._all_parents = []
+        for parent in self.parents:
+            self._all_parents.append(parent)
+            self._all_parents += parent.all_parents
+        return self._all_parents
+
     def __contains__(self, other):
         if other == self:
             return True
-        parent = self.parent
-        while parent is not None:
+        for parent in self.all_parents:
             if other == parent:
                 return True
-            else:
-                parent = parent.parent
         return False
 
     def find_parent_in_group(self, group):
         if self.group == group:
             return self
-        parent = self.parent
-        while parent is not None:
+        for parent in self.all_parents:
             if parent.group == group:
                 return parent
-            else:
-                parent = parent.parent
         return None
 
 
