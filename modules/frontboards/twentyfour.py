@@ -51,6 +51,10 @@ def buttonup(epin):
             TwentyTwentyFour.button_states[key][1] = 0
 
 
+def scale_color(c):
+    return (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0)
+
+
 class TwentyTwentyFour(FrontBoard):
     BUTTON_PINS = {
         BUTTONS["A"]: (2, 6),
@@ -65,6 +69,35 @@ class TwentyTwentyFour(FrontBoard):
     hexpansion_states = {1: None, 2: None, 3: None, 4: None, 5: None, 6: None}
     year = 2024
     num_pattern_leds = 12
+
+    colors = {
+        "pale_green": (175, 201, 68),
+        "mid_green": (82, 131, 41),
+        "dark_green": (33, 48, 24),
+        "yellow": (249, 226, 0),
+        "orange": (246, 127, 2),
+        "pink": (245, 80, 137),
+        "blue": (46, 173, 217),
+        "black": (0, 0, 0),
+        "white": (255, 255, 255),
+    }
+
+    colors = {
+        name: (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0) for (name, c) in colors.items()
+    }
+
+    ui_colors = {
+        "background": colors["dark_green"],
+        "label": colors["white"],
+        "header": colors["white"],
+        "menu_item": colors["white"],
+        "active_menu_item": colors["white"],
+        "button_background": colors["pale_green"],
+        "button_radius": 30,
+        "button_text": colors["black"],
+        "active_button_background": colors["yellow"],
+        "active_button_text": colors["black"],
+    }
 
     async def background_task(self):
         global sim
