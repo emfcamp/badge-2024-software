@@ -37,6 +37,7 @@ def copyfileobj(src, dest, length=512):
                 break
             dest.write(buf)
 
+
 def copytree(src, dst, **kwargs):
     os.mkdir(dst)
     for name, type, *_ in os.ilistdir(src):
@@ -47,6 +48,7 @@ def copytree(src, dst, **kwargs):
             with open(f"{src}/{name}", "rb") as fr:
                 with open(f"{dst}/{name}", "wb") as fw:
                     copyfileobj(fr, fw)
+
 
 def move(src, dst, **kwargs):
     try:
@@ -62,6 +64,7 @@ def move(src, dst, **kwargs):
                 with open(dst, "wb") as fw:
                     copyfileobj(fr, fw)
             os.remove(src)
+
 
 def disk_usage(path):
     bit_tuple = os.statvfs(path)

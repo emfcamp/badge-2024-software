@@ -82,6 +82,7 @@ def list_all_apps():
     app_list += list_apps(PAT_DIR, "__Pattern_Export__")
     return app_list
 
+
 class AppStoreApp(app.App):
     state = "init"
 
