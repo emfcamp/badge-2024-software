@@ -19,16 +19,20 @@ from app_components.background import Background as bg
 APP_DIR = ["/apps"]
 APP_INSTALL_DIR = "/apps"
 
+
 class InstallNotificationEvent(Event):
     pass
+
 
 class AppDirAddedNotificationEvent(Event):
     def __init__(self, path):
         self.path = path
 
+
 class AppDirRemovedNotificationEvent(Event):
     def __init__(self, path):
         self.path = path
+
 
 def path_isdir(path):
     try:
@@ -73,7 +77,7 @@ def list_user_apps():
             path = dirname
             for p in sys.path:
                 if p and dirname.startswith(p):
-                    path = dirname[len(p):]
+                    path = dirname[len(p) :]
                     break
             path = ".".join(path.lstrip("/").split("/"))
             app = {
@@ -114,7 +118,7 @@ class Launcher(App):
     async def _handle_dir_added_notification(self, event):
         APP_DIR.append(event.path)
         self.update_menu()
-    
+
     async def _handle_dir_removed_notification(self, event):
         try:
             APP_DIR.remove(event.path)
