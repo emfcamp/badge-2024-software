@@ -83,14 +83,14 @@ def set_color(ctx, color):
     try:
         color(ctx)
         return ctx
-    except Exception as e:
-        print(color, e)
+    except Exception:
+        pass
 
     try:
         ctx.rgb(*color)
         return ctx
-    except Exception as e:
-        print(color, e)
+    except Exception:
+        pass
 
     ctx.rgb(0.5, 0.5, 0.5)
     return ctx
