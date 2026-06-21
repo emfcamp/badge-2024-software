@@ -23,10 +23,12 @@ class InstallNotificationEvent(Event):
     pass
 
 class AppDirAddedNotificationEvent(Event):
-    pass
+    def __init__(self, path):
+        self.path = path
 
 class AppDirRemovedNotificationEvent(Event):
-    pass
+    def __init__(self, path):
+        self.path = path
 
 def path_isdir(path):
     try:
@@ -109,13 +111,13 @@ class Launcher(App):
     async def _handle_refresh_notifications(self, _):
         self.update_menu()
 
-    async def _handle_dir_added_notification(self, dirname):
-        APP_DIR.append(dirname)
+    async def _handle_dir_added_notification(self, event):
+        APP_DIR.append(event.path)
         self.update_menu()
     
-    async def _handle_dir_removed_notification(self, dirname):
+    async def _handle_dir_removed_notification(self, event):
         try:
-            APP_DIR.remove(dirname)
+            APP_DIR.remove(event.path)
         except ValueError:
             pass
         self.update_menu()
