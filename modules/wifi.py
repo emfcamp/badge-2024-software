@@ -167,7 +167,7 @@ async def async_wait(duration=None):
         if t <= 0:
             break
         t -= 1
-        asyncio.sleep(1)
+        await asyncio.sleep(1)
     return status()
 
 

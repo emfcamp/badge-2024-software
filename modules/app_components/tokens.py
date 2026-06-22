@@ -48,6 +48,43 @@ ui_colors = {
 }
 
 
+symbols = {
+    "arrows": {
+        "left": "←",
+        "up": "↑",
+        "right": "→",
+        "down": "↓",
+        "left_right": "↔",
+        "up_down": "↕",
+        "north_west": "↖",
+        "north_east": "↗",
+        "south_east": "↘",
+        "south_west": "↙",
+    },
+    "hexagons": {"outline": "⬡", "filled": "⬢"},
+    "hexpansion": "⬣",
+    "pointing_triangles": {"up": "▲", "right": "▶", "down": "▼", "left": "◀"},
+    "keyboard": {
+        "return": "⏎",
+        "backspace": "␈",
+        "shift": "␏",
+        "square": "□",
+        "triangle": "△",
+        "diamond": "◇",
+        "circle": "○",
+        "club": "♣",
+        "cross": "✕",
+        "solderparty": "⭍",
+    },
+    "emf_logo": "",
+    "shark": "ǩ",
+    "duck": "⇩",
+    "spider": "臩",
+    "bat_open": "멺",
+    "bat_closed": "멻",
+}
+
+
 def clear_background(ctx):
     ctx.rgb(*colors["dark_green"]).rectangle(-120, -120, display_x, display_y).fill()
 

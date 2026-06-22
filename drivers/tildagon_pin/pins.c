@@ -56,6 +56,22 @@ const tildagon_pin_obj_t tildagon_pin_obj_table[GPIO_EXT_NUM_MAX] = {
     [GPIO_EXT_NUM_2_13] = { .base = { .type = &tildagon_pin_type } },
     [GPIO_EXT_NUM_2_14] = { .base = { .type = &tildagon_pin_type } },
     [GPIO_EXT_NUM_2_15] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_0] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_1] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_2] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_3] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_4] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_5] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_6] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_7] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_8] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_9] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_10] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_11] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_12] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_13] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_14] = { .base = { .type = &tildagon_pin_type } },
+    [GPIO_EXT_NUM_3_15] = { .base = { .type = &tildagon_pin_type } },
 };
 
 

@@ -191,9 +191,11 @@ class HexpansionManagerApp(app.App):
 
         self._cleanup_import_path(old_cwd, old_sys_path)
 
-    def _stop_hexpansion_app(self, app, port):
-        print(f"Trying to stop app: {app}")
-        eventbus.emit(RequestStopAppEvent(app))
+    def _stop_hexpansion_app(self, port):
+        print(f"Trying to stop app: {self.hexpansion_apps[port]}")
+        eventbus.emit(RequestStopAppEvent(self.hexpansion_apps[port]))
+        if hasattr(self.hexpansion_apps[port], "deinit"):
+            self.hexpansion_apps[port].deinit()
         del self.hexpansion_apps[port]
 
         # Clean up imported hexpansion modules
@@ -294,7 +296,7 @@ class HexpansionManagerApp(app.App):
         header = None
 
         if event.port in self.hexpansion_apps:
-            self._stop_hexpansion_app(self.hexpansion_apps[event.port], event.port)
+            self._stop_hexpansion_app(event.port)
 
         if event.port in self.hexpansion_headers:
             header = self.hexpansion_headers[event.port]

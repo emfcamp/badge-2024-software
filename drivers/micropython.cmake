@@ -27,5 +27,8 @@ include(${CMAKE_CURRENT_LIST_DIR}/tildagon_pin/micropython.cmake)
 
 include(${CMAKE_CURRENT_LIST_DIR}/tildagon/micropython.cmake)
 
+# Add frontboard drivers
+include(${CMAKE_CURRENT_LIST_DIR}/tildagon_frontboard/micropython.cmake)
+
 # Add burnt-in HMAC
 include(${CMAKE_CURRENT_LIST_DIR}/tildagon_hmac/micropython.cmake)

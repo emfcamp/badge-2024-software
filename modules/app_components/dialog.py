@@ -368,7 +368,7 @@ class TextDialog:
                     self._current_alphabet = self._default_alphabet
                 self._layer = 0
                 if self._caps:
-                    self._current_alphabet = self.self._shifted_alphabet
+                    self._current_alphabet = self._shifted_alphabet
                 else:
                     self._current_alphabet = self._default_alphabet
         elif len(selected) > 0:

@@ -2,10 +2,23 @@
 #include "py/binary.h"
 #include "py/obj.h"
 #include "py/objarray.h"
+#include "py/objstr.h"
 #include "py/runtime.h"
 
 #include "mp_uctx.h"
-#include "st3m_scope.h"
+
+
+#ifdef EMSCRIPTEN
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
+#pragma GCC diagnostic ignored "-Wfloat-conversion"
+Ctx *ctx_host(void);
+
+#define esp_random rand
+#endif
+
+#ifndef EMSCRIPTEN
+#include "esp_random.h"
+#endif
 
 void gc_collect(void);
 #ifdef EMSCRIPTEN
@@ -16,6 +29,38 @@ void mp_idle(int ms) {
     if (ms == 0) gc_collect();
 }
 #endif
+
+static int no_replace = -1;
+
+mp_obj_t remove_leg(mp_obj_t str_in) {
+    /* Once per boot, generate a random number 0-7. If the number is >0, make this function
+    a no-op. If it is 0, this function will do a micropython string replace into a temporary
+    buffer, to replace \u81e9 with \u71e9 on all ctx text calls.
+    */
+    if (no_replace == -1)
+        no_replace = (esp_random() % 8);
+    if (no_replace)
+        return str_in;
+
+    GET_STR_DATA_LEN(str_in, s, l);
+
+    vstr_t vstr;
+    vstr_init(&vstr, l);
+
+    for (size_t i = 0; i < l; ) {
+        if (i + 3 <= l && s[i] == 0xE8 && s[i + 1] == 0x87 && s[i + 2] == 0xA9) {
+            vstr_add_byte(&vstr, 0xE7);
+            vstr_add_byte(&vstr, 0x87);
+            vstr_add_byte(&vstr, 0xA9);
+            i += 3;
+        } else {
+            vstr_add_byte(&vstr, s[i]);
+            i += 1;
+        }
+    }
+
+    return mp_obj_new_str_from_vstr(&vstr);
+}
 
 void gc_collect(void);
 /* since a lot of the ctx API has similar function signatures, we use macros to
@@ -179,7 +224,7 @@ void gc_collect(void);
             callee[2] = args[1];                                         \
             mp_call_method_n_kw(1, 0, callee);                           \
         }                                                                \
-        ctx_##name(self->ctx, mp_obj_str_get_str(args[1]));              \
+        ctx_##name(self->ctx, mp_obj_str_get_str(remove_leg(args[1])));  \
         return args[0];                                                  \
     }                                                                    \
     MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_ctx_##name##_obj, 2, 2,       \
@@ -247,13 +292,6 @@ MP_CTX_COMMON_FUN_4F(conic_gradient);
 MP_CTX_COMMON_FUN_6F(radial_gradient);
 
 MP_CTX_COMMON_FUN_3F(logo);
-
-static mp_obj_t mp_ctx_scope(mp_obj_t self_in) {
-    mp_ctx_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    st3m_scope_draw(self->ctx);
-    return self_in;
-}
-MP_DEFINE_CONST_FUN_OBJ_1(mp_ctx_scope_obj, mp_ctx_scope);
 
 
 #if 0
@@ -662,7 +700,7 @@ static mp_obj_t mp_ctx_make_new(const mp_obj_type_t *type, size_t n_args,
         return MP_OBJ_FROM_PTR(o);
     }
 #ifdef EMSCRIPTEN
-    o->ctx = ctx_wasm_get_context(memory_budget);
+    o->ctx = ctx_host();
 #else
     o->ctx = ctx_new(width, height, NULL);
 #endif
@@ -887,7 +925,6 @@ static const mp_rom_map_elem_t mp_ctx_locals_dict_table[] = {
 #endif
 #endif
     MP_CTX_METHOD(logo),
-    MP_CTX_METHOD(scope),
 
     // Instance attributes
     MP_CTX_ATTR(x),

@@ -16,7 +16,7 @@ class PowerOff(app.App):
             # Create a yes/no dialogue, add it to the overlays
             dialog = YesNoDialog("Power off?", self)
 
-            # Wait for an answer from the dialogue, and if it was yes, randomise colour
+            # Wait for an answer from the dialogue, and if it was yes, power off.
             if await dialog.run(render_update):
                 import power
 

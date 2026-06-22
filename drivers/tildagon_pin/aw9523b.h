@@ -22,8 +22,7 @@ typedef struct
 
 typedef struct aw9523b_device
 {
-  const tca9548a_i2c_mux_t *mux;
-  tca9548a_i2c_port_t i2c_port;
+  tildagon_mux_i2c_obj_t *mux;
   uint16_t i2c_addr;
   uint8_t last_input_values[2];
   uint8_t irq_enables[2];

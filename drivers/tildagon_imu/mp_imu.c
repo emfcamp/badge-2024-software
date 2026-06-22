@@ -32,6 +32,19 @@ static mp_obj_t mp_imu_gyro_read(void) {
 
 static MP_DEFINE_CONST_FUN_OBJ_0(mp_imu_gyro_read_obj, mp_imu_gyro_read);
 
+static mp_obj_t mp_imu_mag_read(void) {
+    static float x, y, z;
+
+    // Will not overwrite old data if there is an error
+    tildagon_imu_compass_read(&x, &y, &z);
+
+    mp_obj_t items[3] = { mp_obj_new_float(x), mp_obj_new_float(y),
+                          mp_obj_new_float(z) };
+    return mp_obj_new_tuple(3, items);
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_0(mp_imu_mag_read_obj, mp_imu_mag_read);
+
 static mp_obj_t mp_imu_step_counter_read(void) {
     static uint32_t steps;
 
@@ -41,6 +54,13 @@ static mp_obj_t mp_imu_step_counter_read(void) {
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_0(mp_imu_step_counter_read_obj, mp_imu_step_counter_read);
+
+static mp_obj_t mp_imu_step_counter_reset(void) {
+    tildagon_imu_step_counter_reset();
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_0(mp_imu_step_counter_reset_obj, mp_imu_step_counter_reset);
 
 static mp_obj_t mp_imu_temperature_read(void) {
     static float temperature;
@@ -98,7 +118,9 @@ static MP_DEFINE_CONST_FUN_OBJ_2(mp_imu_write_to_obj, mp_imu_write_to);
 static const mp_rom_map_elem_t globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_acc_read), MP_ROM_PTR(&mp_imu_acc_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_gyro_read), MP_ROM_PTR(&mp_imu_gyro_read_obj) },
+    { MP_ROM_QSTR(MP_QSTR_mag_read), MP_ROM_PTR(&mp_imu_mag_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_step_counter_read), MP_ROM_PTR(&mp_imu_step_counter_read_obj) },
+    { MP_ROM_QSTR(MP_QSTR_step_counter_reset), MP_ROM_PTR(&mp_imu_step_counter_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_temperature_read), MP_ROM_PTR(&mp_imu_temperature_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_id), MP_ROM_PTR(&mp_imu_id_obj) },
     { MP_ROM_QSTR(MP_QSTR_readfrom), MP_ROM_PTR(&mp_imu_read_from_obj) },

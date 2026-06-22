@@ -193,7 +193,9 @@ class Context:
     HANGING = "hanging"
     CLEAR = "clear"
     END = "end"
+    TOP = "top"
     MIDDLE = "middle"
+    BOTTOM = "bottom"
     BEVEL = "bevel"
     NONE = "none"
     COPY = "copy"
@@ -457,6 +459,10 @@ class Context:
         self._emit(f"linearGradient {x0:.3f} {y0:.3f} {x1:.3f} {y1:.3f}")
         return self
 
+    def conic_gradient(self, cx, cy, start_angle, cycles):
+        self._emit(f"conicGradient {cx:.3f} {cy:.3f} {start_angle:.3f} {cycles:.3f}")
+        return self
+
     def add_stop(self, pos, color, alpha):
         red, green, blue = color
         if red > 1.0 or green > 1.0 or blue > 1.0:
@@ -500,15 +506,7 @@ class Context:
 
     def get_font_name(self, i):
         return [
-            "Arimo Regular",
-            "Arimo Bold",
-            "Arimo Italic",
-            "Arimo Bold Italic",
-            "Camp Font 1",
-            "Camp Font 2",
-            "Camp Font 3",
-            "Material Icons",
-            "Comic Mono",
+            "EMF Camp Font"
         ][i]
 
     def scope(self):
