@@ -45,8 +45,8 @@ Ctx *tildagon_gfx_ctx(void)
 
 void tildagon_start_frame(Ctx *ctx)
 {
-  int32_t offset_x = FLOW3R_BSP_DISPLAY_WIDTH / 2;
-  int32_t offset_y = FLOW3R_BSP_DISPLAY_HEIGHT / 2;
+  int32_t offset_x = TILDAGON_DISPLAY_WIDTH / 2;
+  int32_t offset_y = TILDAGON_DISPLAY_HEIGHT / 2;
 
   ctx_save (ctx);
   ctx_identity (ctx);
