@@ -121,13 +121,15 @@ class Menu:
 
     def _calculate_max_focussed_font_size(self, item, ctx):
         ctx.save()
-        proposed_font_size = self.focused_item_font_size
-        ctx.font_size = proposed_font_size
+        ctx.font_size = self.focused_item_font_size
         width = ctx.text_width(item)
-        while width > 230 and proposed_font_size > self.item_font_size:
-            proposed_font_size = proposed_font_size - 0.125
-            ctx.font_size = proposed_font_size
-            width = ctx.text_width(item)
+        if width > 230:
+            proposed_font_size = self.focused_item_font_size * 230 / width
+            proposed_font_size = max(proposed_font_size, self.item_font_size)
+            # Round down to nearest 0.125 to match original step size
+            proposed_font_size = int(proposed_font_size * 8) / 8
+        else:
+            proposed_font_size = self.focused_item_font_size
         ctx.restore()
         return proposed_font_size
 
@@ -169,10 +171,12 @@ class Menu:
             )
             label = self.menu_items[pos] if num_menu_items > 0 else "Empty Menu"
             ctx.move_to(0, y_offset).text(label)
+            if ctx.a11y:
+                ctx.a11y.add_alt(self, label)
 
             # Previous menu items
             ctx.font_size = self.item_font_size
-            for i in range(1, 4):
+            for i in range(1, 3):
                 if (self.position - i) >= 0 and num_menu_items:
                     ctx.move_to(
                         0,
@@ -182,7 +186,7 @@ class Menu:
                     ).text(self.menu_items[self.position - i])
 
             # Next menu items
-            for i in range(1, 4):
+            for i in range(1, 3):
                 if (self.position + i) < num_menu_items:
                     ctx.move_to(
                         0,

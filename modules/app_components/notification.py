@@ -78,6 +78,8 @@ class Notification:
             lines = []
             extra_text = self.message
             line = 0
+            if ctx.a11y:
+                ctx.a11y.add_alt(None, "Notification: " + self.message, transient=True)
             while extra_text:
                 text_that_fits, extra_text = self.get_text_for_line(
                     ctx, extra_text, line

@@ -1,5 +1,6 @@
 from events.input import BUTTON_TYPES
 from . import tokens, utils
+from system.a11y.utils import Inhibitor
 
 
 class Layoutable:
@@ -191,7 +192,8 @@ class LinearLayout(Layoutable):
                 self.height += item_height
                 cumulative_y += item_height
             else:
-                item.draw(ctx, focused=item == focused_child)
+                with Inhibitor(ctx.a11y, item != focused_child):
+                    item.draw(ctx, focused=item == focused_child)
                 ctx.translate(0, item.height)
                 self.height += item.height
                 cumulative_y += item.height

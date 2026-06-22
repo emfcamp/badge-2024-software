@@ -226,6 +226,18 @@ class TextDialog:
         ctx.move_to(0, 15).text(
             self.text if not self.masked else ("*" * len(self.text))
         )
+        if ctx.a11y:
+            ctx.a11y.add_alt(self, self.message + ":")
+            ctx.a11y.add_alt(self, self.text if not self.masked else "Hidden")
+
+    def speak_keys(self, ctx, keys):
+        if len(keys) > 1:
+            ctx.a11y.add_alt(self, f"'{keys[0].upper()} to '{keys[-1].upper()}'.")
+        else:
+            if keys[0] == SPECIAL_KEY_META:
+                ctx.a11y.add_alt(self, "More.")
+            else:
+                ctx.a11y.add_alt(self, f"'{keys[0].upper()}'.")
 
     def draw(self, ctx):
         ctx.save()
@@ -243,6 +255,14 @@ class TextDialog:
                 confirm_label="".join(self._keys[2]),
                 cancel_label="".join(self._keys[5]),
             )
+        if ctx.a11y:
+            ctx.a11y.add_alt(self, "Buttons:")
+            self.speak_keys(ctx, self._keys[0])
+            self.speak_keys(ctx, self._keys[1])
+            self.speak_keys(ctx, self._keys[2])
+            self.speak_keys(ctx, self._keys[3])
+            self.speak_keys(ctx, self._keys[4])
+            self.speak_keys(ctx, self._keys[5])
 
         ctx.restore()
 
