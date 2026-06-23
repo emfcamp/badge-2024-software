@@ -137,9 +137,20 @@ class _Scheduler:
 
         if app in self.foreground_stack:
             if self.foreground_stack[-1] is not app:
-                app_idx = self.foreground_stack.index(app)
-                del self.foreground_stack[app_idx]
-                self.foreground_stack.append(app)
+                if event.port is None:
+                    app_idx = self.foreground_stack.index(app)
+                    del self.foreground_stack[app_idx]
+                    self.foreground_stack.append(app)
+                else:
+                    for idx in range(1, 7):
+                        app_idx = self.foreground_stack.index(app)
+                        if (
+                            self.foreground_stack[app_idx].hexpansion_config.port
+                            == event.port
+                        ):
+                            del self.foreground_stack[app_idx]
+                            self.foreground_stack.append(app)
+                            break
         else:
             self.foreground_stack.append(app)
 

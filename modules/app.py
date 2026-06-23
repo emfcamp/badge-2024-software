@@ -6,8 +6,9 @@ from system.scheduler.events import RequestForegroundPopEvent
 
 
 class App:
-    def __init__(self):
+    def __init__(self, config=None):
         self.overlays = []
+        self.hexpansion_config = config
         pass
 
     async def run(self, render_update):
