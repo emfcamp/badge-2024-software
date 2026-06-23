@@ -8,7 +8,7 @@ import time
 from tarfile import DIRTYPE, TarFile
 from typing import Any, Callable
 from perf_timer import PerfTimer
-from math import radians
+from math import radians, pi
 import app
 import async_helpers
 import wifi
@@ -27,6 +27,7 @@ from system.launcher.app import (
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
 from firmware_apps.settings_app import BG_DIR, PAT_DIR
+from random import random, choice, randint
 from app_components.tokens import symbols
 
 
@@ -489,7 +490,41 @@ class CodeInstall:
         self.id: str = ""
         self.active_button = None
         self.activation_counter = 0
+
+        self.interlopers = {
+            "characters": ["shark", "spider"],
+            "offsets": {"min": -60, "max": 40},
+            "size": {"min": 30, "max": 50},
+        }
+
+        self.reset_interloper()
+
+        # 1 out of 10 times, we will draw some lads
+        self.include_interloper = random() > 0.9
+
         eventbus.on(ButtonDownEvent, self._handle_buttondown, app)
+
+    def reset_interloper(self):
+        """Reset the interloper."""
+        self.interloper_character = choice(self.interlopers["characters"])
+        self.interloper_size = randint(
+            self.interlopers["size"]["min"],
+            self.interlopers["size"]["max"],
+        )
+
+        interloper_off_screen = randint(
+            self.interlopers["offsets"]["min"], -self.interloper_size
+        )
+        interloper_on_screen = randint(0, self.interlopers["offsets"]["max"])
+
+        self.interloper_offsets = (
+            list(range(interloper_off_screen, interloper_on_screen, 1))
+            + [interloper_on_screen] * 10
+            + list(range(interloper_on_screen, interloper_off_screen, -1))
+        )
+        self.interloper_offset_index = 0
+
+        self.interloper_rotation = random() * 2 * pi
 
     def _handle_buttondown(self, event: ButtonDownEvent):
         kbd_button = event.button.find_parent_in_group("Keyboard")
@@ -520,7 +555,11 @@ class CodeInstall:
         eventbus.remove(ButtonDownEvent, self._handle_buttondown, self)
 
     def draw(self, ctx):
+        if self.include_interloper:
+            self.draw_interloper(ctx)
+
         self.draw_numbers(ctx)
+
         ctx.save()
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
@@ -530,9 +569,20 @@ class CodeInstall:
         ctx.gray(1).move_to(0, 0).text(self.id)
         ctx.restore()
 
+    def draw_interloper(self, ctx):
+        """Spider, maybe?"""
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
-        ctx.font_size = seven_pt
+        ctx.rotate(self.interloper_rotation)
+        ctx.rgba(1, 1, 1, 0.3)
+        ctx.move_to(-120 + self.interloper_offsets[self.interloper_offset_index], 0)
+        ctx.font_size = self.interloper_size
+        ctx.text(symbols[self.interloper_character])
+        ctx.rotate(-self.interloper_rotation)
+
+        self.interloper_offset_index += 1
+        if self.interloper_offset_index >= len(self.interloper_offsets):
+            self.reset_interloper()
 
     def draw_numbers(self, ctx):
         """Draw indicator numbers."""
