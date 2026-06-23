@@ -27,6 +27,7 @@ from system.launcher.app import (
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
 from firmware_apps.settings_app import BG_DIR, PAT_DIR
+from app_components.tokens import symbols
 
 
 def dir_exists(filename):
@@ -486,6 +487,8 @@ class CodeInstall:
         self.install_handler = install_handler
         self.state = "input"
         self.id: str = ""
+        self.active_button = None
+        self.activation_counter = 0
         eventbus.on(ButtonDownEvent, self._handle_buttondown, app)
 
     def _handle_buttondown(self, event: ButtonDownEvent):
@@ -506,6 +509,9 @@ class CodeInstall:
         elif kbd_button is not None and kbd_button.name in "012345":
             self.id += kbd_button.name
 
+        self.active_button = int(self.id[-1])
+        self.activation_counter = 3
+
         if len(self.id) == 8:
             self._cleanup()
             self.install_handler(self.id)
@@ -524,29 +530,46 @@ class CodeInstall:
         ctx.gray(1).move_to(0, 0).text(self.id)
         ctx.restore()
 
-    def draw_numbers(self, ctx):
-        """Draw indicator numbers."""
-        triangle_height = 35
-        triangle_offset = 10
-        triangle_width = 30
-
         ctx.text_align = ctx.CENTER
         ctx.text_baseline = ctx.MIDDLE
         ctx.font_size = seven_pt
 
+    def draw_numbers(self, ctx):
+        """Draw indicator numbers."""
         for i in range(6):
-            set_color(ctx, "mid_green")
-            ctx.move_to(0, -120 + triangle_offset)
-            ctx.line_to(triangle_width / 2, -120 + triangle_height)
-            ctx.line_to(-triangle_width / 2, -120 + triangle_height)
+            triangle_type = "regular"
+            text_colour = "button_text"
+            if i == self.active_button:
+                triangle_type = "active"
+                text_colour = "active_button_text"
+                if self.activation_counter > 0:
+                    self.activation_counter -= 1
 
-            ctx.close_path()
-            ctx.fill()
+                else:
+                    self.active_button = None
 
-            set_color(ctx, "dark_green")
-            ctx.move_to(0, -5.1 * seven_pt)
-            ctx.text(i)
+            self.draw_triangle(ctx, key=triangle_type)
+
+            ctx.text_align = ctx.CENTER
+            ctx.text_baseline = ctx.MIDDLE
+            ctx.font_size = seven_pt
+            set_color(ctx, text_colour)
+            ctx.move_to(0, -100)
+            ctx.text(str(i))
             ctx.rotate(radians(60))
+
+    def draw_triangle(self, ctx, key="regular"):
+        """Draw a pointer."""
+        triangles = {
+            "regular": {"colour": "button_background", "size": 40},
+            "active": {"colour": "active_button_background", "size": 50},
+        }
+        ctx.text_align = ctx.CENTER
+        ctx.text_baseline = ctx.MIDDLE
+        set_color(ctx, triangles[key]["colour"])
+        ctx.move_to(0, -97)
+        ctx.font_size = triangles[key]["size"]
+        ctx.text(symbols["pointing_triangles"]["up"])
 
 
 def install_app(app):
