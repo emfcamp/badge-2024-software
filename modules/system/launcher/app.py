@@ -136,6 +136,7 @@ class Launcher(App):
                 "name": f"{chr(0x2B23)}{event.port} {event.name}",  # Prepend hexpansion symbol and slot number to app name, requires EMFCampFont.h
             }
         )
+        self.hexpansion_apps.sort(key=lambda a: a["port"])
         self.update_menu()
 
     async def _handle_hexpansion_app_remove(
