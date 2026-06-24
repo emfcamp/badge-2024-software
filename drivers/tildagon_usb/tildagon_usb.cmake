@@ -4,6 +4,7 @@ add_library(usermod_tildagon_usb INTERFACE)
 # Add our source files to the lib
 target_sources(usermod_tildagon_usb INTERFACE
     ${CMAKE_CURRENT_LIST_DIR}/tildagon_usb.c
+    ${CMAKE_CURRENT_LIST_DIR}/tildagon_usb_device.c
     ${CMAKE_CURRENT_LIST_DIR}/tildagon_hid_host.c
 )
 

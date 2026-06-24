@@ -15,16 +15,9 @@
 #include "usb/hid_usage_keyboard.h"
 #include "usb/hid_usage_mouse.h"
 
+#include "tildagon_usb_device.h"
 #include "tildagon_hid_host.h"
 
-#define DAEMON_TASK_PRIORITY    2
-
-#define DEBUG_LED GPIO_NUM_35
-static const char *TAG = "DAEMON";
-
-mp_obj_t msc_connect_cb = NULL;
-
-static QueueHandle_t app_queue;
 typedef struct {
     enum {
         APP_QUIT,
@@ -43,6 +36,15 @@ typedef struct {
         } hid_host_device;
     };
 } app_message_t;
+
+#define DAEMON_TASK_PRIORITY    2
+
+#define DEBUG_LED GPIO_NUM_35
+static const char *TAG = "DAEMON";
+
+mp_obj_t msc_connect_cb = NULL;
+
+static QueueHandle_t app_queue;
 
 static void msc_event_cb(const msc_host_event_t *event, void *arg)
 {
@@ -135,77 +137,99 @@ static void host_lib_daemon_task(void *arg)
     vTaskDelete(NULL);
 }
 
-#define DEBUG_LED GPIO_NUM_35
-
 TaskHandle_t tildagon_usb_task_handle = NULL;
+#define USB_MODE_DEVICE 1
+#define USB_MODE_HOST 2
+
+uint8_t usb_mode = USB_MODE_DEVICE;
 
 void tildagon_usb_task(void *param __attribute__((__unused__))) {
-    // gpio_reset_pin(DEBUG_LED);
-    // gpio_set_direction(DEBUG_LED, GPIO_MODE_OUTPUT);
-    SemaphoreHandle_t signaling_sem = xSemaphoreCreateBinary();
-
-    TaskHandle_t daemon_task_hdl;
-    //Create daemon task
-    xTaskCreatePinnedToCore(host_lib_daemon_task,
-                            "daemon",
-                            4096,
-                            (void *)signaling_sem,
-                            DAEMON_TASK_PRIORITY,
-                            &daemon_task_hdl,
-                            0);
-
-
-    msc_host_device_handle_t msc_device = NULL;
-    // msc_host_vfs_handle_t vfs_handle = NULL;
-
-    // Perform all example operations in a loop to allow USB reconnections
+    
     while (1) {
-        app_message_t msg;
-        if (xQueueReceive(app_queue, &msg, pdMS_TO_TICKS(1000)) == pdTRUE) {
+        if (usb_mode == USB_MODE_DEVICE) {
+            tildagon_usb_device_start();
+            while (1) {
+                app_message_t msg;
+                if (xQueueReceive(app_queue, &msg, portMAX_DELAY) == pdTRUE) {
+                    if (msg.id == APP_QUIT) {
+                        break;
+                    }
+                }
+            }
+            tildagon_usb_device_stop();
+        } else if (usb_mode == USB_MODE_HOST) {
+            SemaphoreHandle_t signaling_sem = xSemaphoreCreateBinary();
 
-            if (msg.id == APP_DEVICE_CONNECTED) {
-                // 1. MSC flash drive connected. Open it and map it to Virtual File System
-                ESP_ERROR_CHECK(msc_host_install_device(msg.msc_message.new_device_address, &msc_device));
-                // const esp_vfs_fat_mount_config_t mount_config = {
-                    // .format_if_mount_failed = false,
-                    // .max_files = 3,
-                    // .allocation_unit_size = 8192,
-                // };
-                // this won't work with uPy because they both rely on (different) diskio abstractions for FatFs
-                // ESP_ERROR_CHECK(msc_host_vfs_register(msc_device, MNT_PATH, &mount_config, &vfs_handle));
-                ESP_LOGE(TAG, "Connected!");
-                if (msc_connect_cb)
+            TaskHandle_t daemon_task_hdl;
+            //Create daemon task
+            xTaskCreatePinnedToCore(host_lib_daemon_task,
+                                    "daemon",
+                                    4096,
+                                    (void *)signaling_sem,
+                                    DAEMON_TASK_PRIORITY,
+                                    &daemon_task_hdl,
+                                    0);
+
+
+            msc_host_device_handle_t msc_device = NULL;
+            // msc_host_vfs_handle_t vfs_handle = NULL;
+
+            ESP_LOGE("USBH", "USB Host mode started");
+            // Perform all example operations in a loop to allow USB reconnections
+            while (1) {
+                app_message_t msg;
+                if (xQueueReceive(app_queue, &msg, pdMS_TO_TICKS(1000)) == pdTRUE) {
+
+                    if (msg.id == APP_DEVICE_CONNECTED) {
+                        // 1. MSC flash drive connected. Open it and map it to Virtual File System
+                        ESP_ERROR_CHECK(msc_host_install_device(msg.msc_message.new_device_address, &msc_device));
+                        // const esp_vfs_fat_mount_config_t mount_config = {
+                            // .format_if_mount_failed = false,
+                            // .max_files = 3,
+                            // .allocation_unit_size = 8192,
+                        // };
+                        // this won't work with uPy because they both rely on (different) diskio abstractions for FatFs
+                        // ESP_ERROR_CHECK(msc_host_vfs_register(msc_device, MNT_PATH, &mount_config, &vfs_handle));
+                        ESP_LOGE(TAG, "Connected!");
+                        if (msc_connect_cb)
+                        {
+                            mp_sched_schedule(msc_connect_cb, mp_const_none);
+                        }
+                    }
+                    if ((msg.id == APP_DEVICE_DISCONNECTED) || (msg.id == APP_QUIT)) {
+                        // if (vfs_handle) {
+                            // ESP_ERROR_CHECK(msc_host_vfs_unregister(vfs_handle));
+                            // vfs_handle = NULL;
+                        // }
+                        if (msc_device) {
+                            ESP_ERROR_CHECK(msc_host_uninstall_device(msc_device));
+                            msc_device = NULL;
+                        }
+                        if (msg.id == APP_QUIT) {
+                            // This will cause the usb_task to exit
+                            ESP_ERROR_CHECK(msc_host_uninstall());
+                            ESP_ERROR_CHECK(hid_host_uninstall());
+                            break;
+                        }
+                    }
+                    if ((msg.id == APP_EVENT_HID_HOST)) {
+                        hid_host_device_event(msg.hid_host_device.handle,
+                                            msg.hid_host_device.event,
+                                            msg.hid_host_device.arg);
+                    } 
+                }
+                else
                 {
-                    mp_sched_schedule(msc_connect_cb, mp_const_none);
+                    // ESP_LOGE("USB", "No events");
                 }
             }
-            if ((msg.id == APP_DEVICE_DISCONNECTED) || (msg.id == APP_QUIT)) {
-                // if (vfs_handle) {
-                    // ESP_ERROR_CHECK(msc_host_vfs_unregister(vfs_handle));
-                    // vfs_handle = NULL;
-                // }
-                if (msc_device) {
-                    ESP_ERROR_CHECK(msc_host_uninstall_device(msc_device));
-                    msc_device = NULL;
-                }
-                if (msg.id == APP_QUIT) {
-                    // This will cause the usb_task to exit
-                    ESP_ERROR_CHECK(msc_host_uninstall());
-                    break;
-                }
-            }
-            if ((msg.id == APP_EVENT_HID_HOST)) {
-                hid_host_device_event(msg.hid_host_device.handle,
-                                      msg.hid_host_device.event,
-                                      msg.hid_host_device.arg);
-            } 
-        }
-        else
-        {
-            // ESP_LOGE("USB", "No events");
+            xSemaphoreTake(signaling_sem, 5000);
+            vSemaphoreDelete(signaling_sem);
+            signaling_sem = NULL;
+            vTaskDelete(daemon_task_hdl);
+            ESP_LOGE("USBH", "Host mode stopped");
         }
     }
-    vTaskDelete(daemon_task_hdl);
 }
 
 void tildagon_usb_init(void) {
@@ -230,10 +254,38 @@ static mp_obj_t tildagon_usb_try_cb(mp_obj_t cb_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(tildagon_usb_try_cb_obj, tildagon_usb_try_cb);
 
+static mp_obj_t tildagon_usb_start_host(void) {
+    usb_mode = USB_MODE_HOST;
+    app_message_t quitmsg = {.id = APP_QUIT};
+    xQueueSendToBack(app_queue, &quitmsg, portMAX_DELAY);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(tildagon_usb_start_host_obj, tildagon_usb_start_host);
+
+static mp_obj_t tildagon_usb_start_device(void) {
+    usb_mode = USB_MODE_DEVICE;
+    app_message_t quitmsg = {.id = APP_QUIT};
+    xQueueSendToBack(app_queue, &quitmsg, portMAX_DELAY);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(tildagon_usb_start_device_obj, tildagon_usb_start_device);
+
+static mp_obj_t tildagon_usb_get_mode(void) {
+    if (usb_mode == USB_MODE_DEVICE) {
+        return mp_obj_new_str("device", 6);
+    } else {
+        return mp_obj_new_str("host", 4);
+    }
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(tildagon_usb_get_mode_obj, tildagon_usb_get_mode);
+
 static const mp_rom_map_elem_t tildagonusb_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_tildagonusb) },
     // { MP_ROM_QSTR(MP_QSTR_set_led), MP_ROM_PTR(&tildagon_usb_set_led_obj) },
     { MP_ROM_QSTR(MP_QSTR_try_cb), MP_ROM_PTR(&tildagon_usb_try_cb_obj)},
+    { MP_ROM_QSTR(MP_QSTR_start_host), MP_ROM_PTR(&tildagon_usb_start_host_obj)},
+    { MP_ROM_QSTR(MP_QSTR_start_device), MP_ROM_PTR(&tildagon_usb_start_device_obj)},
+    { MP_ROM_QSTR(MP_QSTR_get_mode), MP_ROM_PTR(&tildagon_usb_get_mode_obj)}
 };
 static MP_DEFINE_CONST_DICT(tildagonusb_module_globals, tildagonusb_module_globals_table);
 

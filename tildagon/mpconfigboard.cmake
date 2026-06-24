@@ -36,6 +36,7 @@ configure_file("${CMAKE_CURRENT_LIST_DIR}/sdkconfig.project_ver.in" "${CMAKE_CUR
 
 # Config settings
 set(SDKCONFIG_DEFAULTS
+    boards/sdkconfig.usb
     boards/sdkconfig.base
     boards/sdkconfig.ble
     boards/sdkconfig.240mhz
