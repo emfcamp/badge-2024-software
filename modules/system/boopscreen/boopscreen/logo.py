@@ -1,6 +1,6 @@
 from math import pi
 
-from ..base.conf import conf
+from .conf import conf
 
 
 class Logo:
