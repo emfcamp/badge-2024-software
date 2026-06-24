@@ -121,8 +121,12 @@ class Launcher(App):
 
         for app in self.hexpansion_apps:
             if app["callable"] == "hexpansion_app":
-                if (app["port"] == event.port):  # A hexpansion for this port already has an app in the list, so remove it and re-launch
-                    print(f"Hexpansion app for port {event.port} already in launcher list, removing and re-adding")
+                if (
+                    app["port"] == event.port
+                ):  # A hexpansion for this port already has an app in the list, so remove it and re-launch
+                    print(
+                        f"Hexpansion app for port {event.port} already in launcher list, removing and re-adding"
+                    )
                     self.hexpansion_apps.remove(app)
 
         self.hexpansion_apps.append(

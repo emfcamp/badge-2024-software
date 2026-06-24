@@ -130,7 +130,7 @@ class _Scheduler:
 
     async def _handle_request_foreground_push(self, event):
         app = event.app
-        
+
         if app not in self.apps:
             print(f"Foreground request ignored for app that's not running: {app}")
             return
