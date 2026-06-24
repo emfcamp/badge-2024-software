@@ -3,10 +3,7 @@ class SchedulerEvent:
         self.app = app
 
 
-class RequestForegroundPushEvent(SchedulerEvent):
-    def __init__(self, app, port=None):
-        super().__init__(app)
-        self.port = port
+class RequestForegroundPushEvent(SchedulerEvent): ...
 
 
 class RequestForegroundPopEvent(SchedulerEvent): ...

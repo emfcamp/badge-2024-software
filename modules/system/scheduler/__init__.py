@@ -130,27 +130,16 @@ class _Scheduler:
 
     async def _handle_request_foreground_push(self, event):
         app = event.app
-
+        
         if app not in self.apps:
             print(f"Foreground request ignored for app that's not running: {app}")
             return
 
         if app in self.foreground_stack:
             if self.foreground_stack[-1] is not app:
-                if event.port is None:
-                    app_idx = self.foreground_stack.index(app)
-                    del self.foreground_stack[app_idx]
-                    self.foreground_stack.append(app)
-                else:
-                    for idx in range(1, 7):
-                        app_idx = self.foreground_stack.index(app)
-                        if (
-                            self.foreground_stack[app_idx].hexpansion_config.port
-                            == event.port
-                        ):
-                            del self.foreground_stack[app_idx]
-                            self.foreground_stack.append(app)
-                            break
+                app_idx = self.foreground_stack.index(app)
+                del self.foreground_stack[app_idx]
+                self.foreground_stack.append(app)
         else:
             self.foreground_stack.append(app)
 

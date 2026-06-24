@@ -161,7 +161,7 @@ class HexpansionManagerApp(app.App):
             # The hexpansion app is already running, foreground it. Avoids launching duplicate apps, but allows
             # launching duplicate apps when several of the same hexpansion are plugged in, each addressing a different port
             print(f"App is already running, requesting foreground push for port {port}")
-            eventbus.emit(RequestForegroundPushEvent(self.hexpansion_apps[port], port))
+            eventbus.emit(RequestForegroundPushEvent(self.hexpansion_apps[port]))
             return
 
         mount = self.mountpoints[port].lstrip("/")
