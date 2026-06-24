@@ -6,7 +6,7 @@
 
 #define TILDAGON_CTX_SHOW_FPS        0 // shows fps counter at top of display
 
-#define TILDAGON_CTX_DRAWLIST_MODE   0 // accumulates draw commands in drawlists
+#define TILDAGON_CTX_DRAWLIST_MODE   1 // accumulates draw commands in drawlists
    // and render changed sub-regions of display, the opposite is
    // DIRECT mode
    //
