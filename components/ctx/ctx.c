@@ -13,7 +13,7 @@
 
 int mp_ctx_vfs_load_file (const char     *path,
                           unsigned char **contents,
-                          long           *length,
+                          size_t         *length,
                           long            max_length);
 #define CTX_LOAD_FILE mp_ctx_vfs_load_file
 
