@@ -77,8 +77,8 @@ class YesNoDialog:
         if BUTTON_TYPES["CANCEL"] in event.button:
             self._cleanup()
             self._result = False
-            if self.no_handler() is not None:
-                result = await self.no_handler()
+            if self.no_handler is not None:
+                result = self.no_handler()
                 if hasattr(result, "pend_throw"):
                     await result
 
