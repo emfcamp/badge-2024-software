@@ -65,7 +65,7 @@ JOYSTICK = {
     "FIRE": Button(
         "JOYFIRE",
         "TwentyTwentySix",
-        [BUTTON_TYPES["CONFIRM"], JOYSTICK_BUTTON_TYPES["A"]],
+        [BUTTON_TYPES["CONFIRM"], JOYSTICK_BUTTON_TYPES["SELECT"]],
     ),
 }
 
