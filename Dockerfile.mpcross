@@ -1,6 +1,4 @@
-ARG IDF_VERSION=v5.2.1
 FROM ubuntu:25.10
-#FROM ghcr.io/emfcamp/esp_idf:$IDF_VERSION
 
 COPY micropython/mpy-cross /mpy-cross
 ENTRYPOINT ["/mpy-cross/build/mpy-cross"]
