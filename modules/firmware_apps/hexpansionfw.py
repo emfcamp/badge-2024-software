@@ -171,8 +171,16 @@ class HexpansionDetail:
         try:
             os.stat(mountpoint)
         except OSError:
-            print(f"{mountpoint} is not mounted")
-            return
+            print(f"{mountpoint} is not mounted - storing to filesystem")
+            try:
+                os.mkdir("/drivers")
+            except OSError:
+                pass
+            mountpoint = f"/drivers/hex_{self.header.vid:04x}_{self.header.pid:04x}"
+            try:
+                os.mkdir(mountpoint)
+            except OSError:
+                pass
 
         url = _FIRMWARE_URL.format(
             base=settings.get("hexpansion_firmware_repo", DEFAULT_REPO),
@@ -189,9 +197,13 @@ class HexpansionDetail:
         with open(_TMP_PATH, "wb") as f:
             f.write(response.content)
 
-        self.dialog.message = "Writing EEPROM"
+        if mountpoint.startswith("/drivers"):
+            self.dialog.message = "Saving driver to flash"
+        else:
+            self.dialog.message = "Writing EEPROM"
+
         try:
-            progress
+            await progress()
             with open(_TMP_PATH, "rb") as f:
                 tar_bytes = await async_helpers.unblock(
                     gzip.decompress, progress, f.read()
