@@ -9,7 +9,8 @@ JOYSTICK_BUTTON_TYPES = {
     "A": Button("A", "Joystick"),
     "B": Button("B", "Joystick"),
     "C": Button("C", "Joystick"),
-    "D": Button("D", "Joystick"),
-    "E": Button("E", "Joystick"),
-    "F": Button("F", "Joystick"),
+    "X": Button("X", "Joystick"),
+    "Y": Button("Y", "Joystick"),
+    "Z": Button("Z", "Joystick"),
+    "SELECT": Button("SELECT", "Joystick"),
 }
