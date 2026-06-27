@@ -257,12 +257,9 @@ class TextDialog:
             )
         if ctx.a11y:
             ctx.a11y.add_alt(self, "Buttons:")
-            self.speak_keys(ctx, self._keys[0])
-            self.speak_keys(ctx, self._keys[1])
-            self.speak_keys(ctx, self._keys[2])
-            self.speak_keys(ctx, self._keys[3])
-            self.speak_keys(ctx, self._keys[4])
-            self.speak_keys(ctx, self._keys[5])
+            for i in range(6):
+                if self._keys[i]:
+                    self.speak_keys(ctx, self._keys[i])
 
         ctx.restore()
 
