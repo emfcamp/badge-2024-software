@@ -35,9 +35,18 @@ jobs:
       - name: Build WASM firmware
         run: |
           bash scripts/build_wasm.sh
-      - name: Build mpy-cross image
+      - name: Build and push mpy-cross image
         run: |
-          docker build -f Dockerfile.mpcross --build-arg IDF_VERSION=v5.5.1 -t ghcr.io/emfcamp/mpy-cross:v5.5.1 .
+          docker build -f Dockerfile.mpcross -t ghcr.io/emfcamp/mpy-cross:v5.5.1 .
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.mpcross
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ghcr.io/emfcamp/mpy-cross:v5.5.1
       - name: Archive firmware
         uses: actions/upload-artifact@v4
         with:
