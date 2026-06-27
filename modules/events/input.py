@@ -3,14 +3,14 @@ from events import Event
 
 
 class Button:
-    __slots__ = ("name", "group", "parent", "_all_parents")
+    __slots__ = ("name", "group", "parents", "_all_parents")
 
     def __init__(self, name, group, parent=None):
         self.name = name
         self.group = group
         if isinstance(parent, Button):
             self.parents = [parent]
-        if parent is None:
+        elif parent is None:
             self.parents = []
         else:
             self.parents = parent
