@@ -55,9 +55,10 @@ jobs:
         with:
           context: .
           file: Dockerfile.mpcross
-          push: ${{ github.event_name != 'pull_request' }}
+          #push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ghcr.io/emfcamp/mpy-cross:v5.5.1
+
       - name: Archive firmware
         uses: actions/upload-artifact@v4
         with:
