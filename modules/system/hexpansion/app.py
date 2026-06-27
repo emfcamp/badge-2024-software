@@ -114,6 +114,14 @@ class HexpansionManagerApp(app.App):
             sys.path.append(p)
         os.chdir(old_cwd)
 
+    def _try_filesystem_driver(self, port):
+        header = self.hexpansion_headers[port]
+        path = f"/drivers/hex_{header.vid:04x}_{header.pid:04x}"
+        print(f"Trying FS driver at {path}")
+        _package = __import__(f"{path}.app")
+        package = _package.app
+        return package
+
     def _launch_hexpansion_app(self, port):
         if port not in self.mountpoints:
             return
@@ -128,6 +136,7 @@ class HexpansionManagerApp(app.App):
         if "remote" in os.listdir():
             sys.path.append("/remote")
 
+        package = None
         try:
             _package = __import__(f"{mount}.app")
             package = _package.app
@@ -136,6 +145,15 @@ class HexpansionManagerApp(app.App):
             print(e)
             print("App module not found")
             self._cleanup_import_path(old_cwd, old_sys_path)
+
+        if package is None:
+            try:
+                package = self._try_filesystem_driver(port)
+            except Exception as e:
+                print(e)
+                print("Failed to load fs driver")
+
+        if package is None:
             return
 
         try:
