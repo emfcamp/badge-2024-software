@@ -67,7 +67,7 @@ class Logo:
 
     def fade(self, amount=conf["fade-rate"]):
         """Fade."""
-        self.opacity -= amount
+        self.opacity = max(self.opacity - amount, 0)
 
     def faded(self, limit=0):
         """Are we faded-out?"""

@@ -9,15 +9,14 @@ from system.notification.app import NotificationService
 from system.launcher.app import Launcher
 from system.power.handler import PowerEventHandler
 from system.power.app import PowerManager
+from system.boopscreen.app import BoopSpinner
+
 from frontboards.utils import detect_frontboard
 import frontboard2026
 
 fb = detect_frontboard()
 
 print(hex(fb))
-from system.boopscreen.app import BoopSpinner
-
-from frontboards.twentyfour import TwentyTwentyFour
 
 # Start front-board interface
 if (fb & 0xFF00) == 0x2600:
