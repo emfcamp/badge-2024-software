@@ -242,7 +242,13 @@ class HexpansionDetail:
         i2c = I2C(port)
         await progress()
         addr, addr_len = detect_eeprom_addr(i2c)
-        write_header(port, self.header, addr=addr, addr_len=addr_len)
+        write_header(
+            port,
+            self.header,
+            addr=addr,
+            addr_len=addr_len,
+            page_size=self.header.eeprom_page_size,
+        )
         _, partition = get_hexpansion_block_devices(
             i2c, self.header, addr=addr, addr_len=addr_len
         )
