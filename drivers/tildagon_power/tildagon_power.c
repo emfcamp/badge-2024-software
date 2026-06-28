@@ -72,7 +72,7 @@ attach_machine_state_t device_attach_state = DISABLED;
 pd_machine_state_t host_pd_state = NOT_STARTED;
 pd_machine_state_t device_pd_state = NOT_STARTED;
 
-static uint8_t tildagon_message[20] = { 0x00, 0x00, PD_VENDOR_ID & 0xFF, PD_VENDOR_ID >> 8,
+uint8_t tildagon_message[20] = { 0x00, 0x00, PD_VENDOR_ID & 0xFF, PD_VENDOR_ID >> 8,
                                         0x54, 0x69, 0x6C, 0x64,
                                         0x61, 0x67, 0x6F, 0x6E,
                                         0x42, 0x65, 0x73, 0x74,
@@ -96,6 +96,9 @@ void tildagon_power_fast_task(void *param __attribute__((__unused__)))
     // turn off 5V switch before setting up PMIC as the reset will enable the boost.
     aw9523b_pin_set_output( &ext_pin[2], 4, false);
     bq_init( &pmic );
+    
+    /* setup lanyard and badge to badge numbers */
+    esp_fill_random( &tildagon_message[12], 8 );
     
     /* initialise isr */ 
     //todo move to allow sharing of sys_int isr
@@ -474,8 +477,24 @@ void device_pd ( event_t event )
                 && ( usb_in.pd.vendor.vendor_data[7] == tildagon_message[7] )
             )
             {
-                push_event( MP_POWER_EVENT_BADGE_AS_DEVICE_ATTACH );
-                badge_as_device = true;
+                if (
+                    ( usb_in.pd.vendor.vendor_data[12] == tildagon_message[12] )
+                    && ( usb_in.pd.vendor.vendor_data[13] == tildagon_message[13] )
+                    && ( usb_in.pd.vendor.vendor_data[14] == tildagon_message[14] )
+                    && ( usb_in.pd.vendor.vendor_data[15] == tildagon_message[15] )
+                )
+                {
+                    bq_enable_HiZ_input( &pmic, 1 );
+                    lanyard_mode = true;
+                    host_pd_state = LANYARD;
+                    device_pd_state = LANYARD;
+                    push_event(MP_POWER_EVENT_LANYARD_ATTACH);
+                }
+                else
+                {
+                    push_event( MP_POWER_EVENT_BADGE_AS_DEVICE_ATTACH );
+                    badge_as_device = true;
+                }
             }
             else
             {

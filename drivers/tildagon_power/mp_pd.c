@@ -213,6 +213,23 @@ static mp_obj_t host_send_dbl_prime_msg( mp_obj_t self_in, mp_obj_t mp_data )
 
 static MP_DEFINE_CONST_FUN_OBJ_2( host_send_dbl_prime_msg_obj, host_send_dbl_prime_msg);
 
+static mp_obj_t device_send_badge_id( mp_obj_t self_in )
+{
+    fusbpd_vendor_specific( &usb_in.pd, tildagon_message, 5 );
+    fusb_send( &usb_in.fusb, usb_in.pd.tx_buffer, usb_in.pd.message_length );
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_1( device_send_badge_id_obj, device_send_badge_id);
+
+static mp_obj_t host_send_badge_id( mp_obj_t self_in )
+{
+    fusbpd_vendor_specific( &usb_out.pd, tildagon_message, 5 );
+    fusb_send( &usb_out.fusb, usb_out.pd.tx_buffer, usb_out.pd.message_length );
+    return mp_const_none;
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_1( host_send_badge_id_obj, host_send_badge_id);
 
 static const mp_rom_map_elem_t device_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_connected), MP_ROM_PTR(&device_connected_obj) },
@@ -220,6 +237,7 @@ static const mp_rom_map_elem_t device_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_badge_connected), MP_ROM_PTR(&device_badge_connected_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_vendor_msg), MP_ROM_PTR(&device_get_vendor_msg_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_vendor_msg), MP_ROM_PTR(&device_send_vendor_msg_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send_badge_id), MP_ROM_PTR(&device_send_badge_id_obj ) },
 };
 
 static MP_DEFINE_CONST_DICT(device_locals_dict, device_locals_dict_table);
@@ -242,6 +260,7 @@ static const mp_rom_map_elem_t host_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_get_dbl_prime_msg), MP_ROM_PTR(&host_get_dbl_prime_msg_obj ) },
     { MP_ROM_QSTR(MP_QSTR_send_prime_msg), MP_ROM_PTR(&host_send_prime_msg_obj ) },
     { MP_ROM_QSTR(MP_QSTR_send_dbl_prime_msg), MP_ROM_PTR(&host_send_dbl_prime_msg_obj ) },
+    { MP_ROM_QSTR(MP_QSTR_send_badge_id), MP_ROM_PTR(&host_send_badge_id_obj ) },
 };
 
 static MP_DEFINE_CONST_DICT(host_locals_dict, host_locals_dict_table);
