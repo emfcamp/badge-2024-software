@@ -76,6 +76,20 @@ class EspNowService(App):
         if not sta.active():
             return
         awake = self._has_listeners()
+        pm = sta.PM_NONE if awake else sta.PM_PERFORMANCE
+
+        # After a hard reset, we need to wait for the wifi driver to initialize
+        # before setting power management
+        for attempt in range(3):
+            try:
+                sta.config(pm=pm)
+                break
+            except OSError as e:
+                if attempt == 2:
+                    print("ESP-NOW: deferring power management (%s)" % e)
+                    return
+                time.sleep_ms(50)
+
         if awake != self._radio_awake:
             if awake:
                 print("ESP-NOW: listener(s) present, keeping radio awake (PM_NONE)")
@@ -84,7 +98,6 @@ class EspNowService(App):
                     "ESP-NOW: no listeners, restoring WiFi power-saving (PM_PERFORMANCE)"
                 )
             self._radio_awake = awake
-        sta.config(pm=sta.PM_NONE if awake else sta.PM_PERFORMANCE)
 
     def subscribe(
         self,
