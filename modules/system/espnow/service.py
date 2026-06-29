@@ -80,7 +80,9 @@ class EspNowService(App):
             if awake:
                 print("ESP-NOW: listener(s) present, keeping radio awake (PM_NONE)")
             else:
-                print("ESP-NOW: no listeners, restoring WiFi power-saving (PM_PERFORMANCE)")
+                print(
+                    "ESP-NOW: no listeners, restoring WiFi power-saving (PM_PERFORMANCE)"
+                )
             self._radio_awake = awake
         sta.config(pm=sta.PM_NONE if awake else sta.PM_PERFORMANCE)
 

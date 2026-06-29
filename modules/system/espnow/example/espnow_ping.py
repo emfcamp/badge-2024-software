@@ -6,6 +6,7 @@ from system.espnow.events import EspNowReceiveEvent
 from app_components.tokens import clear_background
 import settings
 
+
 class ESPNowPing(app.App):
     def __init__(self):
         self.button_states = Buttons(self)
@@ -18,7 +19,7 @@ class ESPNowPing(app.App):
         espnow_service.subscribe(
             handler=self._on_message,
             app=self,
-            predicate=lambda e: e.msg.startswith(b"hello from")
+            predicate=lambda e: e.msg.startswith(b"hello from"),
         )
 
     def _on_message(self, event: EspNowReceiveEvent):
@@ -30,7 +31,9 @@ class ESPNowPing(app.App):
             self.minimise()
 
         if self.button_states.pressed(BUTTON_TYPES["CONFIRM"]):
-            espnow_service.send(bytes(f"hello from {self.name} {self.counter}", "ascii"))
+            espnow_service.send(
+                bytes(f"hello from {self.name} {self.counter}", "ascii")
+            )
             self.counter += 1
 
     def draw(self, ctx):
