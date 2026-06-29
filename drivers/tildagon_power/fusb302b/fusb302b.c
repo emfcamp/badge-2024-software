@@ -278,11 +278,15 @@ void fusb_setup_pd( fusb_state_t* state )
         
         write_bits( state, rx_flush, 1 );
         uint8_t data = 0x24; /* pd rev 2 and auto crc bits set */
-        if ( state->cc_select < 3 )
+        if ( state->cc_select == 1 ) /* enable transceiver for the CC pin selected */
         {
-            data |= state->cc_select; /* enable transceiver for the CC pin selected */
-            data |= state->host << 7 | state->host << 4; /* set power and data roles for auto good crc */
+            data |= 0x01;
         }
+        else
+        {
+            data |= 0x02;
+        }
+        data |= state->host << 7 | state->host << 4; /* set power and data roles for auto good crc */
         write_buffer[0] = enable_bmc.regaddr;
         write_buffer[1] = data;
         tildagon_mux_i2c_transaction( state->mux_port, ADDRESS, 1, &buffer, WRITE );
