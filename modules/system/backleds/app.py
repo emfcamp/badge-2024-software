@@ -21,10 +21,14 @@ class BackLEDManager(App):
         tildagonos.set_led_power(True)
         eventbus.on_async(HexpansionInsertionEvent, self.handle_insertion, self)
         eventbus.on_async(HexpansionRemovalEvent, self.handle_removal, self)
+
         eventbus.on_async(EmotePositiveEvent, self.handle_positive, self)
         eventbus.on_async(EmoteNegativeEvent, self.handle_negative, self)
 
     async def handle_positive(self, event):
+        if not settings.get("backleds_emotes", True):
+            return
+
         await self.lock.acquire()
         try:
             for brightness in [1, 16, 64, 255, 64, 16, 1, 0]:
@@ -36,6 +40,9 @@ class BackLEDManager(App):
             self.lock.release()
 
     async def handle_negative(self, event):
+        if not settings.get("backleds_emotes", True):
+            return
+
         await self.lock.acquire()
         try:
             for brightness in [1, 16, 64, 255, 64, 16, 1, 0]:
