@@ -8,6 +8,22 @@ from system.notification.events import ShowNotificationEvent
 import sys
 
 
+def _type_name(event_type):
+    # event_type may be a class (built-in events) or a str (custom event types)
+    return getattr(event_type, "__name__", event_type)
+
+
+def _matches(event, event_type):
+    # A str event_type matches by the event's "type": either a .type attribute
+    # (e.g. CustomEvent) or a "type" key on a dict. Anything else is matched by
+    # isinstance as normal.
+    if isinstance(event_type, str):
+        if isinstance(event, dict):
+            return event.get("type") == event_type
+        return getattr(event, "type", None) == event_type
+    return isinstance(event, event_type)
+
+
 class _EventBus:
     def __init__(self):
         self.event_queue = AsyncQueue()
@@ -16,7 +32,7 @@ class _EventBus:
 
     def on(self, event_type, event_handler, app):
         print(
-            f"Registered event handler for {event_type.__name__}: {app.__class__.__name__} - {event_handler.__name__}"
+            f"Registered event handler for {_type_name(event_type)}: {app.__class__.__name__} - {event_handler.__name__}"
         )
         if app not in self.handlers:
             self.handlers[app] = {}
@@ -26,7 +42,7 @@ class _EventBus:
 
     def on_async(self, event_type, event_handler, app):
         print(
-            f"Registered async event handler for {event_type.__name__}: {app.__class__.__name__} - {event_handler.__name__}"
+            f"Registered async event handler for {_type_name(event_type)}: {app.__class__.__name__} - {event_handler.__name__}"
         )
         if app not in self.async_handlers:
             self.async_handlers[app] = {}
@@ -45,14 +61,14 @@ class _EventBus:
             if event_type in self.handlers[app]:
                 if event_handler in self.handlers[app][event_type]:
                     print(
-                        f"Removed event handler for {event_type.__name__}: {app.__class__.__name__} - {event_handler.__name__}"
+                        f"Removed event handler for {_type_name(event_type)}: {app.__class__.__name__} - {event_handler.__name__}"
                     )
                     self.handlers[app][event_type].remove(event_handler)
         if app in self.async_handlers:
             if event_type in self.async_handlers[app]:
                 if event_handler in self.async_handlers[app][event_type]:
                     print(
-                        f"Removed event handler for {event_type.__name__}: {app.__class__.__name__} - {event_handler.__name__}"
+                        f"Removed event handler for {_type_name(event_type)}: {app.__class__.__name__} - {event_handler.__name__}"
                     )
                     self.async_handlers[app][event_type].remove(event_handler)
 
@@ -69,7 +85,10 @@ class _EventBus:
     async def run(self):
         while True:
             event = await self.event_queue.get()
-            requires_focus = hasattr(event, "requires_focus") and event.requires_focus
+            if isinstance(event, dict):
+                requires_focus = event.get("requires_focus", False)
+            else:
+                requires_focus = getattr(event, "requires_focus", False)
 
             # For both synchronous and asynchronous handlers, loop over the apps
             # that have registered handlers, then if the app is eligible to receive
@@ -85,7 +104,7 @@ class _EventBus:
                     try:
                         if getattr(app, "_focused", False) or not requires_focus:
                             for event_type in tuple(self.handlers[app]):
-                                if isinstance(event, event_type):
+                                if _matches(event, event_type):
                                     for handler in tuple(
                                         self.handlers[app][event_type]
                                     ):
@@ -104,7 +123,7 @@ class _EventBus:
                 for app in tuple(self.async_handlers.keys()):
                     if getattr(app, "_focused", False) or not requires_focus:
                         for event_type in tuple(self.async_handlers[app]):
-                            if isinstance(event, event_type):
+                            if _matches(event, event_type):
                                 for handler in tuple(
                                     self.async_handlers[app][event_type]
                                 ):
