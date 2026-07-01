@@ -51671,17 +51671,21 @@ ctx_hasher_process (Ctx *ctx, const CtxCommand *command)
         //                         c->c.x2, c->c.y2);
         break;
       case CTX_REL_CURVE_TO:
-        ctx_rasterizer_rel_line_to (rasterizer, c->c.x2, c->c.y2);
+        ctx_rasterizer_rel_line_to (rasterizer, c->c.x0, c->c.y0);
+        ctx_rasterizer_rel_line_to (rasterizer, c->c.x1 - c->c.x0, c->c.y1 - c->c.y0);
+        ctx_rasterizer_rel_line_to (rasterizer, c->c.x2 - c->c.x1, c->c.y2 - c->c.y1);
         //ctx_rasterizer_rel_curve_to (rasterizer, c->c.x0, c->c.y0,
         //                             c->c.x1, c->c.y1,
         //                             c->c.x2, c->c.y2);
         break;
       case CTX_QUAD_TO:
+        ctx_rasterizer_line_to (rasterizer, c->c.x0, c->c.y0);
         ctx_rasterizer_line_to (rasterizer, c->c.x1, c->c.y1);
         //ctx_rasterizer_quad_to (rasterizer, c->c.x0, c->c.y0, c->c.x1, c->c.y1);
         break;
       case CTX_REL_QUAD_TO:
-        ctx_rasterizer_rel_line_to (rasterizer, c->c.x1, c->c.y1);
+        ctx_rasterizer_rel_line_to (rasterizer, c->c.x0, c->c.y0);
+        ctx_rasterizer_rel_line_to (rasterizer, c->c.x1 - c->c.x0, c->c.y1 - c->c.y0);
         //ctx_rasterizer_rel_quad_to (rasterizer, c->c.x0, c->c.y0, c->c.x1, c->c.y1);
         break;
       case CTX_ARC:
