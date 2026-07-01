@@ -1,5 +1,6 @@
 from . import Event
 
+
 class CustomEvent(Event):
     __slots__ = ("type", "data", "requires_focus")
 
