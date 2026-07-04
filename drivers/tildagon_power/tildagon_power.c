@@ -494,6 +494,7 @@ void device_pd ( event_t event )
                 {
                     push_event( MP_POWER_EVENT_BADGE_AS_DEVICE_ATTACH );
                     badge_as_device = true;
+                    bq_set_input_current_limit( &pmic, 100.0F );
                 }
             }
             else
