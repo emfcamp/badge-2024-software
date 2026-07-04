@@ -704,7 +704,7 @@ void clean_out( void )
     }
     tildagon_power_enable_5v(false);
     host_pd_state = NOT_STARTED;
-    usb_in.fusb.cc_select = 0;
+    usb_out.fusb.cc_select = 0;
     fusb_setup_pd( &usb_out.fusb );
     fusb_setup_host( &usb_out.fusb );
     fusb_set_vcon( &usb_out.fusb, 0 );
@@ -712,8 +712,8 @@ void clean_out( void )
     usb_out.pd.last_rx_data_msg_type = PD_DATA_DO_NOT_USE;   
     usb_out.pd.number_of_pdos = 0U;
     usb_out.pd.msg_id = 0U;
-    usb_in.pd.data_role = 0;
-    usb_in.pd.power_role = 0;
+    usb_out.pd.data_role = 1;
+    usb_out.pd.power_role = 1;
     
     if ( lanyard_mode )
     {
