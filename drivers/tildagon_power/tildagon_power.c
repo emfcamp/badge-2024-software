@@ -71,6 +71,7 @@ attach_machine_state_t host_attach_state = DISABLED;
 attach_machine_state_t device_attach_state = DISABLED;
 pd_machine_state_t host_pd_state = NOT_STARTED;
 pd_machine_state_t device_pd_state = NOT_STARTED;
+bool ignore_pd = false;
 
 static uint8_t tildagon_message[20] = { 0x00, 0x00, PD_VENDOR_ID & 0xFF, PD_VENDOR_ID >> 8,
                                         0x54, 0x69, 0x6C, 0x64,
@@ -311,8 +312,15 @@ void device_unattached_handler( event_t event )
         determine_input_current_limit( &usb_in );
         if ( ( input_current_limit >= 1500 ) && ( device_pd_state == NOT_STARTED ) )
         {
-            fusb_setup_pd( &usb_in.fusb );
-            device_pd_state = WAITING;
+            if ( ignore_pd )
+            {
+                ignore_pd = false;
+            }
+            else
+            {
+                fusb_setup_pd( &usb_in.fusb );
+                device_pd_state = WAITING;
+            }
         }
         fusb_mask_interrupt_bclevel( &usb_in.fusb, 1 );
     }
@@ -339,8 +347,15 @@ void device_attached_handler( event_t event )
         determine_input_current_limit( &usb_in );
         if ( ( input_current_limit >= 1500 ) && ( device_pd_state == NOT_STARTED ) )
         {
-            fusb_setup_pd( &usb_in.fusb );
-            device_pd_state = WAITING;
+            if ( ignore_pd )
+            {
+                ignore_pd = false;
+            }
+            else
+            {
+                fusb_setup_pd( &usb_in.fusb );
+                device_pd_state = WAITING;
+            }
         }
         fusb_mask_interrupt_bclevel( &usb_in.fusb, 1 );
     }
@@ -364,8 +379,11 @@ void host_pd ( event_t event )
             {
                 case PD_DATA_VENDOR_DEFINED:
                 {
-                    
-                    if (
+                    if ( badge_as_host )
+                    {
+                        push_event(MP_POWER_EVENT_HOST_VENDOR_MSG_RX);
+                    }
+                    else if (
                         ( usb_out.pd.vendor.no_objects == 5 )
                     && ( usb_out.pd.vendor.vendor_data[4] == tildagon_message[4] )
                     && ( usb_out.pd.vendor.vendor_data[5] == tildagon_message[5] )
@@ -466,7 +484,22 @@ void device_pd ( event_t event )
         }          
         else if ( usb_in.pd.last_rx_data_msg_type == PD_DATA_VENDOR_DEFINED )
         {
-            if (
+            if ( badge_as_device )
+            {  
+                push_event( MP_POWER_EVENT_DEVICE_VENDOR_MSG_RX );
+            }
+            else if ( usb_in.pd.vendor.no_objects == 1 )
+            {
+                pd_vendor_header_union_t vendor_header;
+                vendor_header.raw = *(uint32_t*)usb_in.pd.vendor.vendor_data;
+                if ( vendor_header.header.lsb.structured.command == PD_VEND_CMD_DISCOVER_IDENTITY )
+                {
+                    ignore_pd = true;
+                    fusb_set_pulldown( &usb_in.fusb, 0 );
+                    vTaskDelay( 500 / portTICK_PERIOD_MS );
+                }
+            }
+            else if (
                 ( usb_in.pd.vendor.no_objects == 5 )
                 && ( usb_in.pd.vendor.vendor_data[4] == tildagon_message[4] )
                 && ( usb_in.pd.vendor.vendor_data[5] == tildagon_message[5] )
@@ -649,11 +682,14 @@ void clean_in( void )
     bq_set_input_current_limit( &pmic, (float)input_current_limit );
     device_pd_state = NOT_STARTED;
     usb_in.fusb.cc_select = 0U;
+    fusb_setup_pd( &usb_in.fusb );
     fusb_setup_device( &usb_in.fusb );
     usb_in.pd.last_rx_control_msg_type = PD_CONTROL_DO_NOT_USE;
     usb_in.pd.last_rx_data_msg_type = PD_DATA_DO_NOT_USE;
     usb_in.pd.number_of_pdos = 0U;
     usb_in.pd.msg_id = 0U;
+    usb_in.pd.data_role = 0;
+    usb_in.pd.power_role = 0;
 }
 
 /**
@@ -669,12 +705,15 @@ void clean_out( void )
     tildagon_power_enable_5v(false);
     host_pd_state = NOT_STARTED;
     usb_in.fusb.cc_select = 0;
+    fusb_setup_pd( &usb_out.fusb );
     fusb_setup_host( &usb_out.fusb );
     fusb_set_vcon( &usb_out.fusb, 0 );
     usb_out.pd.last_rx_control_msg_type = PD_CONTROL_DO_NOT_USE;
     usb_out.pd.last_rx_data_msg_type = PD_DATA_DO_NOT_USE;   
     usb_out.pd.number_of_pdos = 0U;
     usb_out.pd.msg_id = 0U;
+    usb_in.pd.data_role = 0;
+    usb_in.pd.power_role = 0;
     
     if ( lanyard_mode )
     {

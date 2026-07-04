@@ -48,6 +48,17 @@ typedef enum
     PD_DATA_VENDOR_DEFINED      = 0x0FU,
 } pd_data_message_types_t;
 
+typedef enum
+{
+    PD_VEND_CMD_SHALL_NOT_BE_USED = 0x00U,
+    PD_VEND_CMD_DISCOVER_IDENTITY = 0x01U,
+    PD_VEND_CMD_DISCOVER_SVIDS    = 0x02U,
+    PD_VEND_CMD_DISCOVER_MODES    = 0x03U,
+    PD_VEND_CMD_ENTER_MODE        = 0x04U,
+    PD_VEND_CMD_EXIT_MODE         = 0x05U,
+    PD_VEND_CMD_ATTENTION         = 0x06U
+} pd_vendor_commands_t;
+
 /* SOP header */
 typedef struct
 {
@@ -85,9 +96,9 @@ typedef union
 
     Universal Serial Bus Power Delivery Specification
     
-    Revision: 3.2
-    Version: 1.0
-    Release date: 2023-10
+    Revision: 2
+    Version: 1.3
+    Release date: 2017-01-12
 */
 
 typedef struct
@@ -170,6 +181,70 @@ typedef union
 
 typedef struct
 {
+    uint16_t command         : 5;
+    uint16_t reserved        : 1;
+    uint16_t command_type    : 2;
+    uint16_t object_position : 3;
+    uint16_t vdm_ver_min     : 2;
+    uint16_t vdm_ver_maj     : 2;
+    uint16_t stuctured       : 1;
+} pd_vend_structured_t;
+
+typedef struct
+{
+    uint16_t user      : 15;
+    uint16_t stuctured : 1;
+} pd_vend_unstructured_t;
+
+typedef union
+{
+    pd_vend_structured_t structured;
+    pd_vend_unstructured_t unstructured;
+} pd_vend_header_lsb_t;
+
+typedef struct
+{
+    pd_vend_header_lsb_t lsb;
+    uint16_t vendor_id;
+} pd_vendor_header_t;
+
+typedef union
+{
+    pd_vendor_header_t header;
+    uint8_t bytes[4];
+    uint32_t raw;
+} pd_vendor_header_union_t;
+
+typedef struct
+{
+    uint16_t vendor_id;
+    uint16_t reserved      : 10;
+    uint16_t modal_support : 1;  
+    uint16_t product_type  : 3;
+    uint16_t usb_device    : 1;  
+    uint16_t usb_host      : 1;  
+} pd_vendor_id_header_t;
+
+typedef union 
+{
+    pd_vendor_id_header_t header;
+    uint8_t bytes[4];
+} pd_vendor_id_header_union_t;
+
+typedef struct
+{
+    uint16_t device;
+    uint16_t product_id;
+} pd_vendor_product_t;
+
+typedef union 
+{
+    pd_vendor_product_t product_data;
+    uint8_t bytes[4];
+} pd_vendor_product_union_t;
+
+typedef struct
+{
     bool new_msg;
     uint8_t vendor_data[28];
     uint8_t no_objects;
@@ -221,7 +296,7 @@ typedef struct
 extern void fusbpd_decode( pd_state_t* state, fusb_state_t* fusb );
 /**
  * @brief creat a request power message 
- * @param state the comms state onject
+ * @param state the comms state object
  * @param num the index of the pdo list sent from the source
  * @param current the current required to run the device
  * @param max_current the maximum current required by the device
@@ -249,7 +324,7 @@ extern void fusbpd_vendor_specific( pd_state_t* state, uint8_t* data, uint8_t no
 extern void fusbpd_extended( pd_state_t* state, uint16_t header, uint16_t ext_header, uint8_t* data );
 /**
  * @brief create a unchunked extended message.
- * @param state the comms state onject.
+ * @param state the comms state object.
  * @param header standard message header.
  * @param data buffer of data to transmit, must start with the appropriate extended header.
  * @param length data length. fusb302 tx buffer is 48 bytes, 16 are needed for tx commands, length 32 max.
@@ -257,11 +332,21 @@ extern void fusbpd_extended( pd_state_t* state, uint16_t header, uint16_t ext_he
 extern void fusbpd_prime( pd_state_t* state, uint8_t* data, uint8_t length );
 /**
  * @brief create a unchunked extended message.
- * @param state the comms state onject.
+ * @param state the comms state object.
  * @param header standard message header.
  * @param data buffer of data to transmit.
  * @param length data length. fusb302 tx buffer is 48 bytes, 16 are needed for tx commands, length 32 max.
  */
 extern void fusbpd_dbl_prime( pd_state_t* state, uint8_t* data, uint8_t length );
+/**
+ * @brief create a unchunked extended message.
+ * @param state the comms state object.
+ */
+extern void fusbpd_vendor_id( pd_state_t* state );
+/**
+ * @brief create a reject command.
+ * @param state the comms state object.
+ */
+extern void fusbpd_reject( pd_state_t* state );
 
 #endif /* FUSB302B_PD_H */

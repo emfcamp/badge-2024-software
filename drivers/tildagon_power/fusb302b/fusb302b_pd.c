@@ -333,3 +333,105 @@ void fusbpd_dbl_prime( pd_state_t* state, uint8_t* data, uint8_t length )
     state->message_length =  12 + index ;
 }
 
+/**
+ * @brief create discover identity response.
+ * @param state the comms state object.
+ */
+void fusbpd_vendor_id( pd_state_t* state )
+{
+    state->tx_buffer[0] = TX_FIFO_ADDRESS;
+    state->tx_buffer[1] = TX_SOP1; 
+    state->tx_buffer[2] = TX_SOP1; 
+    state->tx_buffer[3] = TX_SOP1; 
+    state->tx_buffer[4] = TX_SOP2; 
+    state->tx_buffer[5] = TX_PACKSYM | 0x12;   
+     
+    pd_header_union_t header = { 0U };
+    header.sop.number_objects = 4;
+    header.sop.message_id = state->msg_id;
+    header.sop.message_type = 0x0FU;
+    header.sop.revision = 0x01U;
+    header.sop.data_role = state->data_role;
+    header.sop.power_role = state->power_role;
+    
+    state->tx_buffer[6] = header.raw[0]; 
+    state->tx_buffer[7] = header.raw[1];
+    
+    pd_vendor_header_union_t vdh = { 0 };
+    vdh.header.vendor_id = 0xFF00U;
+    vdh.header.lsb.structured.stuctured = 0x01U;
+    vdh.header.lsb.structured.command_type = 0x01U;
+    vdh.header.lsb.structured.command = PD_VEND_CMD_DISCOVER_IDENTITY;
+    
+    state->tx_buffer[8] = vdh.bytes[0]; 
+    state->tx_buffer[9] = vdh.bytes[1]; 
+    state->tx_buffer[10] = vdh.bytes[2]; 
+    state->tx_buffer[11] = vdh.bytes[3]; 
+    
+    pd_vendor_id_header_union_t vid = { 0 };
+    vid.header.usb_device = 0x01U;
+    //vid.header.usb_host = 0x01U;
+    vid.header.product_type = 0x01U;
+    vid.header.vendor_id = 0x344FU;
+    
+    state->tx_buffer[12] = vid.bytes[0]; 
+    state->tx_buffer[13] = vid.bytes[1]; 
+    state->tx_buffer[14] = vid.bytes[2]; 
+    state->tx_buffer[15] = vid.bytes[3]; 
+    
+    state->tx_buffer[16] = 0x00U;
+    state->tx_buffer[17] = 0x00U; 
+    state->tx_buffer[18] = 0x00U;
+    state->tx_buffer[19] = 0x00U;
+    
+    pd_vendor_product_union_t vpdo = { 0U };
+    //vpdo.product_data.product_id = 0x065E;
+    //vpdo.product_data.device = 0x0001;
+    
+    state->tx_buffer[20] = vpdo.bytes[0];
+    state->tx_buffer[21] = vpdo.bytes[1];
+    state->tx_buffer[22] = vpdo.bytes[2];
+    state->tx_buffer[23] = vpdo.bytes[3];
+    
+    state->tx_buffer[24] = TX_JAM_CRC;
+    state->tx_buffer[25] = TX_EOP;
+    state->tx_buffer[26] = TX_OFF;
+    state->tx_buffer[27] = TX_ON;
+    state->message_length =  28;
+    
+    state->msg_id++;
+}
+
+
+/**
+ * @brief create a reject command.
+ * @param state the comms state object.
+ */
+void fusbpd_reject( pd_state_t* state )
+{
+    state->tx_buffer[0] = TX_FIFO_ADDRESS;
+    state->tx_buffer[1] = TX_SOP1; 
+    state->tx_buffer[2] = TX_SOP1; 
+    state->tx_buffer[3] = TX_SOP1; 
+    state->tx_buffer[4] = TX_SOP2; 
+    state->tx_buffer[5] = TX_PACKSYM | 0x02;   
+     
+    pd_header_union_t header = { 0U };
+    header.sop.number_objects = 0;
+    header.sop.message_id = state->msg_id;
+    header.sop.message_type = 0x04U;
+    header.sop.revision = 0x01U;
+    header.sop.data_role = state->data_role;
+    header.sop.power_role = state->power_role;
+    
+    state->tx_buffer[6] = header.raw[0]; 
+    state->tx_buffer[7] = header.raw[1];
+ 
+    state->tx_buffer[8] = TX_JAM_CRC;
+    state->tx_buffer[9] = TX_EOP;
+    state->tx_buffer[10] = TX_OFF;
+    state->tx_buffer[11] = TX_ON;
+    state->message_length =  12;
+    
+    state->msg_id++;
+}
