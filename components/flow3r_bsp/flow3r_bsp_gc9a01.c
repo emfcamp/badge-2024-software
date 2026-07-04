@@ -201,7 +201,7 @@ static IRAM_ATTR void flow3r_bsp_gc9a01_pre_transfer_callback(
  * mode for higher speed. The overhead of interrupt transactions is more than
  * just waiting for the transaction to complete.
  */
-esp_err_t flow3r_bsp_gc9a01_cmd_sync(flow3r_bsp_gc9a01_t *gc9a01, uint8_t cmd) {
+static esp_err_t flow3r_bsp_gc9a01_cmd_sync(flow3r_bsp_gc9a01_t *gc9a01, uint8_t cmd) {
     spi_transaction_t t;
     memset(&t, 0, sizeof(t));
 
