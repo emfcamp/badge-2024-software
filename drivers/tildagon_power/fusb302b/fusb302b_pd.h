@@ -338,15 +338,5 @@ extern void fusbpd_prime( pd_state_t* state, uint8_t* data, uint8_t length );
  * @param length data length. fusb302 tx buffer is 48 bytes, 16 are needed for tx commands, length 32 max.
  */
 extern void fusbpd_dbl_prime( pd_state_t* state, uint8_t* data, uint8_t length );
-/**
- * @brief create a unchunked extended message.
- * @param state the comms state object.
- */
-extern void fusbpd_vendor_id( pd_state_t* state );
-/**
- * @brief create a reject command.
- * @param state the comms state object.
- */
-extern void fusbpd_reject( pd_state_t* state );
 
 #endif /* FUSB302B_PD_H */
