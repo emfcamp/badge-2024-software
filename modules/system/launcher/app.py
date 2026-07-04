@@ -16,11 +16,22 @@ from system.scheduler.events import (
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
 
-APP_DIR = "/apps"
+APP_DIR = ["/apps"]
+APP_INSTALL_DIR = "/apps"
 
 
 class InstallNotificationEvent(Event):
     pass
+
+
+class AppDirAddedNotificationEvent(Event):
+    def __init__(self, path):
+        self.path = path
+
+
+class AppDirRemovedNotificationEvent(Event):
+    def __init__(self, path):
+        self.path = path
 
 
 def path_isdir(path):
@@ -54,25 +65,29 @@ def load_info(folder, name):
 def list_user_apps():
     with PerfTimer("List user apps"):
         apps = []
-        try:
-            contents = os.listdir(APP_DIR)
-        except OSError:
-            # No apps dir full stop
+        contents = []
+        for d in APP_DIR:
             try:
-                os.mkdir(APP_DIR)
-            except OSError:
+                contents.extend([(d, x) for x in os.listdir(d)])
+            except (OSError, UnicodeError):
+                # directory or mount point don't exist
                 pass
-            return []
 
-        for name in contents:
+        for dirname, name in contents:
+            path = dirname
+            for p in sys.path:
+                if p and dirname.startswith(p):
+                    path = dirname[len(p) :]
+                    break
+            path = ".".join(path.lstrip("/").split("/"))
             app = {
-                "path": f"apps.{name}.app",
+                "path": f"{path}.{name}.app",
                 "callable": "__app_export__",
                 "name": name,
                 "folder": name,
                 "hidden": False,
             }
-            metadata = load_info(APP_DIR, name)
+            metadata = load_info(dirname, name)
             if "version" not in metadata:
                 app["version"] = "0.0.0"
             app.update(metadata)
@@ -90,8 +105,25 @@ class Launcher(App):
         eventbus.on_async(
             InstallNotificationEvent, self._handle_refresh_notifications, self
         )
+        eventbus.on_async(
+            AppDirAddedNotificationEvent, self._handle_dir_added_notification, self
+        )
+        eventbus.on_async(
+            AppDirRemovedNotificationEvent, self._handle_dir_removed_notification, self
+        )
 
     async def _handle_refresh_notifications(self, _):
+        self.update_menu()
+
+    async def _handle_dir_added_notification(self, event):
+        APP_DIR.append(event.path)
+        self.update_menu()
+
+    async def _handle_dir_removed_notification(self, event):
+        try:
+            APP_DIR.remove(event.path)
+        except ValueError:
+            pass
         self.update_menu()
 
     async def _handle_stop_app(self, event: RequestStopAppEvent):
