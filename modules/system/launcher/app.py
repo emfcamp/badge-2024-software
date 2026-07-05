@@ -121,7 +121,7 @@ class Launcher(App):
             ("Power Off", "firmware_apps.poweroff", "PowerOff"),
             ("Settings", "firmware_apps.settings_app", "SettingsApp"),
             # ("Settings", "settings_app", "SettingsApp"),
-            ("ESPNow ping", "system.espnow.example.espnow_ping", "ESPNowPing"),
+            # ("ESPNow ping", "firmware_apps.espnow_ping", "ESPNowPing"),
         ]
         core_apps = []
         for core_app in core_app_info:
