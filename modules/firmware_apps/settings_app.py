@@ -96,6 +96,7 @@ class SettingsApp(app.App):
         self.backgrounds = [("None", None), ("hexagons", None), ("emf logo", None)]
         self.patterns = [
             ("rainbow", None),
+            ("emf2026", None),
             ("cylon", None),
             ("flash", None),
             ("off", None),
