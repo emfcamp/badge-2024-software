@@ -68,7 +68,7 @@ sys.path = [
 builtin = BuiltinImporter()
 pathfinder = PathFinder()
 underscore = UnderscoreFinder(builtin, pathfinder)
-sys.meta_path = [pathfinder, underscore, builtin]
+sys.meta_path = [pathfinder, underscore]
 
 # Clean up whatever might have already been imported as `time`.
 import time
@@ -100,6 +100,17 @@ def _path_replace(p):
     if p.startswith("/apps"):
         dir = os.path.dirname(__file__)
         p = f"{dir}{p}"
+        return p
+    # Redirect bare badge root paths (e.g. /settings.json) to the sim directory
+    _BADGE_ROOT_PATHS = (
+        "/settings.json",
+        "/backgrounds",
+        "/pattern",
+        "/eeprom",
+        "/lastapplaunch.txt",
+    )
+    if p.startswith(_BADGE_ROOT_PATHS):
+        p = simpath + p
     return p
 
 
@@ -126,11 +137,7 @@ def _mkmock2(fun):
 os.listdir = _mkmock(os.listdir)
 os.rename = _mkmock2(os.rename)
 os.stat = _mkmock(os.stat)
-if hasattr(os, "statvfs"):
-    os.statvfs = _mkmock(os.statvfs)
-else:
-    # We seem to be on Windows, mock out plausible filesystem:
-    os.statvfs = lambda path: (4096, 4096, 4096, 2048, 2048, 0, 0, 0, 0, 255)
+os.statvfs = _mkmock(os.statvfs)
 os.mkdir = _mkmock(os.mkdir)
 os.rmdir = _mkmock(os.rmdir)
 os.unlink = _mkmock(os.unlink)
