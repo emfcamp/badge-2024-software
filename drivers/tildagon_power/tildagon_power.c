@@ -8,7 +8,7 @@
 #include "driver/i2c_master.h"
 #include "modmachine.h"
 #include "tildagon_pin.h"
-
+#include <string.h>
 #include "tildagon_power.h"
 #include "mp_power_event.h"
 
@@ -44,6 +44,7 @@ void device_pd( event_t event );
 void host_pd( event_t event );
 void generate_events( void );
 void determine_input_current_limit( usb_state_t* state );
+void enter_lanyard_mode( void );
 void clean_in( void );
 void clean_out( void );
 
@@ -64,7 +65,7 @@ funptr_t device_attach_machine[MAX_STATES] =
 bq_state_t pmic = { 0 };
 usb_state_t usb_in = { 0 };
 usb_state_t usb_out = { 0 };
-uint16_t input_current_limit = 500;
+uint16_t input_current_limit = 100U;
 bool badge_as_device = false;
 bool badge_as_host = false;
 attach_machine_state_t host_attach_state = DISABLED;
@@ -98,7 +99,7 @@ void tildagon_power_fast_task(void *param __attribute__((__unused__)))
     bq_init( &pmic );
     
     /* setup lanyard and badge to badge numbers */
-    esp_fill_random( &tildagon_message[12], 8 );
+    esp_fill_random( &tildagon_message[12], 4 );
     
     /* initialise isr */ 
     //todo move to allow sharing of sys_int isr
@@ -368,13 +369,8 @@ void host_pd ( event_t event )
                 case PD_DATA_VENDOR_DEFINED:
                 {
                     
-                    if (
-                        ( usb_out.pd.vendor.no_objects == 5 )
-                    && ( usb_out.pd.vendor.vendor_data[4] == tildagon_message[4] )
-                    && ( usb_out.pd.vendor.vendor_data[5] == tildagon_message[5] )
-                    && ( usb_out.pd.vendor.vendor_data[6] == tildagon_message[6] )
-                    && ( usb_out.pd.vendor.vendor_data[7] == tildagon_message[7] )
-                    )
+                    if ( ( usb_out.pd.vendor.no_objects == sizeof(tildagon_message) / 4 )
+                     && ( memcmp(usb_out.pd.vendor.vendor_data + 4, tildagon_message + 4, 4) == 0 ) )
                     {
                         push_event(MP_POWER_EVENT_BADGE_AS_HOST_ATTACH);
                         badge_as_host = true;
@@ -469,26 +465,12 @@ void device_pd ( event_t event )
         }          
         else if ( usb_in.pd.last_rx_data_msg_type == PD_DATA_VENDOR_DEFINED )
         {
-            if (
-                ( usb_in.pd.vendor.no_objects == 5 )
-                && ( usb_in.pd.vendor.vendor_data[4] == tildagon_message[4] )
-                && ( usb_in.pd.vendor.vendor_data[5] == tildagon_message[5] )
-                && ( usb_in.pd.vendor.vendor_data[6] == tildagon_message[6] )
-                && ( usb_in.pd.vendor.vendor_data[7] == tildagon_message[7] )
-            )
+            if ( ( usb_in.pd.vendor.no_objects == sizeof(tildagon_message) / 4 )
+                && ( memcmp(usb_in.pd.vendor.vendor_data + 4, tildagon_message + 4, 4) == 0 ) )
             {
-                if (
-                    ( usb_in.pd.vendor.vendor_data[12] == tildagon_message[12] )
-                    && ( usb_in.pd.vendor.vendor_data[13] == tildagon_message[13] )
-                    && ( usb_in.pd.vendor.vendor_data[14] == tildagon_message[14] )
-                    && ( usb_in.pd.vendor.vendor_data[15] == tildagon_message[15] )
-                )
+                if ( memcmp(usb_in.pd.vendor.vendor_data + 12, tildagon_message + 12, 4) == 0 )
                 {
-                    bq_enable_HiZ_input( &pmic, 1 );
-                    lanyard_mode = true;
-                    host_pd_state = LANYARD;
-                    device_pd_state = LANYARD;
-                    push_event(MP_POWER_EVENT_LANYARD_ATTACH);
+                    enter_lanyard_mode();
                 }
                 else
                 {
@@ -534,11 +516,7 @@ void generate_events( void )
     bq_update_state( &pmic );
     if ( ( pmic.vbus > 2.6 ) && ( pmic.vbus < 4.3 ) )
     {
-        bq_enable_HiZ_input( &pmic, 1 );
-        lanyard_mode = true;
-        host_pd_state = LANYARD;
-        device_pd_state = LANYARD;
-        push_event(MP_POWER_EVENT_LANYARD_ATTACH);
+        enter_lanyard_mode();
     }
     if ( prev_status == pmic.status )
     {
@@ -639,7 +617,7 @@ void generate_events( void )
  */
 void determine_input_current_limit ( usb_state_t* state )
 {
-    input_current_limit = 500;
+    input_current_limit = 500U;
     uint16_t bc_level = state->fusb.status & FUSB_STATUS_BCLVL_MASK;
     if ( bc_level > 0 )
     {
@@ -656,6 +634,18 @@ void determine_input_current_limit ( usb_state_t* state )
 }
 
 /**
+ * @brief helper to be consistent when a lanyard is detected
+ */
+void enter_lanyard_mode( void )
+{
+    bq_enable_HiZ_input( &pmic, 1 );
+    lanyard_mode = true;
+    host_pd_state = LANYARD;
+    device_pd_state = LANYARD;
+    push_event(MP_POWER_EVENT_LANYARD_ATTACH);                    
+}
+
+/**
  * @brief reset the device port to the initial state
  */
 void clean_in( void )
@@ -665,15 +655,18 @@ void clean_in( void )
         badge_as_device = false;
         push_event(MP_POWER_EVENT_BADGE_AS_DEVICE_DETACH);
     }
-    input_current_limit = 500;
+    input_current_limit = 100U;
     bq_set_input_current_limit( &pmic, (float)input_current_limit );
     device_pd_state = NOT_STARTED;
     usb_in.fusb.cc_select = 0U;
+    fusb_setup_pd( &usb_in.fusb );
     fusb_setup_device( &usb_in.fusb );
     usb_in.pd.last_rx_control_msg_type = PD_CONTROL_DO_NOT_USE;
     usb_in.pd.last_rx_data_msg_type = PD_DATA_DO_NOT_USE;
     usb_in.pd.number_of_pdos = 0U;
     usb_in.pd.msg_id = 0U;
+    usb_in.pd.data_role = 0;
+    usb_in.pd.power_role = 0;
 }
 
 /**
@@ -688,13 +681,16 @@ void clean_out( void )
     }
     tildagon_power_enable_5v(false);
     host_pd_state = NOT_STARTED;
-    usb_in.fusb.cc_select = 0;
+    usb_out.fusb.cc_select = 0;
+    fusb_setup_pd( &usb_out.fusb );
     fusb_setup_host( &usb_out.fusb );
     fusb_set_vcon( &usb_out.fusb, 0 );
     usb_out.pd.last_rx_control_msg_type = PD_CONTROL_DO_NOT_USE;
     usb_out.pd.last_rx_data_msg_type = PD_DATA_DO_NOT_USE;   
     usb_out.pd.number_of_pdos = 0U;
     usb_out.pd.msg_id = 0U;
+    usb_out.pd.data_role = 1;
+    usb_out.pd.power_role = 1;
     
     if ( lanyard_mode )
     {

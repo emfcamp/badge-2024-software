@@ -215,7 +215,7 @@ static MP_DEFINE_CONST_FUN_OBJ_2( host_send_dbl_prime_msg_obj, host_send_dbl_pri
 
 static mp_obj_t device_send_badge_id( mp_obj_t self_in )
 {
-    fusbpd_vendor_specific( &usb_in.pd, tildagon_message, 5 );
+    fusbpd_vendor_specific( &usb_in.pd, tildagon_message, sizeof(tildagon_message) / 4 );
     fusb_send( &usb_in.fusb, usb_in.pd.tx_buffer, usb_in.pd.message_length );
     return mp_const_none;
 }
@@ -224,7 +224,7 @@ static MP_DEFINE_CONST_FUN_OBJ_1( device_send_badge_id_obj, device_send_badge_id
 
 static mp_obj_t host_send_badge_id( mp_obj_t self_in )
 {
-    fusbpd_vendor_specific( &usb_out.pd, tildagon_message, 5 );
+    fusbpd_vendor_specific( &usb_out.pd, tildagon_message, sizeof(tildagon_message) / 4 );
     fusb_send( &usb_out.fusb, usb_out.pd.tx_buffer, usb_out.pd.message_length );
     return mp_const_none;
 }
