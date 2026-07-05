@@ -77,8 +77,9 @@ class PatternDisplay(App):
                         self._p = _pclass(12)
                     except TypeError:
                         self._p = _pclass()
-                except ImportError:
-                    raise ImportError(f"Pattern {path} not found!")
+                except ImportError as e:
+                    sys.print_exception(e)
+                    raise ImportError(f"Pattern {path} not found!", e)
                 except Exception as e:
                     sys.print_exception(e)
             else:
@@ -102,8 +103,9 @@ class PatternDisplay(App):
                     self._p = _pclass(12)
                 except TypeError:
                     self._p = _pclass()
-            except ImportError:
-                raise ImportError(f"Pattern {self.pattern} not found!")
+            except ImportError as e:
+                sys.print_exception(e)
+                raise ImportError(f"Pattern {self.pattern} not found!", e)
             except Exception as e:
                 sys.print_exception(e)
 
