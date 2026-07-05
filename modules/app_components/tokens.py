@@ -62,17 +62,23 @@ elif "blue" in colors:
 _default_active_menu_item = ui_colors.get("active_menu_item")
 
 
-def _get_active_menu_item_color():
+def _apply_active_menu_item_color(ctx):
     import settings as _settings
     key = _settings.get("menu_highlight_color", "theme")
     if not key or key == "theme":
-        return _default_active_menu_item
-    return _MENU_HIGHLIGHT_COLORS.get(key, _default_active_menu_item)
+        color = _default_active_menu_item
+        if callable(color):
+            color(ctx)
+        else:
+            ctx.rgb(*color)
+    else:
+        color = _MENU_HIGHLIGHT_COLORS.get(key, _default_active_menu_item)
+        ctx.rgb(*color)
 
 
 # Patch ui_colors so set_color(ctx, "active_menu_item") picks up the user's choice.
-# set_color already handles both callable and RGB tuple values.
-ui_colors["active_menu_item"] = _get_active_menu_item_color
+# set_color calls callables with ctx directly, matching the gradient pattern.
+ui_colors["active_menu_item"] = _apply_active_menu_item_color
 
 
 symbols = {
