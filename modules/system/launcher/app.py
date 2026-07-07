@@ -64,7 +64,17 @@ def load_info(folder, name):
         return {}
 
 
-def list_user_apps():
+def load_manifest(folder, name):
+    try:
+        info_file = f"{folder}/{name}/tildagon.json"
+        with open(info_file) as f:
+            information = f.read()
+        return json.loads(information)
+    except BaseException:
+        return {}
+
+
+def list_user_apps(include_hidden=False):
     with PerfTimer("List user apps"):
         apps = []
         contents = []
@@ -93,7 +103,7 @@ def list_user_apps():
             if "version" not in metadata:
                 app["version"] = "0.0.0"
             app.update(metadata)
-            if not app["hidden"]:
+            if include_hidden or not app["hidden"]:
                 apps.append(app)
         return apps
 
