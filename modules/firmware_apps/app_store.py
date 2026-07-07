@@ -255,7 +255,9 @@ class AppStoreApp(app.App):
 
         menu_items = [AVAILABLE, CODE_INSTALL, UPDATE]
         if len(list_all_apps()) > 0:
-            menu_items.append(INSTALLED) # Only show uninstall option if there are installed apps (else a zero-length menu crashes)
+            menu_items.append(
+                INSTALLED
+            )  # Only show uninstall option if there are installed apps (else a zero-length menu crashes)
 
         self.menu = Menu(
             self,
