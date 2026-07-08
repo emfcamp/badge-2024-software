@@ -16,6 +16,7 @@ from system.scheduler.events import (
 )
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
+from app_components.tokens import symbols
 
 APP_DIR = ["/apps"]
 APP_INSTALL_DIR = "/apps"
@@ -227,3 +228,37 @@ class Launcher(App):
     def update(self, delta):
         bg.update(delta)
         self.menu.update(delta)
+
+    async def background_task(self):
+        # oneshot at startup, not a loop like most apps backgroud_tasks
+
+        try:
+            with open("/autoexec.bat", "r") as f:
+                lines = f.readlines()
+                if len(lines) == 0:
+                    raise RuntimeError("autoexec.bat must name an app to launch")
+                app_subname = lines[0].strip()
+                found = False
+                for app in self.menu_items:
+                    if app["name"].find(app_subname) != -1:
+                        self.launch(app)
+                        found = True
+                        break
+                if not found:
+                    raise RuntimeError(f"No app named '{app_subname}'")
+
+        except Exception as e:
+            # don't log file-not-found as an error because that's the default
+            # for all badges.
+            if isinstance(e, OSError) and e.errno == 2:
+                pass
+            else:
+                # log exceptions but don't propagate - an autoexec failure
+                # shouldn't crash the launcher. Most badges will emit this message
+                # at startup.
+                print(f"autoexec.bat not processed fully: {type(e)} {e}")
+                eventbus.emit(
+                    ShowNotificationEvent(
+                        message=f"autoexec {symbols['bat_open']} failed. {e}"
+                    )
+                )
