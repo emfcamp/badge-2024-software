@@ -23,8 +23,6 @@ from system.scheduler.events import (
     RequestStopAppEvent,
 )
 from tildagonos import EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F
-from tildagonos import led_colours
-from tildagonos import tildagonos
 from egpio import ePin
 from system.eventbus import eventbus
 from machine import I2C
@@ -32,29 +30,18 @@ from events.input import Buttons
 import asyncio
 import vfs
 import sys
-import settings
-
-
-active_back_leds = [False] * 6
 
 
 def Hexspansion_inserted(epin):
     for i, nPin in enumerate(HexpansionManagerApp.hexpansion_pins):
         if nPin is epin:
-            if not settings.get("pattern_mirror_hexpansions", False):
-                tildagonos.leds[13 + i] = led_colours[i]
-            active_back_leds[i] = True
             eventbus.emit(HexpansionInsertionEvent(port=i + 1))
-            tildagonos.leds.write()
 
 
 def Hexspansion_removed(epin):
     for i, nPin in enumerate(HexpansionManagerApp.hexpansion_pins):
         if nPin is epin:
-            tildagonos.leds[13 + i] = (0, 0, 0)
-            active_back_leds[i] = False
             eventbus.emit(HexpansionRemovalEvent(port=i + 1))
-            tildagonos.leds.write()
 
 
 class HexpansionManagerApp(app.App):
@@ -83,17 +70,12 @@ class HexpansionManagerApp(app.App):
         self.hexpansion_apps = {}
         self.hexpansion_headers = {}
         self.autolaunch = autolaunch
-        tildagonos.set_led_power(True)
 
         for i, pin in enumerate(HexpansionManagerApp.hexpansion_pins):
             pin.irq(handler=Hexspansion_inserted, trigger=pin.IRQ_FALLING)
             pin.irq(handler=Hexspansion_removed, trigger=pin.IRQ_RISING)
             if not pin.value():
-                if not settings.get("pattern_mirror_hexpansions", False):
-                    tildagonos.leds[13 + i] = led_colours[i]
-                active_back_leds[i] = True
                 eventbus.emit(HexpansionInsertionEvent(port=i + 1))
-        tildagonos.leds.write()
 
     def update(self, delta):
         if len(self.format_requests) > 0 and self.format_dialog is None:
@@ -121,15 +103,6 @@ class HexpansionManagerApp(app.App):
 
             eventbus.emit(RequestForegroundPushEvent(self))
             return True
-
-    def background_update(self, delta):
-        if settings.get("pattern_mirror_hexpansions", False):
-            for i in range(0, 6):
-                if active_back_leds[i]:
-                    tildagonos.leds[13 + i] = tildagonos.leds[1 + (i * 2)]
-                else:
-                    tildagonos.leds[13 + i] = (0, 0, 0)
-            tildagonos.leds.write()
 
     def draw(self, ctx):
         if self.format_dialog is not None:
