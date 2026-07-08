@@ -11,12 +11,15 @@ from system.espnow import espnow_service
 from system.launcher.app import Launcher
 from system.power.handler import PowerEventHandler
 from system.power.app import PowerManager
+from system.boopscreen.app import BoopSpinner
+
 from frontboards.utils import detect_frontboard
 import frontboard2026
 
 fb = detect_frontboard()
 
 print(hex(fb))
+
 # Start front-board interface
 if (fb & 0xFF00) == 0x2600:
     from frontboards.twentysix import TwentyTwentySix
@@ -33,7 +36,10 @@ else:
 # Start expansion interface
 scheduler.start_app(HexpansionManagerApp())
 
-# Start front led pattern displayer app
+# Start the spinning-tilde boop animation
+scheduler.start_app(BoopSpinner(), always_on_top=True)
+
+# Start led pattern displayer app
 scheduler.start_app(PatternDisplay())
 
 # Start back led manager
