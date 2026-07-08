@@ -7,6 +7,7 @@ from system.hexpansion.app import HexpansionManagerApp
 from system.patterndisplay.app import PatternDisplay
 from system.backleds.app import BackLEDManager
 from system.notification.app import NotificationService
+from system.espnow import espnow_service
 from system.launcher.app import Launcher
 from system.power.handler import PowerEventHandler
 from system.power.app import PowerManager
@@ -46,6 +47,9 @@ scheduler.start_app(NotificationService(), always_on_top=True)
 
 # Start power management app
 scheduler.start_app(PowerManager())
+
+# Start ESP-NOW background service
+scheduler.start_app(espnow_service)
 
 try:
     wifi.connect()
