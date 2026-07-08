@@ -95,10 +95,11 @@ class ButtonUpEvent(InputEvent):
 
 
 class Buttons:
-    __slots__ = ("buttons",)
+    __slots__ = ("buttons", "_already_pressed")
 
     def __init__(self, app):
         self.buttons = {}
+        self._already_pressed = set()
         eventbus.on(ButtonDownEvent, self.handle_button_down, app)
         eventbus.on(ButtonUpEvent, self.handle_button_up, app)
 
@@ -120,8 +121,19 @@ class Buttons:
         ]
         return any(matching_values)
 
+    def pressed(self, button):
+        # Latched button read, only returns True once until it is read again and off
+        is_down = self.get(button)
+        if is_down and button not in self._already_pressed:
+            self._already_pressed.add(button)
+            return True
+        if not is_down:
+            self._already_pressed.discard(button)
+        return False
+
     def clear(self):
         self.buttons.clear()
+        self._already_pressed.clear()
 
     def __repr__(self):
         return f"<Buttons {self.buttons}>"

@@ -8,6 +8,7 @@ from app_components.menu import Menu
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
 from events import Event
+from events.emote import EmoteNegativeEvent
 from system.scheduler.events import (
     RequestForegroundPushEvent,
     RequestStartAppEvent,
@@ -153,6 +154,7 @@ class Launcher(App):
             ("Power Off", "firmware_apps.poweroff", "PowerOff"),
             ("Settings", "firmware_apps.settings_app", "SettingsApp"),
             # ("Settings", "settings_app", "SettingsApp"),
+            # ("ESPNow ping", "firmware_apps.espnow_ping", "ESPNowPing"),
         ]
         core_apps = []
         for core_app in core_app_info:
@@ -193,6 +195,7 @@ class Launcher(App):
                 eventbus.emit(
                     ShowNotificationEvent(message=f"{item['name']} has crashed")
                 )
+                eventbus.emit(EmoteNegativeEvent())
                 return
             self._apps[app_id] = app
             eventbus.emit(RequestStartAppEvent(app, foreground=True))
