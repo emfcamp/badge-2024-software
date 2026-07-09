@@ -127,7 +127,10 @@ static void tildagon_pin_isr_handler(void *arg, uint8_t event)
         index += GPIO_EXT_NUM_MAX;
     }
     mp_obj_t handler = MP_STATE_PORT(tildagon_pin_irq_handler)[index];
-    mp_sched_schedule(handler, MP_OBJ_FROM_PTR(self));
+    if (handler != NULL)
+    {
+        mp_sched_schedule(handler, MP_OBJ_FROM_PTR(self));
+    }
 }
 
 static const tildagon_pin_obj_t *tildagon_pin_find(mp_obj_t pin_in) {
