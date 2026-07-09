@@ -476,7 +476,6 @@ void device_pd ( event_t event )
                 {
                     push_event( MP_POWER_EVENT_BADGE_AS_DEVICE_ATTACH );
                     badge_as_device = true;
-                    bq_set_input_current_limit( &pmic, 100.0F );
                 }
             }
             else
@@ -514,7 +513,7 @@ void generate_events( void )
     uint8_t prev_faut = pmic.fault;
     
     bq_update_state( &pmic );
-    if ( ( pmic.vbus > 2.6 ) && ( pmic.vbus < 4.3 ) )
+    if ( ( pmic.vbus > 2.6 ) && ( pmic.vbus < 4.3 ) && ( ( badge_as_device || badge_as_host ) == false ) )
     {
         enter_lanyard_mode();
     }
@@ -549,7 +548,7 @@ void generate_events( void )
                 const event_t event = DEVICE_ATTACH;
                 xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
             }
-            else if ( ( interrupt & FUSB_VBUSOK_I_MASK ) && ( ( usb_in.fusb.status & FUSB_STATUS_VBUSOK_MASK ) == 0 ) )
+            if ( pmic.vbus < 2.6F )
             {
                 const event_t event = DEVICE_DETACH;
                 xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );  
