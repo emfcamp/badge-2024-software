@@ -2,6 +2,7 @@ import asyncio
 
 import display
 from events.input import Button, BUTTON_TYPES, ButtonDownEvent, ButtonUpEvent
+from events.joystick import JOYSTICK_BUTTON_TYPES
 import machine
 from system.eventbus import eventbus
 from tildagon import ePin
@@ -11,6 +12,7 @@ import time
 import frontboard2026
 from frontboards.utils import detect_frontboard
 from frontboards.cy8cmbrx import cy8cmbr3116_init
+from frontboards.common import FRONTBOARD_BUTTON_TYPES
 
 try:
     from _sim import _sim
@@ -21,20 +23,50 @@ except ImportError:
 
 
 BUTTONS = {
-    "A": Button("A", "TwentyTwentySix", BUTTON_TYPES["UP"]),
-    "B": Button("B", "TwentyTwentySix", BUTTON_TYPES["RIGHT"]),
-    "C": Button("C", "TwentyTwentySix", BUTTON_TYPES["CONFIRM"]),
-    "D": Button("D", "TwentyTwentySix", BUTTON_TYPES["DOWN"]),
-    "E": Button("E", "TwentyTwentySix", BUTTON_TYPES["LEFT"]),
-    "F": Button("F", "TwentyTwentySix", BUTTON_TYPES["CANCEL"]),
+    "A": Button(
+        "A", "TwentyTwentySix", [BUTTON_TYPES["UP"], FRONTBOARD_BUTTON_TYPES["A"]]
+    ),
+    "B": Button(
+        "B", "TwentyTwentySix", [BUTTON_TYPES["RIGHT"], FRONTBOARD_BUTTON_TYPES["B"]]
+    ),
+    "C": Button(
+        "C", "TwentyTwentySix", [BUTTON_TYPES["CONFIRM"], FRONTBOARD_BUTTON_TYPES["C"]]
+    ),
+    "D": Button(
+        "D", "TwentyTwentySix", [BUTTON_TYPES["DOWN"], FRONTBOARD_BUTTON_TYPES["D"]]
+    ),
+    "E": Button(
+        "E", "TwentyTwentySix", [BUTTON_TYPES["LEFT"], FRONTBOARD_BUTTON_TYPES["E"]]
+    ),
+    "F": Button(
+        "F", "TwentyTwentySix", [BUTTON_TYPES["CANCEL"], FRONTBOARD_BUTTON_TYPES["F"]]
+    ),
 }
 
 JOYSTICK = {
-    "UP": Button("JOYUP", "TwentyTwentySix", BUTTON_TYPES["UP"]),
-    "DOWN": Button("JOYDOWN", "TwentyTwentySix", BUTTON_TYPES["DOWN"]),
-    "LEFT": Button("JOYLEFT", "TwentyTwentySix", BUTTON_TYPES["LEFT"]),
-    "RIGHT": Button("JOYRIGHT", "TwentyTwentySix", BUTTON_TYPES["RIGHT"]),
-    "FIRE": Button("JOYFIRE", "TwentyTwentySix", BUTTON_TYPES["CONFIRM"]),
+    "UP": Button(
+        "JOYUP", "TwentyTwentySix", [BUTTON_TYPES["UP"], JOYSTICK_BUTTON_TYPES["UP"]]
+    ),
+    "DOWN": Button(
+        "JOYDOWN",
+        "TwentyTwentySix",
+        [BUTTON_TYPES["DOWN"], JOYSTICK_BUTTON_TYPES["DOWN"]],
+    ),
+    "LEFT": Button(
+        "JOYLEFT",
+        "TwentyTwentySix",
+        [BUTTON_TYPES["LEFT"], JOYSTICK_BUTTON_TYPES["LEFT"]],
+    ),
+    "RIGHT": Button(
+        "JOYRIGHT",
+        "TwentyTwentySix",
+        [BUTTON_TYPES["RIGHT"], JOYSTICK_BUTTON_TYPES["RIGHT"]],
+    ),
+    "FIRE": Button(
+        "JOYFIRE",
+        "TwentyTwentySix",
+        [BUTTON_TYPES["CONFIRM"], JOYSTICK_BUTTON_TYPES["SELECT"]],
+    ),
 }
 
 
@@ -179,6 +211,55 @@ class TwentyTwentySix(FrontBoard):
     hexpansion_states = {1: None, 2: None, 3: None, 4: None, 5: None, 6: None}
     year = 2026
     num_pattern_leds = 12
+
+    colors = {
+        "pale_blue": (46, 173, 217),
+        "mid_blue": (0, 93, 150),
+        "dark_blue": (0, 7, 48),
+        "green": (42, 226, 140),
+        "yellow": (249, 226, 0),
+        "orange": (247, 127, 2),
+        "pink": (245, 81, 94),
+        "black": (0, 0, 0),
+        "white": (255, 255, 255),
+        # Duplicates of last year's special names, switched, for backwards compatibility
+        "pale_green": (175, 201, 68),
+        "mid_green": (82, 131, 41),
+        "dark_green": (33, 48, 24),
+        "blue": (42, 226, 140),
+    }
+
+    colors = {
+        name: (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0) for (name, c) in colors.items()
+    }
+
+    def header_gradient(self, ctx):
+        return (
+            ctx.linear_gradient(
+                0.18 * 240 - 120, 0.5 * 240 - 120, 0.95 * 240 - 120, 0.5 * 240 - 120
+            )
+            .add_stop(0.0, self.colors["white"], 1.0)
+            .add_stop(0.25, self.colors["yellow"], 1.0)
+            .add_stop(0.5, self.colors["orange"], 1.0)
+            .add_stop(0.75, self.colors["pink"], 1.0)
+        )
+
+    @property
+    def ui_colors(self):
+        return {
+            "background": self.colors["dark_blue"],
+            "label": self.colors["white"],
+            "header": self.header_gradient,
+            "menu_item": self.colors["white"],
+            "active_menu_item": self.header_gradient,
+            "button_background": self.colors["orange"],
+            "button_radius": 5,
+            "button_text": self.colors["black"],
+            "active_button_background": self.colors["yellow"],
+            "active_button_text": self.colors["black"],
+            "notification": self.colors["pink"],
+            "notification_text": self.colors["black"],
+        }
 
     async def background_task(self):
         global sim

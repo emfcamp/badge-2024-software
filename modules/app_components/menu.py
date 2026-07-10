@@ -161,11 +161,15 @@ class Menu:
             ctx.text_align = ctx.CENTER
             ctx.text_baseline = ctx.MIDDLE
 
-            set_color(ctx, "label")
+            set_color(ctx, "menu_item")
             num_menu_items = len(self.menu_items)
             pos = self.position % num_menu_items if num_menu_items > 0 else 0
 
             # Current menu item
+            ctx.save()
+
+            # ctx.translate(0, y_offset)
+            set_color(ctx, "active_menu_item")
             ctx.font_size = self.item_font_size + animation_progress * (
                 self.focused_item_font_size_arr[pos] - self.item_font_size
             )
@@ -173,8 +177,10 @@ class Menu:
             ctx.move_to(0, y_offset).text(label)
             if ctx.a11y:
                 ctx.a11y.add_alt(self, label)
+            ctx.restore()
 
             # Previous menu items
+            set_color(ctx, "menu_item")
             ctx.font_size = self.item_font_size
             for i in range(1, 3):
                 if (self.position - i) >= 0 and num_menu_items:

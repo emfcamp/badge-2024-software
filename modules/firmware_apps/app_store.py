@@ -16,11 +16,14 @@ import shutil
 import machine
 from app_components import Menu, fourteen_pt, sixteen_pt, ten_pt, seven_pt
 from app_components.tokens import set_color
-from events.input import BUTTON_TYPES, ButtonDownEvent
+from events.input import ButtonDownEvent
+from events.emote import EmoteNegativeEvent, EmotePositiveEvent
+from frontboards.common import FRONTBOARD_BUTTON_TYPES
 from requests import get
 from system.eventbus import eventbus
 from system.launcher.app import (
     APP_DIR,
+    APP_INSTALL_DIR,
     load_info,
     InstallNotificationEvent,
 )
@@ -77,11 +80,12 @@ def list_apps(dir, callable):
 
 
 def list_all_apps():
-    return (
-        list_apps(APP_DIR, "__app_export__")
-        + list_apps(BG_DIR, "__Background__")
-        + list_apps(PAT_DIR, "__Pattern_Export__")
-    )
+    app_list = []
+    for d in APP_DIR:
+        app_list.extend(list_apps(d, "__app_export__"))
+    app_list += list_apps(BG_DIR, "__Background__")
+    app_list += list_apps(PAT_DIR, "__Pattern_Export__")
+    return app_list
 
 
 class AppStoreApp(app.App):
@@ -160,11 +164,13 @@ class AppStoreApp(app.App):
             self.update_state("main_menu")
             eventbus.emit(InstallNotificationEvent())
             eventbus.emit(ShowNotificationEvent("Installed the app!"))
+            eventbus.emit(EmotePositiveEvent())
         except MemoryError:
             self.update_state("install_oom")
         except Exception as e:
             print(e)
             eventbus.emit(ShowNotificationEvent("Couldn't install app"))
+            eventbus.emit(EmoteNegativeEvent())
             self.update_state("main_menu")
 
     def update_state(self, state):
@@ -529,17 +535,17 @@ class CodeInstall:
     def _handle_buttondown(self, event: ButtonDownEvent):
         kbd_button = event.button.find_parent_in_group("Keyboard")
 
-        if BUTTON_TYPES["UP"] in event.button:
+        if FRONTBOARD_BUTTON_TYPES["A"] in event.button:
             self.id += "0"
-        elif BUTTON_TYPES["RIGHT"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["B"] in event.button:
             self.id += "1"
-        elif BUTTON_TYPES["CONFIRM"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["C"] in event.button:
             self.id += "2"
-        elif BUTTON_TYPES["DOWN"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["D"] in event.button:
             self.id += "3"
-        elif BUTTON_TYPES["LEFT"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["E"] in event.button:
             self.id += "4"
-        elif BUTTON_TYPES["CANCEL"] in event.button:
+        elif FRONTBOARD_BUTTON_TYPES["F"] in event.button:
             self.id += "5"
         elif kbd_button is not None and kbd_button.name in "012345":
             self.id += kbd_button.name
@@ -654,7 +660,7 @@ def install_app(app):
         elif app["manifest"]["app"].get("category") == "Pattern":
             TARGET_DIR = "/pattern"
         else:
-            TARGET_DIR = APP_DIR
+            TARGET_DIR = APP_INSTALL_DIR
         # Make sure apps dir exists
         try:
             os.mkdir(TARGET_DIR)

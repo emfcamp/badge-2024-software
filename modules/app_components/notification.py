@@ -87,7 +87,7 @@ class Notification:
                 lines.append(text_that_fits)
                 line = line + 1
 
-            set_color(ctx, "mid_green")
+            set_color(ctx, "notification")
             ctx.rectangle(
                 -120,
                 -150
@@ -97,7 +97,7 @@ class Notification:
                 30 * len(lines),
             ).fill()
 
-            set_color(ctx, "label")
+            set_color(ctx, "notification_text")
             for i in range(len(lines)):
                 ctx.move_to(
                     0,

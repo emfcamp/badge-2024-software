@@ -8,6 +8,7 @@ from app_components.menu import Menu
 from perf_timer import PerfTimer
 from system.eventbus import eventbus
 from events import Event
+from events.emote import EmoteNegativeEvent
 from system.scheduler.events import (
     RequestForegroundPushEvent,
     RequestStartAppEvent,
@@ -15,12 +16,24 @@ from system.scheduler.events import (
 )
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
+from app_components.tokens import symbols
 
-APP_DIR = "/apps"
+APP_DIR = ["/apps"]
+APP_INSTALL_DIR = "/apps"
 
 
 class InstallNotificationEvent(Event):
     pass
+
+
+class AppDirAddedNotificationEvent(Event):
+    def __init__(self, path):
+        self.path = path
+
+
+class AppDirRemovedNotificationEvent(Event):
+    def __init__(self, path):
+        self.path = path
 
 
 def path_isdir(path):
@@ -54,25 +67,29 @@ def load_info(folder, name):
 def list_user_apps():
     with PerfTimer("List user apps"):
         apps = []
-        try:
-            contents = os.listdir(APP_DIR)
-        except OSError:
-            # No apps dir full stop
+        contents = []
+        for d in APP_DIR:
             try:
-                os.mkdir(APP_DIR)
-            except OSError:
+                contents.extend([(d, x) for x in os.listdir(d)])
+            except (OSError, UnicodeError):
+                # directory or mount point don't exist
                 pass
-            return []
 
-        for name in contents:
+        for dirname, name in contents:
+            path = dirname
+            for p in sys.path:
+                if p and dirname.startswith(p):
+                    path = dirname[len(p) :]
+                    break
+            path = ".".join(path.lstrip("/").split("/"))
             app = {
-                "path": f"apps.{name}.app",
+                "path": f"{path}.{name}.app",
                 "callable": "__app_export__",
                 "name": name,
                 "folder": name,
                 "hidden": False,
             }
-            metadata = load_info(APP_DIR, name)
+            metadata = load_info(dirname, name)
             if "version" not in metadata:
                 app["version"] = "0.0.0"
             app.update(metadata)
@@ -90,8 +107,25 @@ class Launcher(App):
         eventbus.on_async(
             InstallNotificationEvent, self._handle_refresh_notifications, self
         )
+        eventbus.on_async(
+            AppDirAddedNotificationEvent, self._handle_dir_added_notification, self
+        )
+        eventbus.on_async(
+            AppDirRemovedNotificationEvent, self._handle_dir_removed_notification, self
+        )
 
     async def _handle_refresh_notifications(self, _):
+        self.update_menu()
+
+    async def _handle_dir_added_notification(self, event):
+        APP_DIR.append(event.path)
+        self.update_menu()
+
+    async def _handle_dir_removed_notification(self, event):
+        try:
+            APP_DIR.remove(event.path)
+        except ValueError:
+            pass
         self.update_menu()
 
     async def _handle_stop_app(self, event: RequestStopAppEvent):
@@ -121,6 +155,7 @@ class Launcher(App):
             ("Power Off", "firmware_apps.poweroff", "PowerOff"),
             ("Settings", "firmware_apps.settings_app", "SettingsApp"),
             # ("Settings", "settings_app", "SettingsApp"),
+            # ("ESPNow ping", "firmware_apps.espnow_ping", "ESPNowPing"),
         ]
         core_apps = []
         for core_app in core_app_info:
@@ -161,6 +196,7 @@ class Launcher(App):
                 eventbus.emit(
                     ShowNotificationEvent(message=f"{item['name']} has crashed")
                 )
+                eventbus.emit(EmoteNegativeEvent())
                 return
             self._apps[app_id] = app
             eventbus.emit(RequestStartAppEvent(app, foreground=True))
@@ -192,3 +228,37 @@ class Launcher(App):
     def update(self, delta):
         bg.update(delta)
         self.menu.update(delta)
+
+    async def background_task(self):
+        # oneshot at startup, not a loop like most apps backgroud_tasks
+
+        try:
+            with open("/autoexec.bat", "r") as f:
+                lines = f.readlines()
+                if len(lines) == 0:
+                    raise RuntimeError("autoexec.bat must name an app to launch")
+                app_subname = lines[0].strip()
+                found = False
+                for app in self.menu_items:
+                    if app["name"].find(app_subname) != -1:
+                        self.launch(app)
+                        found = True
+                        break
+                if not found:
+                    raise RuntimeError(f"No app named '{app_subname}'")
+
+        except Exception as e:
+            # don't log file-not-found as an error because that's the default
+            # for all badges.
+            if isinstance(e, OSError) and e.errno == 2:
+                pass
+            else:
+                # log exceptions but don't propagate - an autoexec failure
+                # shouldn't crash the launcher. Most badges will emit this message
+                # at startup.
+                print(f"autoexec.bat not processed fully: {type(e)} {e}")
+                eventbus.emit(
+                    ShowNotificationEvent(
+                        message=f"autoexec {symbols['bat_open']} failed. {e}"
+                    )
+                )

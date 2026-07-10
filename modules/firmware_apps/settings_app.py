@@ -176,10 +176,7 @@ class SettingsApp(app.App):
                             return True
                         return False
 
-                    entry = layout.ButtonDisplay(
-                        "Next pattern", button_handler=_button_event_pattern_toggle
-                    )
-                    self.layout.items.append(entry)
+                    entry.button_handler = _button_event_pattern_toggle
 
                 if id == "pattern_brightness":
 
@@ -221,6 +218,25 @@ class SettingsApp(app.App):
 
                     entry = layout.ButtonDisplay(
                         "Toggle", button_handler=_button_event_mirror_toggle
+                    )
+                    self.layout.items.append(entry)
+
+                if id == "backleds_emotes":
+
+                    async def _button_event_backleds_emotes_toggle(event):
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            backleds_emotes = settings.get("backleds_emotes", True)
+
+                            backleds_emotes = not backleds_emotes
+
+                            settings.set("backleds_emotes", backleds_emotes)
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry = layout.ButtonDisplay(
+                        "Toggle", button_handler=_button_event_backleds_emotes_toggle
                     )
                     self.layout.items.append(entry)
 
@@ -266,7 +282,7 @@ class SettingsApp(app.App):
                         return False
 
                     entry = layout.ButtonDisplay(
-                        "Next background",
+                        "Next",
                         button_handler=_button_event_background_toggle,
                     )
                     self.layout.items.append(entry)
@@ -308,6 +324,7 @@ class SettingsApp(app.App):
             ("pattern", "LED Pattern", tuple_formatter, None),
             ("pattern_brightness", "Pattern brightness", pct_formatter, None),
             ("pattern_mirror_hexpansions", "Mirror pattern", on_off_formatter, None),
+            ("backleds_emotes", "Flash emotes on backleds", on_off_formatter, None),
             ("background", "Background", tuple_formatter, None),
             ("update_channel", "Update channel", string_formatter, None),
             ("wifi_tx_power", "WiFi TX power", string_formatter, None),
