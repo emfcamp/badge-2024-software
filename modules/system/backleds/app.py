@@ -5,6 +5,7 @@ from app import App
 from events.emote import EmotePositiveEvent, EmoteNegativeEvent
 from system.eventbus import eventbus
 from system.hexpansion.events import HexpansionInsertionEvent, HexpansionRemovalEvent
+from system.patterndisplay.events import PatternDisable, PatternEnable
 from tildagonos import tildagonos, led_colours
 
 # note that event.port is indexed from 1-6,
@@ -18,6 +19,7 @@ class BackLEDManager(App):
         # routines that want to drive the back leds themselves for
         # a notification should take this lock.
         self.lock = asyncio.Lock()
+        self.enabled = True
         tildagonos.set_led_power(True)
         eventbus.on_async(HexpansionInsertionEvent, self.handle_insertion, self)
         eventbus.on_async(HexpansionRemovalEvent, self.handle_removal, self)
@@ -25,7 +27,19 @@ class BackLEDManager(App):
         eventbus.on_async(EmotePositiveEvent, self.handle_positive, self)
         eventbus.on_async(EmoteNegativeEvent, self.handle_negative, self)
 
+        eventbus.on_async(PatternDisable, self.handle_disable, self)
+        eventbus.on_async(PatternEnable, self.handle_enable, self)
+
+    async def handle_enable(self, event):
+        self.enabled = True
+
+    async def handle_disable(self, event):
+        self.enabled = False
+
     async def handle_positive(self, event):
+        if not self.enabled:
+            return
+
         if not settings.get("backleds_emotes", True):
             return
 
@@ -40,6 +54,9 @@ class BackLEDManager(App):
             self.lock.release()
 
     async def handle_negative(self, event):
+        if not self.enabled:
+            return
+
         if not settings.get("backleds_emotes", True):
             return
 
@@ -60,6 +77,9 @@ class BackLEDManager(App):
         active_back_leds[event.port - 1] = False
 
     def background_update(self, delta):
+        if not self.enabled:
+            return
+
         if self.lock.locked():  # e.g. if emotes are being displayed
             return
 
