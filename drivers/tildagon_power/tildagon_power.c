@@ -137,6 +137,8 @@ void tildagon_power_fast_task(void *param __attribute__((__unused__)))
         while ( 1 )
         {
             event_t event = NO_EVENT;
+            /* this needs to be 1s or greater to allow the pmic 
+               to do a 1Hz ADC before trying to disconnect based on Vbus */
             if ( xQueueReceive(event_queue, &event, pdMS_TO_TICKS(1000)) )
             {
                 if ( ( event == NO_EVENT ) )
@@ -166,6 +168,15 @@ void tildagon_power_fast_task(void *param __attribute__((__unused__)))
                 gpio_set_intr_type(GPIO_NUM_10, GPIO_INTR_NEGEDGE);
                 gpio_isr_handler_add(GPIO_NUM_10, tildagon_power_interrupt_event, NULL);
                 generate_events();
+            }
+            else if ( device_attach_state == ATTACHED )
+            {
+                bq_update_state( &pmic );
+                if ( pmic.vbus < 2.6F )
+                {
+                    const event_t event = DEVICE_DETACH;
+                    xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
+                }
             }
         }
     }
@@ -547,11 +558,6 @@ void generate_events( void )
             {
                 const event_t event = DEVICE_ATTACH;
                 xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );
-            }
-            if ( pmic.vbus < 2.6F )
-            {
-                const event_t event = DEVICE_DETACH;
-                xQueueSendToBack(event_queue, (void*)&event , (TickType_t)0 );  
             }
             if ( device_pd_state > NOT_STARTED )
             {
