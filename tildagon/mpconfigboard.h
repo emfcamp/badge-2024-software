@@ -4,6 +4,11 @@
 #endif
 #define MICROPY_HW_MCU_NAME                 "ESP32S3"
 
+#define MICROPY_HW_USB_VID                  (0x16D0)
+#define MICROPY_HW_USB_PID                  (0x120E)
+#define MICROPY_HW_USB_MANUFACTURER_STRING  "Electromagnetic Field"
+#define MICROPY_HW_USB_PRODUCT_FS_STRING    "TiLDAGON"
+
 // Enable UART REPL for modules that have an external USB-UART and don't use native USB.
 #define MICROPY_HW_ENABLE_UART_REPL         (1)
 
