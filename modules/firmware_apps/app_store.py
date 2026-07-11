@@ -34,6 +34,18 @@ from random import random, choice, randint
 from app_components.tokens import symbols
 
 
+def get_first_category(manifest):
+    """Extract the first category from an app manifest.
+
+    Categories can be a string or a list of strings. This always returns a
+    single string (the first element if it's a list).
+    """
+    category = manifest.get("category")
+    if isinstance(category, list):
+        return category[0] if category else None
+    return category
+
+
 def dir_exists(filename):
     try:
         return (os.stat(filename)[0] & 0x4000) != 0
@@ -41,7 +53,7 @@ def dir_exists(filename):
         return False
 
 
-APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
+APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/v1/apps"
 
 CODE_INSTALL = "Use Code"
 AVAILABLE = "Browse Apps"
@@ -152,7 +164,11 @@ class AppStoreApp(app.App):
         self.app_categories = []
 
         for item in self.app_store_index:
-            app_category = item["manifest"]["app"].get("category")
+            app_name = item.get("manifest", {}).get("app", {}).get("name", "<unknown>")
+            app_category = get_first_category(item["manifest"]["app"])
+            if app_category is None:
+                print(f"[AppStore] WARNING: app '{app_name}' has no category field!")
+                continue
             if app_category not in self.app_categories:
                 self.app_categories.append(app_category)
 
@@ -211,7 +227,7 @@ class AppStoreApp(app.App):
             return [
                 app
                 for app in self.app_store_index
-                if app["manifest"]["app"].get("category") == self.category_filter
+                if get_first_category(app["manifest"]["app"]) == self.category_filter
             ]
 
         def on_select(_, i):
@@ -655,9 +671,9 @@ def install_app(app):
 
         # TODO: Check we have enough storage in advance
         # TODO: Does the app already exist? Delete it
-        if app["manifest"]["app"].get("category") == "Background":
+        if get_first_category(app["manifest"]["app"]) == "Background":
             TARGET_DIR = "/backgrounds"
-        elif app["manifest"]["app"].get("category") == "Pattern":
+        elif get_first_category(app["manifest"]["app"]) == "Pattern":
             TARGET_DIR = "/pattern"
         else:
             TARGET_DIR = APP_INSTALL_DIR
