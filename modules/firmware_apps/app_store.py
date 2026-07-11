@@ -611,9 +611,7 @@ class AppDetails:
         rows.append(("Install now", seven_pt, None, 0))
 
         self._rows = rows
-        self._total_height = sum(
-            size * 1.1 + gap for (_, size, _, gap) in rows
-        )
+        self._total_height = sum(size * 1.1 + gap for (_, size, _, gap) in rows)
         page_height = self._page_bottom - self._page_top
         self._max_scroll = max(0, self._total_height - page_height)
         self.scroll = min(self.scroll, self._max_scroll)
