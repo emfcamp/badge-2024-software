@@ -138,7 +138,6 @@ class Launcher(App):
     def list_core_apps(self):
         core_app_info = [
             ("App store", "firmware_apps.app_store", "AppStoreApp"),
-            ("Sponsors", "firmware_apps.sponsors", "Sponsors"),
             # ("Name Badge", "hello", "Hello"),
             # ("Logo", "firmware_apps.intro_app", "IntroApp"),
             # ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
