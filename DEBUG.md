@@ -59,6 +59,22 @@ freertos timer --  Generate a print out of the current timers info.
 
 ## Troubleshooting
 
+### Badge becomes slow after GDB attaches
+
+When GDB connects, OpenOCD configures the SPI0 flash-cache 
+controller for single reads at 20 MHz instead of the 
+QIO reads at 80 MHz that the bootloader sets up, and everything
+becomes horrifically slow and laggy.
+
+To avoid it, append `-c 'gdb_memory_map disable'` to the OpenOCD
+command above. GDB then doesn't know where flash is, so software
+breakpoints in flash won't work anymore (hardware still should).
+
+This could be an esp-idf tooling bug, not sure if it is fixed in newer
+versions. Or we need to tweak the openocd config maybe.
+
+### No symbols
+
 If `info threads` shows a single bare "Remote target" and frames are
 `?? ()`, GDB has no usable symbols. Either the ELF path didn't resolve
 (run from the repo root and check for "Reading symbols from ..." at
