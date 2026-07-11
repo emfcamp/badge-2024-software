@@ -163,14 +163,3 @@ class EventBusFocusTest(unittest.IsolatedAsyncioTestCase):
         self.bus.on("test", self.handler, App(focused=False))
         await drive(self.bus, [CustomEvent("test", {}, requires_focus=True)])
         self.assertEqual(self.received, [])
-
-
-if __name__ == "__main__":
-    unittest.main()
-
-
-    eventbus.on("blabla", doshit())
-
-    {"type": "blabla", "otherhting": "whatever"}
-
-    CustomEvent(type="blabla", data={"alskdjflaskdjfalskdfj": "alsdkfj"})
