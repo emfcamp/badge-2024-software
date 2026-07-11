@@ -1,7 +1,10 @@
 import asyncio
 import unittest
 
+import system.eventbus as eventbus_module
 from system.eventbus import _EventBus, _matches, _type_name
+from system.scheduler.events import RequestStopAppEvent
+from system.notification.events import ShowNotificationEvent
 from events import Event
 from events.custom import CustomEvent
 
@@ -163,3 +166,60 @@ class EventBusFocusTest(unittest.IsolatedAsyncioTestCase):
         self.bus.on("test", self.handler, App(focused=False))
         await drive(self.bus, [CustomEvent("test", {}, requires_focus=True)])
         self.assertEqual(self.received, [])
+
+
+class EventBusExceptionHandlingTest(unittest.IsolatedAsyncioTestCase):
+
+    def setUp(self):
+        self.bus = _EventBus()
+        self._real_singleton = eventbus_module.eventbus
+        eventbus_module.eventbus = self.bus
+        self.app = App()
+        self.observer = App()
+        self.stops = []
+        self.notifications = []
+        self.bus.on(RequestStopAppEvent, self.stops.append, self.observer)
+        self.bus.on(ShowNotificationEvent, self.notifications.append, self.observer)
+
+    def tearDown(self):
+        eventbus_module.eventbus = self._real_singleton
+
+    @staticmethod
+    def _boom(event):
+        raise RuntimeError("boom")
+
+    def _assert_app_stopped(self):
+        self.assertEqual([e.app for e in self.stops], [self.app])
+        self.assertEqual(len(self.notifications), 1)
+        self.assertIn("App has crashed", self.notifications[0].message)
+
+    async def test_sync_handler_exception_stops_app_and_notifies(self):
+        self.bus.on("crash", self._boom, self.app)
+        await drive(self.bus, [CustomEvent("crash", {})])
+        self._assert_app_stopped()
+
+    async def test_async_handler_exception_stops_app_and_notifies(self):
+        async def boom(event):
+            raise RuntimeError("boom")
+
+        self.bus.on_async("crash", boom, self.app)
+        await drive(self.bus, [CustomEvent("crash", {})])
+        self._assert_app_stopped()
+
+    async def test_exception_does_not_block_other_apps(self):
+        # A crashing handler on one app must not stop a healthy handler on
+        # another app from receiving the same event.
+        received = []
+        self.bus.on("crash", self._boom, self.app)
+        self.bus.on("crash", received.append, App())
+        await drive(self.bus, [CustomEvent("crash", {})])
+        self.assertEqual(len(received), 1)
+        self._assert_app_stopped()
+
+    async def test_run_loop_survives_exception(self):
+        # After a handler raises, later events must still be processed.
+        received = []
+        self.bus.on("crash", self._boom, self.app)
+        self.bus.on("ok", received.append, App())
+        await drive(self.bus, [CustomEvent("crash", {}), CustomEvent("ok", {})])
+        self.assertEqual(len(received), 1)
