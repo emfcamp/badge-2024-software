@@ -3,6 +3,7 @@ import gzip
 import io
 import json
 import os
+import sys
 import tarfile
 import time
 from tarfile import DIRTYPE, TarFile
@@ -176,16 +177,21 @@ class AppStoreApp(app.App):
 
     def install_app(self, app):
         try:
+            print(
+                f"[AppStore] Starting install of: {app.get('manifest', {}).get('app', {}).get('name', app.get('code', 'unknown'))}"
+            )
             install_app(app)
             self.update_state("main_menu")
             eventbus.emit(InstallNotificationEvent())
             eventbus.emit(ShowNotificationEvent("Installed the app!"))
             eventbus.emit(EmotePositiveEvent())
         except MemoryError:
+            print("[AppStore] Install failed: MemoryError (out of memory)")
             self.update_state("install_oom")
         except Exception as e:
-            print(e)
-            eventbus.emit(ShowNotificationEvent("Couldn't install app"))
+            print(f"[AppStore] Install failed: {type(e).__name__}: {e}")
+            sys.print_exception(e, sys.stderr)
+            eventbus.emit(ShowNotificationEvent(f"Couldn't install app: {e}"))
             eventbus.emit(EmoteNegativeEvent())
             self.update_state("main_menu")
 
@@ -647,46 +653,62 @@ class CodeInstall:
 def install_app(app):
     try:
         ## This is fine to block because we only call it from background_update
-        print("GC")
+        print("[install_app] Step 1: GC collect")
         gc.collect()
 
-        print(f"Getting {app['tarballUrl']}")
-        tarball = get(app["tarballUrl"])
-        # tarballGenerator = self.download_file(app["tarballUrl"])
+        tarball_url = f"https://apps.badge.emfcamp.org/v1/apps/{app['code']}/download"
+        print(f"[install_app] Step 2: Downloading {tarball_url}")
+        tarball = get(tarball_url)
+        print(
+            f"[install_app] Step 2 done: status={tarball.status_code}, content-length={len(tarball.content)}"
+        )
+        if tarball.status_code != 200:
+            raise ValueError(
+                f"Download failed: HTTP {tarball.status_code} {tarball.reason}. Check the URL or network."
+            )
 
         # TODO: Investigate using deflate.DeflateIO instead. Can't do it now
         # because it's not available in the simulator.
-        print("Decompressing")
+        print("[install_app] Step 3: Decompressing gzip")
         tar = gzip.decompress(tarball.content)
         gc.collect()
         tar_bytesio = io.BytesIO(tar)
+        print(f"[install_app] Step 3 done: decompressed size={len(tar)}")
 
-        print("Validating")
+        print("[install_app] Step 4: Finding app root dir")
         prefix = find_app_root_dir(TarFile(fileobj=tar_bytesio)).rstrip("/")
         tar_bytesio.seek(0)
-        print(f"Found app prefix: {prefix}")
+        print(f"[install_app] Found app prefix: {prefix}")
+        print("[install_app] Step 5: Finding app.py")
         app_py_info = find_app_py_file(prefix, TarFile(fileobj=tar_bytesio))
-        print(f"Found app.py at: {app_py_info.name}")
+        print(f"[install_app] Found app.py at: {app_py_info.name}")
         tar_bytesio.seek(0)
 
         # TODO: Check we have enough storage in advance
         # TODO: Does the app already exist? Delete it
+        print("[install_app] Step 6: Determining target directory")
         if get_first_category(app["manifest"]["app"]) == "Background":
             TARGET_DIR = "/backgrounds"
         elif get_first_category(app["manifest"]["app"]) == "Pattern":
             TARGET_DIR = "/pattern"
         else:
             TARGET_DIR = APP_INSTALL_DIR
+        print(f"[install_app] TARGET_DIR={TARGET_DIR}")
+
         # Make sure apps dir exists
         try:
             os.mkdir(TARGET_DIR)
+            print(f"[install_app] Created target dir: {TARGET_DIR}")
         except OSError:
-            pass
+            print(f"[install_app] Target dir already exists: {TARGET_DIR}")
 
         app_module_name = "_".join([app["id"]["owner"], app["id"]["title"]]).replace(
             "-", "_"
         )
+        print(f"[install_app] App module name: {app_module_name}")
 
+        print("[install_app] Step 7: Extracting tarball")
+        file_count = 0
         t = TarFile(fileobj=tar_bytesio)
         for i in t:
             if i:
@@ -695,23 +717,25 @@ def install_app(app):
                 if i.type == DIRTYPE:
                     dirname = f"{TARGET_DIR}/{i.name}"
                     dirname = dirname.replace(prefix, app_module_name, 1)
-                    print(f"Dirname: {dirname}")
+                    print(f"[install_app] Dirname: {dirname}")
                     if not dir_exists(dirname):
                         try:
-                            print(f"Creating {dirname}")
+                            print(f"[install_app] Creating {dirname}")
                             os.mkdir(dirname.rstrip("/"))
-                        except OSError:
-                            print(f"Failed to create {dirname}")
+                        except OSError as ose:
+                            print(f"[install_app] Failed to create {dirname}: {ose}")
                             pass
                 else:
                     filename = f"{TARGET_DIR}/{i.name}"
                     filename = filename.replace(prefix, app_module_name, 1)
-                    print(f"Filename: {filename}")
+                    print(f"[install_app] Extracting file: {filename}")
                     f = t.extractfile(i)
                     if f:
                         with open(filename, "wb") as file:
                             while data := f.read():
                                 file.write(data)
+                        file_count += 1
+        print(f"[install_app] Step 7 done: extracted {file_count} files")
 
         internal_manifest = {
             "name": app["manifest"]["app"]["name"],
@@ -719,15 +743,23 @@ def install_app(app):
             "version": app["manifest"]["metadata"]["version"],
         }
         json_path = f"{TARGET_DIR}/{app_module_name}/metadata.json"
-        print(f"Json path: {json_path}")
+        print(f"[install_app] Step 8: Writing metadata to {json_path}")
+        print(f"[install_app] Metadata contents: {internal_manifest}")
         with open(json_path, "w+") as internal_manifest_file_handler:
             json.dump(internal_manifest, internal_manifest_file_handler)
 
+        print(
+            f"[install_app] SUCCESS: Installed {app['manifest']['app']['name']} v{app['manifest']['metadata']['version']}"
+        )
+
     except MemoryError as e:
         gc.collect()
+        print(f"[install_app] MEMORY ERROR: {e}")
+        sys.print_exception(e, sys.stderr)
         raise e
     except Exception as e:
-        print(e)
+        print(f"[install_app] EXCEPTION at step: {type(e).__name__}: {e}")
+        sys.print_exception(e, sys.stderr)
         raise e
 
 
