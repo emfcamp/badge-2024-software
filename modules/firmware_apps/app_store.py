@@ -688,6 +688,8 @@ def install_app(app):
             "-", "_"
         )
 
+        has_tildagon_json = False
+
         t = TarFile(fileobj=tar_bytesio)
         for i in t:
             if i:
@@ -708,11 +710,31 @@ def install_app(app):
                     filename = f"{TARGET_DIR}/{i.name}"
                     filename = filename.replace(prefix, app_module_name, 1)
                     print(f"Filename: {filename}")
+
+                    # Track whether the tarball includes a tildagon.json
+                    if i.name == f"{prefix}/tildagon.json":
+                        has_tildagon_json = True
+
                     f = t.extractfile(i)
                     if f:
                         with open(filename, "wb") as file:
                             while data := f.read():
                                 file.write(data)
+
+        # Remove tildagon.toml if it was in the tarball (not used)
+        toml_path = f"{TARGET_DIR}/{app_module_name}/tildagon.toml"
+        try:
+            os.remove(toml_path)
+            print(f"Removed unused {toml_path}")
+        except OSError:
+            pass
+
+        # Write the app store manifest as tildagon.json if the tarball didn't include one
+        if not has_tildagon_json:
+            tildagon_json_path = f"{TARGET_DIR}/{app_module_name}/tildagon.json"
+            print(f"Writing manifest to {tildagon_json_path}")
+            with open(tildagon_json_path, "w+") as f:
+                json.dump(app["manifest"], f)
 
         internal_manifest = {
             "name": app["manifest"]["app"]["name"],
