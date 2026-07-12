@@ -1,4 +1,6 @@
-# A easy to use module for the basic components of the tildagon badge
+# An easy to use module for the basic components of the tildagon badge
+
+__version__ = "0.2.0"
 
 from tildagonos import tildagonos
 from egpio import ePin
@@ -126,7 +128,7 @@ class BadgeDisplay:
     """Simple display API wrapper with `show`, `clear`, `draw_text`"""
 
     def show(self, what, delay=0.5):
-        # Accept strings, keywords 'happy'/'sad', callables that draw(ctx), or lists for simple animations
+        # Accept strings, Image objects, callables that draw(ctx), or lists for simple animations
         if hasattr(what, "__iter__") and not isinstance(what, str):
             for frame in what:
                 self.show(frame, delay=delay)
@@ -134,19 +136,7 @@ class BadgeDisplay:
 
         ctx = hw_display.get_ctx()
         clear_background(ctx)
-        # Accept string keys
-        if isinstance(what, str):
-            key = what.lower()
-        else:
-            key = None
-
-        if key:
-            handler = IMAGE_HANDLERS.get(key)
-            if handler:
-                handler(ctx)
-            else:
-                Image.text(ctx, what if isinstance(what, str) else key)
-        elif callable(what):
+        if callable(what):
             # custom draw function that accepts ctx
             what(ctx)
         else:
@@ -162,18 +152,16 @@ class BadgeDisplay:
         clear_background(ctx)
         hw_display.end_frame(ctx)
 
-    def draw_text(self, text, delay=0, clear_before=True, initial=True):
+    def draw_text(self, text, delay=0, x=0, y=0, font_size=30, color=(255, 255, 255), clear_before=True, align_center=True):
         # Draw text in the middle of the screen
-        
+
         # Needed as first text write always fails (draws only first letter) for an unknown reason
-        if initial:
-            self.draw_text("-", delay=delay, clear_before=clear_before, initial=False)
-        ctx = hw_display.get_ctx()
-        if clear_before:
-            clear_background(ctx)
-            #time.sleep(0.05)
-            Image.text(ctx, text)
-        hw_display.end_frame(ctx)
+        for i in range(2):
+            ctx = hw_display.get_ctx()
+            if clear_before:
+                clear_background(ctx)
+            Image.text(ctx, text, x=x, y=y, font_size=font_size, color=color, align_center=align_center)
+            hw_display.end_frame(ctx)
         if delay:
             time.sleep(delay)
 
@@ -216,14 +204,19 @@ class Image:
         ctx.fill()
 
     @staticmethod
-    def text(ctx, text, x=0, y=0, font_size=24, color=(1, 1, 1), align_center=True):
+    def text(ctx, text, x=0, y=0, font_size=30, color=(255, 255, 255), align_center=True):
         ctx.save()
         ctx.font = ctx.get_font_name(0)  # Select a real embedded font
         ctx.font_size = font_size
         if align_center:
             ctx.text_align = ctx.CENTER
             ctx.text_baseline = ctx.MIDDLE
-        ctx.rgb(*color)
+        # Accept either 0-1 floats or 0-255 ints for text color.
+        if all(0 <= c <= 1 for c in color):
+            rgb = color
+        else:
+            rgb = tuple(max(0, min(255, c)) / 255 for c in color)
+        ctx.rgb(*rgb)
         ctx.move_to(x, y).text(text)
         ctx.restore()
 
@@ -342,11 +335,6 @@ class Image:
         ctx.restore()
 
 
-# auto-generate IMAGE_HANDLERS from uppercase Image methods
-IMAGE_HANDLERS = {}
-for _attr in dir(Image):
-    if _attr.isupper():
-        IMAGE_HANDLERS[_attr.lower()] = getattr(Image, _attr)
-
 # Export a simple display instance
 display = BadgeDisplay()
+
