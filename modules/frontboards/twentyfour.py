@@ -143,7 +143,9 @@ class TwentyTwentyFour(FrontBoard):
 
                     for key in TwentyTwentyFour.button_states.keys():
                         if TwentyTwentyFour.button_states[key][0]:
-                            if TwentyTwentyFour.button_states[key][1] > (50 // tick_ms):
+                            if TwentyTwentyFour.button_states[key][1] > (
+                                200 // tick_ms
+                            ):
                                 await eventbus.emit_async(
                                     ButtonDownEvent(button=BUTTONS[key])
                                 )
