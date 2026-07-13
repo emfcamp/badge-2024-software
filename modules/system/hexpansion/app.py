@@ -13,6 +13,7 @@ from system.hexpansion.util import (
     get_hexpansion_block_devices,
     detect_eeprom_addr,
 )
+from system.launcher.utils import load_manifest
 
 from app_components.dialog import YesNoDialog
 from system.notification.events import ShowNotificationEvent
@@ -69,6 +70,7 @@ class HexpansionManagerApp(app.App):
         self.buttons = Buttons(self)
         self.hexpansion_apps = {}
         self.hexpansion_headers = {}
+        self.hexpansion_manifests = {}
         self.autolaunch = autolaunch
 
         for i, pin in enumerate(HexpansionManagerApp.hexpansion_pins):
@@ -262,6 +264,14 @@ class HexpansionManagerApp(app.App):
         if eep is not None and partition is not None:
             self._mount_eeprom(partition, event.port)
 
+        try:
+            self.hexpansion_manifests[event.port] = load_manifest(
+                "", self.mountpoints[event.port].strip("/")
+            )
+        except Exception:
+            raise
+            self.hexpansion_manifests[event.port] = {}
+
         eventbus.emit(HexpansionMountedEvent(port=event.port, header=header))
 
     async def handle_hexpansion_removal(self, event):
@@ -274,6 +284,9 @@ class HexpansionManagerApp(app.App):
         if event.port in self.hexpansion_headers:
             header = self.hexpansion_headers[event.port]
             self.hexpansion_headers[event.port] = None
+
+        if event.port in self.hexpansion_manifests:
+            self.hexpansion_manifests[event.port] = None
 
         if event.port in self.mountpoints:
             print(f"Unmounting {self.mountpoints[event.port]}")

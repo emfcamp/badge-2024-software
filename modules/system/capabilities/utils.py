@@ -1,26 +1,22 @@
 import ota
 from system.ota.ota import parse_version
-from system.launcher.app import list_user_apps, load_manifest, APP_DIR
-from system.hexpansion.app import _hexpansion_manager
+from system.launcher.utils import list_user_apps, load_manifest, APP_DIR
 from frontboards.utils import detect_frontboard
 
 
-def get_app_manifest(name, folder=APP_DIR[0]):
-    """Load the contents of a tildagon.json file for a given app in a given folder"""
-    return load_manifest(folder, name)
-
-
 def get_app_capabilities(manifest):
-    """Get the list of capability identifiers provided by the app described by manifest"""
+    # Get the list of capability identifiers provided by the app described by manifest
     capability_ids = [
-        providedCapability["capability"]
-        for providedCapability in manifest["metadata"].get("providedCapabilities", [])
+        providedCapability["capability"]["identifier"]
+        for providedCapability in manifest.get("metadata", {}).get(
+            "providedCapabilities", []
+        )
     ]
     return capability_ids
 
 
 def get_app_requirements(manifest):
-    """Get the hard requirements of the app described by the manifest"""
+    # Get the hard requirements of the app described by the manifest
     requirements = {
         "hexpansions": [],
         "frontboard": None,
@@ -49,29 +45,16 @@ def get_app_requirements(manifest):
     return {"requirements": requirements, "supported": supported}
 
 
-FRONTBOARD_MAP = {
-    "2024 Frontboard": 0x2400,
-    "2026 Frontboard": 0x2600,
-}
-
-
 def get_frontboard():
-    """Get the current frontboard on the badge"""
-    """Return the current frontboard name, e.g. '2024 Frontboard' or None if unknown."""
-    return next(
-        (name for name, pid in FRONTBOARD_MAP.items() if pid == detect_frontboard()),
-        None,
-    )
-
-
-def get_os_version():
-    """Return the current Tildagon OS version string, e.g. 'v2.0.0'."""
-    return ota.get_version()
-
-
-def list_hexpansions():
-    """Return a list of currently attached HexpansionHeader objects."""
-    return [h for h in _hexpansion_manager.hexpansion_headers.values() if h is not None]
+    # TODO: Remove this, and refactor the frontboard requirements to work
+    # like hexpansions, to support non-official frontboards
+    front_board = detect_frontboard()
+    if (front_board & 0xFF00) == 0x2600:
+        return ("2026 Frontboard", 0x2600)
+    elif (front_board & 0xFF00) == 0x2400:
+        return ("2024 Frontboard", 0x2400)
+    else:
+        return None
 
 
 def get_unmet_requirements(
@@ -81,15 +64,20 @@ def get_unmet_requirements(
     tildagon_os="not_set",
     frontboard="not_set",
 ):
-    """For the given set of app requirements, compare with the available capabilities and hexpansions, and return any unfulfilled requirements"""
+    # For the given set of app requirements, compare with the available capabilities and hexpansions, and return any unfulfilled requirements"""
+    from system.hexpansion.app import _hexpansion_manager
+
     if available_capabilities is None:
         available_capabilities = [
             cap
             for entry in list_capabilities()
             for cap in entry.get("capabilities", [])
         ]
+
     if available_hexpansions is None:
-        available_hexpansions = list_hexpansions()
+        available_hexpansions = [
+            h for h in _hexpansion_manager.hexpansion_headers.values() if h is not None
+        ]
 
     unmet_requirements = {}
 
@@ -145,31 +133,65 @@ def check_app_requirements(manifest):
 
 def get_app_capabilities_by_name(name, folder=APP_DIR[0]):
     """Get the provided capabilities of an app by its directory name."""
-    manifest = get_app_manifest(name, folder)
+    manifest = load_manifest(folder, name)
     return get_app_capabilities(manifest)
 
 
 def get_app_requirements_by_name(name, folder=APP_DIR[0]):
     """Get the requirements of an app by its directory name."""
-    manifest = get_app_manifest(name, folder)
+    manifest = load_manifest(folder, name)
     return get_app_requirements(manifest)
 
 
-def prep_capabilities(app):
-    manifest = get_app_manifest(app.get("name"))
+def list_installed_app_capabilities(app):
+    manifest = load_manifest(app["app_dir"], app["name"])
     return {"app": app, "capabilities": get_app_capabilities(manifest)}
+
+
+def get_app_capabilities_by_hexpansion_slot(slot):
+    from system.hexpansion.app import _hexpansion_manager
+
+    running_app = _hexpansion_manager.hexpansion_apps.get(slot, None)
+    if running_app is None:
+        return None
+    app = {
+        "path": running_app.__class__.__module__,
+        "callable": "__app_export__",
+        "name": running_app.__class__.__name__,
+        "folder": "",
+        "hidden": False,
+        "app_dir": "",
+    }
+    return {
+        "app": app,
+        "capabilities": get_app_capabilities(
+            _hexpansion_manager.hexpansion_manifests.get(slot, {})
+        ),
+    }
+
+
+def list_hexpansion_capabilities():
+    results = []
+    for i in range(1, 7):
+        slot_capabilities = get_app_capabilities_by_hexpansion_slot(i)
+        if slot_capabilities:
+            results.append(slot_capabilities)
+    return results
 
 
 def list_capabilities():
     """Return a list of {app, capabilities} dicts for all installed apps."""
-    return [prep_capabilities(app) for app in list_user_apps(include_hidden=True)]
+    return [
+        list_installed_app_capabilities(app)
+        for app in list_user_apps(include_hidden=True)
+    ] + list_hexpansion_capabilities()
 
 
 def list_all_requirements():
     """Return a list of {app, requirements, supported} dicts for all installed apps."""
     result = []
     for app in list_user_apps(include_hidden=True):
-        manifest = get_app_manifest(app["name"])
+        manifest = load_manifest(app["app_dir"], app["name"])
         parsed = get_app_requirements(manifest)
         result.append(
             {
@@ -179,3 +201,26 @@ def list_all_requirements():
             }
         )
     return result
+
+
+def app_sort_key(app):
+    try:
+        return getattr(app, "priority", 1)
+    except Exception:
+        return 1
+
+
+def get_running_apps_by_capability(capability):
+    from system.hexpansion import app as hexpansion_app
+    from system.scheduler import scheduler
+
+    hexpansion_apps = hexpansion_app._hexpansion_manager.hexpansion_apps.values()
+    running_apps = sorted(scheduler.apps, key=app_sort_key)
+    running_apps = sorted(running_apps, key=lambda a: a in hexpansion_apps)
+    apps = [
+        app
+        for app in running_apps
+        if capability in get_app_capabilities(scheduler.app_manifests[app])
+    ]
+
+    return apps

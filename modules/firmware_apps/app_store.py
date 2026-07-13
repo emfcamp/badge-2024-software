@@ -21,11 +21,13 @@ from events.emote import EmoteNegativeEvent, EmotePositiveEvent
 from frontboards.common import FRONTBOARD_BUTTON_TYPES
 from requests import get
 from system.eventbus import eventbus
-from system.launcher.app import (
+from system.launcher.events import (
+    InstallNotificationEvent,
+)
+from system.launcher.utils import (
     APP_DIR,
     APP_INSTALL_DIR,
     load_info,
-    InstallNotificationEvent,
 )
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
