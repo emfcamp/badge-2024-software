@@ -8,6 +8,7 @@ from events.keyboard import KEYBOARD_BUTTONS
 from system.eventbus import eventbus
 
 from .tokens import button_labels, label_font_size, set_color
+from .utils import wrap_text
 
 SPECIAL_KEY_META = "..."
 SPECIAL_KEY_DONE = "Done"
@@ -117,6 +118,7 @@ class ProgressDialog:
 
         # Tightly loop, waiting for a result, then return it
         while self.result is None:
+            await render_update()
             await asyncio.sleep(0.05)
         self.app.overlays.pop()
         await render_update()
@@ -131,10 +133,12 @@ class ProgressDialog:
         set_color(ctx, "label")
 
         if isinstance(self.message, list):
-            for idx, line in enumerate(self.message):
-                ctx.move_to(0, idx * text_height).text(line)
+            message = self.message
         else:
-            ctx.move_to(0, 0).text(self.message)
+            message = wrap_text(ctx, self.message, ctx.font_size)
+
+        for idx, line in enumerate(message):
+            ctx.move_to(0, idx * text_height).text(line)
 
     def draw(self, ctx):
         ctx.save()

@@ -48,6 +48,12 @@ class HexpansionHeader:
             checksum ^= byte
         return checksum
 
+    def __eq__(self, other):
+        try:
+            return self.to_bytes() == other.to_bytes()
+        except Exception:
+            return False
+
     def to_bytes(self, include_checksum=True):
         b = struct.pack(
             self._header_format,

@@ -12,6 +12,7 @@ from system.hexpansion.util import (
     read_hexpansion_header,
     get_hexpansion_block_devices,
     detect_eeprom_addr,
+    handle_insertion_lock,
 )
 
 from app_components.dialog import YesNoDialog
@@ -132,7 +133,7 @@ class HexpansionManagerApp(app.App):
             _package = __import__(f"{mount}.app")
             package = _package.app
             print(f"Found app package: {package}")
-        except (ImportError, SyntaxError) as e:
+        except (ImportError, SyntaxError, ValueError) as e:
             print(e)
             print("App module not found")
             self._cleanup_import_path(old_cwd, old_sys_path)
@@ -219,6 +220,12 @@ class HexpansionManagerApp(app.App):
         if addr is None:
             print("Scan found no eeproms")
             return
+
+        # acquire and release the insertion lock - we don't care about
+        # keeping locked, but someone (provisioning) may want us to wait
+        # at this step
+        await handle_insertion_lock.acquire()
+        handle_insertion_lock.release()
 
         # Do we have a header?
         try:
