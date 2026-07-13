@@ -23,6 +23,7 @@ from system.scheduler.events import (
     RequestStartAppEvent,
     RequestStopAppEvent,
 )
+from system.capabilities.utils import get_manifest_from_compact_app_format
 from tildagonos import EPIN_ND_A, EPIN_ND_B, EPIN_ND_C, EPIN_ND_D, EPIN_ND_E, EPIN_ND_F
 from egpio import ePin
 from system.eventbus import eventbus
@@ -182,6 +183,15 @@ class HexpansionManagerApp(app.App):
         eventbus.emit(RequestStartAppEvent(app))
         self.hexpansion_apps[port] = app
 
+        if not self.hexpansion_manifests.get(port, {}):
+            try:
+                self.hexpansion_manifests[port] = get_manifest_from_compact_app_format(
+                    app
+                )
+            except Exception as e:
+                sys.print_exception(e)
+                pass
+
         self._cleanup_import_path(old_cwd, old_sys_path)
 
     def _stop_hexpansion_app(self, port):
@@ -282,13 +292,13 @@ class HexpansionManagerApp(app.App):
         if eep is not None and partition is not None:
             self._mount_eeprom(partition, event.port)
 
-        try:
-            self.hexpansion_manifests[event.port] = load_manifest(
-                "", self.mountpoints[event.port].strip("/")
-            )
-        except Exception:
-            raise
-            self.hexpansion_manifests[event.port] = {}
+        if not self.hexpansion_manifests[event.port]:
+            try:
+                self.hexpansion_manifests[event.port] = load_manifest(
+                    "", self.mountpoints[event.port].strip("/")
+                )
+            except Exception:
+                self.hexpansion_manifests[event.port] = {}
 
         eventbus.emit(HexpansionMountedEvent(port=event.port, header=header))
 

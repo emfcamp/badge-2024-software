@@ -14,7 +14,10 @@ from system.scheduler.events import (
     RequestStartAppEvent,
     RequestStopAppEvent,
 )
-from system.capabilities.utils import load_manifest
+from system.capabilities.utils import (
+    load_manifest,
+    get_manifest_from_compact_app_format,
+)
 from system.notification.events import ShowNotificationEvent
 
 
@@ -83,6 +86,9 @@ class _Scheduler:
             )
         except BaseException:
             pass
+
+        if not self.app_manifests.get(app):
+            self.app_manifests[app] = get_manifest_from_compact_app_format(app)
 
         self.last_update_times.append(time.ticks_us())
 
