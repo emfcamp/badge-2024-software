@@ -71,57 +71,9 @@ class pdHelper:
         )
 
     def host_send_badge_id(self):
-        tildagon_message = bytearray(
-            [
-                0x00,
-                0x00,
-                0x00,
-                0xFF,
-                0x54,
-                0x69,
-                0x6C,
-                0x64,
-                0x61,
-                0x67,
-                0x6F,
-                0x6E,
-                0x42,
-                0x65,
-                0x73,
-                0x74,
-                0x61,
-                0x67,
-                0x6F,
-                0x6E,
-            ]
-        )
         usb_out = Host()
-        usb_out.send_vendor_msg(tildagon_message)
+        usb_out.send_badge_id()
 
     def device_send_badge_id(self):
-        tildagon_message = bytearray(
-            [
-                0x00,
-                0x00,
-                0x00,
-                0xFF,
-                0x54,
-                0x69,
-                0x6C,
-                0x64,
-                0x61,
-                0x67,
-                0x6F,
-                0x6E,
-                0x42,
-                0x65,
-                0x73,
-                0x74,
-                0x61,
-                0x67,
-                0x6F,
-                0x6E,
-            ]
-        )
         usb_in = Device()
-        usb_in.send_vendor_msg(tildagon_message)
+        usb_in.send_badge_id()
