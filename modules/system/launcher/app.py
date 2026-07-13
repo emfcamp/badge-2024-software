@@ -1,13 +1,10 @@
-import json
 import os
 import sys
 
 from app import App
 from app_components import clear_background
 from app_components.menu import Menu
-from perf_timer import PerfTimer
 from system.eventbus import eventbus
-from events import Event
 from events.emote import EmoteNegativeEvent
 from system.scheduler.events import (
     RequestForegroundPushEvent,
@@ -17,23 +14,12 @@ from system.scheduler.events import (
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
 from app_components.tokens import symbols
-
-APP_DIR = ["/apps"]
-APP_INSTALL_DIR = "/apps"
-
-
-class InstallNotificationEvent(Event):
-    pass
-
-
-class AppDirAddedNotificationEvent(Event):
-    def __init__(self, path):
-        self.path = path
-
-
-class AppDirRemovedNotificationEvent(Event):
-    def __init__(self, path):
-        self.path = path
+from .events import (
+    InstallNotificationEvent,
+    AppDirAddedNotificationEvent,
+    AppDirRemovedNotificationEvent,
+)
+from .utils import APP_DIR, list_user_apps
 
 
 def path_isdir(path):
@@ -52,50 +38,6 @@ def recursive_delete(path):
         else:
             os.remove(entry_path)
     os.rmdir(path)
-
-
-def load_info(folder, name):
-    try:
-        info_file = "{}/{}/metadata.json".format(folder, name)
-        with open(info_file) as f:
-            information = f.read()
-        return json.loads(information)
-    except BaseException:
-        return {}
-
-
-def list_user_apps():
-    with PerfTimer("List user apps"):
-        apps = []
-        contents = []
-        for d in APP_DIR:
-            try:
-                contents.extend([(d, x) for x in os.listdir(d)])
-            except (OSError, UnicodeError):
-                # directory or mount point don't exist
-                pass
-
-        for dirname, name in contents:
-            path = dirname
-            for p in sys.path:
-                if p and dirname.startswith(p):
-                    path = dirname[len(p) :]
-                    break
-            path = ".".join(path.lstrip("/").split("/"))
-            app = {
-                "path": f"{path}.{name}.app",
-                "callable": "__app_export__",
-                "name": name,
-                "folder": name,
-                "hidden": False,
-            }
-            metadata = load_info(dirname, name)
-            if "version" not in metadata:
-                app["version"] = "0.0.0"
-            app.update(metadata)
-            if not app["hidden"]:
-                apps.append(app)
-        return apps
 
 
 class Launcher(App):

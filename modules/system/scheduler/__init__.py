@@ -14,6 +14,7 @@ from system.scheduler.events import (
     RequestStartAppEvent,
     RequestStopAppEvent,
 )
+from system.capabilities.utils import load_manifest
 from system.notification.events import ShowNotificationEvent
 
 
@@ -24,6 +25,9 @@ class _Scheduler:
     def __init__(self):
         # All currently running apps
         self.apps = []
+
+        # Manifests of those apps
+        self.app_manifests = {}
 
         # Background tasks, always running
         self.background_tasks = {}
@@ -67,6 +71,19 @@ class _Scheduler:
 
     def start_app(self, app, foreground=False, always_on_top=False):
         self.apps.append(app)
+
+        try:
+            # Try to get the module name from the app, which will fail for firmware apps
+            # but should work for all other apps
+            self.app_manifests[app] = load_manifest(
+                *(
+                    [""]
+                    + app.__module__.rsplit(".", 1)[0].replace(".", "/").rsplit("/", 1)
+                )[-2:]
+            )
+        except BaseException:
+            pass
+
         self.last_update_times.append(time.ticks_us())
 
         if foreground:
@@ -87,6 +104,11 @@ class _Scheduler:
         except ValueError:
             print(f"App not running: {app}")
             return
+
+        try:
+            del self.app_manifests[app]
+        except KeyError:
+            pass
 
         try:
             self.foreground_stack.remove(app)

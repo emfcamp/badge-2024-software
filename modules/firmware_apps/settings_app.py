@@ -7,7 +7,7 @@ from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
 from system.patterndisplay.events import PatternReload
 from app_components.background import Background as bg
-from system.launcher.app import load_info
+from system.launcher.utils import load_info
 from system.scheduler.events import RequestForegroundPushEvent
 
 BG_DIR = "/backgrounds"
