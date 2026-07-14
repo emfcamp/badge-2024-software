@@ -18,6 +18,7 @@ from system.hexpansion.events import (
 )
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
+import settings
 from app_components.tokens import symbols
 from .events import (
     InstallNotificationEvent,
@@ -147,6 +148,35 @@ class Launcher(App):
             # ("Settings", "settings_app", "SettingsApp"),
             # ("ESPNow ping", "firmware_apps.espnow_ping", "ESPNowPing"),
         ]
+        if settings.get("developer", False):
+            core_app_info += [
+                (
+                    f"{symbols['shark']} BoopSpinner",
+                    "system.boopscreen.app",
+                    "BoopSpinner",
+                ),
+                (
+                    f"{symbols['shark']} Menu demo",
+                    "firmware_apps.menu_demo",
+                    "MenuDemo",
+                ),
+                (
+                    f"{symbols['shark']} Text demo",
+                    "firmware_apps.text_demo",
+                    "TextDemo",
+                ),
+                (
+                    f"{symbols['shark']} Inhibit LEDs",
+                    "firmware_apps.patterninhibit",
+                    "PatternInhibit",
+                ),
+                (
+                    f"{symbols['shark']} ESPNow ping",
+                    "firmware_apps.espnow_ping",
+                    "ESPNowPing",
+                ),
+            ]
+
         core_apps = []
         for core_app in core_app_info:
             core_apps.append(

@@ -48,6 +48,7 @@ class HexpansionDetail:
 
     def _build_items(self):
         items = []
+        developer = settings.get("developer", False)
         for field, label, parse, fmt, empty, show_without_header in [
             ("friendly_name", "Name", str, str, "Unknown", False),
             ("vid", "VID", self._parse_hex, lambda v: f"0x{v:04X}", "N/A", True),
@@ -63,6 +64,7 @@ class HexpansionDetail:
                 and field in {"vid", "pid"}
                 or self.header is not None
                 and field == "unique_id"
+                and developer
             ):
                 items.append(
                     layout.ButtonDisplay(
@@ -80,16 +82,17 @@ class HexpansionDetail:
                     "Update firmware", button_handler=self.update_handler
                 )
             )
-            items.append(
-                layout.ButtonDisplay(
-                    "Factory reset", button_handler=self.factory_reset_handler
+            if developer:
+                items.append(
+                    layout.ButtonDisplay(
+                        "Factory reset", button_handler=self.factory_reset_handler
+                    )
                 )
-            )
-            items.append(
-                layout.ButtonDisplay(
-                    "Bulk provisioning", button_handler=self.bulk_provision_handler
+                items.append(
+                    layout.ButtonDisplay(
+                        "Bulk provisioning", button_handler=self.bulk_provision_handler
+                    )
                 )
-            )
         return items
 
     @staticmethod

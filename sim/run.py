@@ -88,6 +88,11 @@ except:
     pass
 
 
+import settings
+settings._PATH = os.path.join(projectpath, "settings.json")
+
+
+
 def _path_replace(p):
     if p.startswith("/flash/sys"):
         p = p[len("/flash/sys") :]
