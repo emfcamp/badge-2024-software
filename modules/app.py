@@ -55,7 +55,7 @@ class App:
     def minimise(self):
         eventbus.emit(RequestForegroundPopEvent(self))
 
-    def terminate(self, restore_pattern=True):
+    def terminate(self, restore_pattern=False):
         """Terminate the app with extreme prejudice."""
         if restore_pattern:
             print("Restoring pattern")
