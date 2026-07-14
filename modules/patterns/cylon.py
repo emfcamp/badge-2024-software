@@ -30,11 +30,11 @@ class CylonPattern(BasePattern):
         frames = []
 
         for i in range(self.num_leds + min(self.gap_frames, len(fall_off) - 1)):
-            #first frame is a single bright first pixel, until the last pixel is bright then finally all are dark
+            # first frame is a single bright first pixel, until the last pixel is bright then finally all are dark
             start = self.num_leds + len(fall_off) - i - 1
             frame = space[start : start + self.num_leds]
             frames.append(frame)
-        #pure black frames if needed
+        # pure black frames if needed
         for i in range(self.gap_frames - len(fall_off)):
             frames.append([(0, 0, 0)] * self.num_leds)
 
