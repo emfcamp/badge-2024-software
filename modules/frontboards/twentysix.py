@@ -282,16 +282,15 @@ class TwentyTwentySix(FrontBoard):
                     frontboard2026.IRQ_FALLING,
                 )
 
-        self.run_count = 0
-        tick_ms = 10
+        self.run_time = 0
         while True:
-            if self.run_count == 0:
+            now = time.ticks_ms()
+            if time.ticks_diff(now, self.run_time) > 150:
                 frontboard2026.run()
-                self.run_count = 150 // tick_ms
-            self.run_count = self.run_count - 1
+                self.run_time = now
+
             booped = not machine.Pin(0, mode=machine.Pin.IN).value()
             if booped:
-                now = time.ticks_ms()
                 for i, gpio in enumerate(
                     map(lambda i: self.BUTTON_PINS[BUTTONS[i]], "ABCDEF")
                 ):
@@ -323,32 +322,40 @@ class TwentyTwentySix(FrontBoard):
                             await eventbus.emit_async(
                                 ButtonDownEvent(button=BUTTONS[key])
                             )
+                            TwentyTwentySix.button_states[key][1] = now
+                        elif button_down:
+                            if (
+                                time.ticks_diff(
+                                    now, TwentyTwentySix.button_states[key][1]
+                                )
+                                > 200
+                            ):
+                                await eventbus.emit_async(
+                                    ButtonDownEvent(button=BUTTONS[key])
+                                )
+                                TwentyTwentySix.button_states[key][1] = now
                         if not button_down and TwentyTwentySix.button_states[key][0]:
                             await eventbus.emit_async(
                                 ButtonUpEvent(button=BUTTONS[key])
                             )
-                            TwentyTwentySix.button_states[key][1] = 0
                         TwentyTwentySix.button_states[key][0] = button_down
 
-                    for key in TwentyTwentySix.button_states.keys():
-                        if TwentyTwentySix.button_states[key][0]:
-                            if TwentyTwentySix.button_states[key][1] > (50 // tick_ms):
-                                await eventbus.emit_async(
-                                    ButtonDownEvent(button=BUTTONS[key])
-                                )
-                                TwentyTwentySix.button_states[key][1] = 0
-                            else:
-                                TwentyTwentySix.button_states[key][1] += 1
                     for key in TwentyTwentySix.joystick_states.keys():
-                        if TwentyTwentySix.joystick_states[key][0]:
-                            if TwentyTwentySix.joystick_states[key][1] > (
-                                50 // tick_ms
+                        if (
+                            TwentyTwentySix.joystick_states[key][0]
+                            and not TwentyTwentySix.joystick_states[key][1]
+                        ):
+                            TwentyTwentySix.joystick_states[key][1] = now
+                        elif TwentyTwentySix.joystick_states[key][0]:
+                            if (
+                                time.ticks_diff(
+                                    now, TwentyTwentySix.joystick_states[key][1]
+                                )
+                                > 200
                             ):
                                 await eventbus.emit_async(
                                     ButtonDownEvent(button=JOYSTICK[key])
                                 )
-                                TwentyTwentySix.joystick_states[key][1] = 0
-                            else:
-                                TwentyTwentySix.joystick_states[key][1] += 1
+                                TwentyTwentySix.joystick_states[key][1] = now
 
-            await asyncio.sleep(tick_ms / 1000)
+            await asyncio.sleep(0.01)
