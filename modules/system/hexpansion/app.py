@@ -5,9 +5,13 @@ from system.hexpansion.config import HexpansionConfig
 from system.hexpansion.events import (
     HexpansionRemovalEvent,
     HexpansionInsertionEvent,
+    HexpansionAppRequestStartEvent,
+    HexpansionAppRequestStopEvent,
     HexpansionMountedEvent,
     HexpansionUnmountedEvent,
+    HexpansionAppLauncherRemoveEvent,
 )
+
 from system.hexpansion.util import (
     read_hexpansion_header,
     get_hexpansion_block_devices,
@@ -33,13 +37,13 @@ import vfs
 import sys
 
 
-def Hexspansion_inserted(epin):
+def Hexpansion_inserted(epin):
     for i, nPin in enumerate(HexpansionManagerApp.hexpansion_pins):
         if nPin is epin:
             eventbus.emit(HexpansionInsertionEvent(port=i + 1))
 
 
-def Hexspansion_removed(epin):
+def Hexpansion_removed(epin):
     for i, nPin in enumerate(HexpansionManagerApp.hexpansion_pins):
         if nPin is epin:
             eventbus.emit(HexpansionRemovalEvent(port=i + 1))
@@ -63,6 +67,13 @@ class HexpansionManagerApp(app.App):
             HexpansionInsertionEvent, self.handle_hexpansion_insertion, self
         )
         eventbus.on_async(HexpansionRemovalEvent, self.handle_hexpansion_removal, self)
+        eventbus.on(
+            HexpansionAppRequestStartEvent, self.handle_hexpansion_app_start, self
+        )
+        eventbus.on(
+            HexpansionAppRequestStopEvent, self.handle_hexpansion_app_stop, self
+        )
+
         self.mountpoints = {}
         self.format_requests = []
         self.format_dialog = None
@@ -72,10 +83,11 @@ class HexpansionManagerApp(app.App):
         self.hexpansion_headers = {}
         self.hexpansion_manifests = {}
         self.autolaunch = autolaunch
+        self.inserted_hexpansions = {}
 
         for i, pin in enumerate(HexpansionManagerApp.hexpansion_pins):
-            pin.irq(handler=Hexspansion_inserted, trigger=pin.IRQ_FALLING)
-            pin.irq(handler=Hexspansion_removed, trigger=pin.IRQ_RISING)
+            pin.irq(handler=Hexpansion_inserted, trigger=pin.IRQ_FALLING)
+            pin.irq(handler=Hexpansion_removed, trigger=pin.IRQ_RISING)
             if not pin.value():
                 eventbus.emit(HexpansionInsertionEvent(port=i + 1))
 
@@ -126,6 +138,13 @@ class HexpansionManagerApp(app.App):
 
     def _launch_hexpansion_app(self, port):
         if port not in self.mountpoints:
+            return
+
+        if port in self.hexpansion_apps:
+            # The hexpansion app is already running, foreground it. Avoids launching duplicate apps, but allows
+            # launching duplicate apps when several of the same hexpansion are plugged in, each addressing a different port
+            print(f"App is already running, requesting foreground push for port {port}")
+            eventbus.emit(RequestForegroundPushEvent(self.hexpansion_apps[port]))
             return
 
         mount = self.mountpoints[port].lstrip("/")
@@ -227,6 +246,14 @@ class HexpansionManagerApp(app.App):
         if self.autolaunch:
             self._launch_hexpansion_app(port)
 
+    def handle_hexpansion_app_start(self, event):
+        if event.port in self.hexpansion_apps:
+            self._launch_hexpansion_app(event.port)
+
+    def handle_hexpansion_app_stop(self, event):
+        if event.port in self.hexpansion_apps:
+            self._stop_hexpansion_app(event.port)
+
     async def handle_hexpansion_insertion(self, event):
         print(event)
         i2c = I2C(event.port)
@@ -298,6 +325,7 @@ class HexpansionManagerApp(app.App):
 
         if event.port in self.hexpansion_apps:
             self._stop_hexpansion_app(event.port)
+            eventbus.emit(HexpansionAppLauncherRemoveEvent(port=event.port))
 
         if event.port in self.hexpansion_headers:
             header = self.hexpansion_headers[event.port]
