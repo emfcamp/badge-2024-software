@@ -4,6 +4,9 @@ import time
 from system.eventbus import eventbus
 from system.scheduler.events import RequestForegroundPopEvent
 
+from system.scheduler.events import RequestStopAppEvent
+from system.patterndisplay.events import PatternEnable
+
 
 class App:
     def __init__(self):
@@ -51,3 +54,12 @@ class App:
 
     def minimise(self):
         eventbus.emit(RequestForegroundPopEvent(self))
+
+    def terminate(self, restore_pattern=True):
+        """Terminate the app with extreme prejudice."""
+        if restore_pattern:
+            print("Restoring pattern")
+            eventbus.emit(PatternEnable())
+
+        print(f"Terminating app {self.__class__.__qualname__}")
+        eventbus.emit(RequestStopAppEvent(self))
