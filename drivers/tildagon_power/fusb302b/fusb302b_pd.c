@@ -332,4 +332,3 @@ void fusbpd_dbl_prime( pd_state_t* state, uint8_t* data, uint8_t length )
     state->tx_buffer[ 11 + index ] = TX_ON;
     state->message_length =  12 + index ;
 }
-

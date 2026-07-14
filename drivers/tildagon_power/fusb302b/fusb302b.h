@@ -54,6 +54,12 @@ extern void fusb_set_cc( fusb_state_t* state, uint8_t cc_select );
  */
 extern void fusb_set_vcon(fusb_state_t* state, uint8_t cc_vcon );
 /**
+ * @brief turn on/off the pull downs on CC lines 
+ * @param state the port object
+ * @param pull bitfield of enables
+ */
+extern void fusb_set_pulldown(fusb_state_t* state, uint8_t pull );
+/**
  * @brief disable toggle
  * @param state the port object
  */
