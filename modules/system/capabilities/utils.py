@@ -203,6 +203,20 @@ def list_all_requirements():
     return result
 
 
+def get_manifest_from_compact_app_format(app_obj):
+    identifiers = getattr(app_obj, "CAP", [])
+    identifiers = [
+        identifier.replace(
+            "@", "https://tildagon.badge.emfcamp.org/capabilities/registry/"
+        )
+        for identifier in identifiers
+    ]
+    capabilities = [
+        {"capability": {"identifier": identifier}} for identifier in identifiers
+    ]
+    return {"metadata": {"providedCapabilities": capabilities}}
+
+
 def app_sort_key(app):
     try:
         return getattr(app, "priority", 1)

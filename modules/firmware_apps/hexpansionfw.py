@@ -30,8 +30,8 @@ from system.notification.events import ShowNotificationEvent
 DEFAULT_REPO = (
     "https://github.com/emfcamp/hexpansion-firmwares/releases/download/latest/"
 )
-_FIRMWARE_URL = "{base}/firmware_0x{vid:04X}_0x{pid:04X}.tar.gz"
-_HEADER_URL = "{base}/firmware_0x{vid:04X}_0x{pid:04X}.json"
+_FIRMWARE_URL = "{base}/firmware_0x{vid:04x}_0x{pid:04x}.tar.gz"
+_HEADER_URL = "{base}/firmware_0x{vid:04x}_0x{pid:04x}.json"
 _TMP_PATH = "/firmware_dl.tar.gz"
 
 
