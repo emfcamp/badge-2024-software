@@ -191,7 +191,10 @@ class SettingsApp(app.App):
                             return True
                         return False
 
-                    entry.button_handler = _button_event_pattern_toggle
+                    entry = layout.ButtonDisplay(
+                        "Next pattern", button_handler=_button_event_pattern_toggle
+                    )
+                    self.layout.items.append(entry)
 
                 if id == "pattern_brightness":
 
