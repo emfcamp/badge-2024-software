@@ -2,6 +2,10 @@ import asyncio
 
 from async_queue import Queue as AsyncQueue
 from perf_timer import PerfTimer
+from system.scheduler.events import RequestStopAppEvent
+from system.notification.events import ShowNotificationEvent
+
+import sys
 
 
 class _EventBus:
@@ -78,13 +82,24 @@ class _EventBus:
             # we must avoid RuntimeError due to dictionary edits.
             with PerfTimer("Synchronous event handlers"):
                 for app in tuple(self.handlers.keys()):
-                    if getattr(app, "_focused", False) or not requires_focus:
-                        for event_type in tuple(self.handlers[app]):
-                            if isinstance(event, event_type):
-                                for handler in tuple(self.handlers[app][event_type]):
-                                    handler(event)
+                    try:
+                        if getattr(app, "_focused", False) or not requires_focus:
+                            for event_type in tuple(self.handlers[app]):
+                                if isinstance(event, event_type):
+                                    for handler in tuple(
+                                        self.handlers[app][event_type]
+                                    ):
+                                        handler(event)
+                    except Exception as e:
+                        sys.print_exception(e, sys.stderr)
+                        eventbus.emit(RequestStopAppEvent(app=app))
+                        eventbus.emit(
+                            ShowNotificationEvent(
+                                message=f"{app.__class__.__name__} has crashed"
+                            )
+                        )
 
-            async_tasks = []
+            async_tasks = {}
             with PerfTimer("Asynchronous event handlers"):
                 for app in tuple(self.async_handlers.keys()):
                     if getattr(app, "_focused", False) or not requires_focus:
@@ -93,14 +108,24 @@ class _EventBus:
                                 for handler in tuple(
                                     self.async_handlers[app][event_type]
                                 ):
-                                    async_tasks.append(
+                                    if app not in async_tasks:
+                                        async_tasks[app] = []
+                                    async_tasks[app].append(
                                         asyncio.create_task(handler(event))
                                     )
 
-            if async_tasks:
-                await asyncio.gather(*async_tasks)
-            else:
-                await asyncio.sleep(0)
+            for app_tasks in async_tasks.items():
+                (app, tasks) = app_tasks
+                try:
+                    await asyncio.gather(*tasks)
+                except Exception as e:
+                    sys.print_exception(e, sys.stderr)
+                    eventbus.emit(RequestStopAppEvent(app=app))
+                    eventbus.emit(
+                        ShowNotificationEvent(
+                            message=f"{app.__class__.__name__} has crashed"
+                        )
+                    )
 
 
 eventbus = _EventBus()

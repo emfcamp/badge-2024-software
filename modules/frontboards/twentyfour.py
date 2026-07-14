@@ -8,6 +8,7 @@ from tildagon import ePin
 from . import FrontBoard
 from system.hexpansion.events import HexpansionInsertionEvent, HexpansionRemovalEvent
 import time
+from frontboards.common import FRONTBOARD_BUTTON_TYPES
 
 try:
     from _sim import _sim
@@ -18,12 +19,24 @@ except ImportError:
 
 
 BUTTONS = {
-    "A": Button("A", "TwentyTwentyFour", BUTTON_TYPES["UP"]),
-    "B": Button("B", "TwentyTwentyFour", BUTTON_TYPES["RIGHT"]),
-    "C": Button("C", "TwentyTwentyFour", BUTTON_TYPES["CONFIRM"]),
-    "D": Button("D", "TwentyTwentyFour", BUTTON_TYPES["DOWN"]),
-    "E": Button("E", "TwentyTwentyFour", BUTTON_TYPES["LEFT"]),
-    "F": Button("F", "TwentyTwentyFour", BUTTON_TYPES["CANCEL"]),
+    "A": Button(
+        "A", "TwentyTwentyFour", [BUTTON_TYPES["UP"], FRONTBOARD_BUTTON_TYPES["A"]]
+    ),
+    "B": Button(
+        "B", "TwentyTwentyFour", [BUTTON_TYPES["RIGHT"], FRONTBOARD_BUTTON_TYPES["B"]]
+    ),
+    "C": Button(
+        "C", "TwentyTwentyFour", [BUTTON_TYPES["CONFIRM"], FRONTBOARD_BUTTON_TYPES["C"]]
+    ),
+    "D": Button(
+        "D", "TwentyTwentyFour", [BUTTON_TYPES["DOWN"], FRONTBOARD_BUTTON_TYPES["D"]]
+    ),
+    "E": Button(
+        "E", "TwentyTwentyFour", [BUTTON_TYPES["LEFT"], FRONTBOARD_BUTTON_TYPES["E"]]
+    ),
+    "F": Button(
+        "F", "TwentyTwentyFour", [BUTTON_TYPES["CANCEL"], FRONTBOARD_BUTTON_TYPES["F"]]
+    ),
 }
 
 
@@ -51,6 +64,10 @@ def buttonup(epin):
             TwentyTwentyFour.button_states[key][1] = 0
 
 
+def scale_color(c):
+    return (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0)
+
+
 class TwentyTwentyFour(FrontBoard):
     BUTTON_PINS = {
         BUTTONS["A"]: (2, 6),
@@ -65,6 +82,37 @@ class TwentyTwentyFour(FrontBoard):
     hexpansion_states = {1: None, 2: None, 3: None, 4: None, 5: None, 6: None}
     year = 2024
     num_pattern_leds = 12
+
+    colors = {
+        "pale_green": (175, 201, 68),
+        "mid_green": (82, 131, 41),
+        "dark_green": (33, 48, 24),
+        "yellow": (249, 226, 0),
+        "orange": (246, 127, 2),
+        "pink": (245, 80, 137),
+        "blue": (46, 173, 217),
+        "black": (0, 0, 0),
+        "white": (255, 255, 255),
+    }
+
+    colors = {
+        name: (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0) for (name, c) in colors.items()
+    }
+
+    ui_colors = {
+        "background": colors["dark_green"],
+        "label": colors["white"],
+        "header": colors["white"],
+        "menu_item": colors["white"],
+        "active_menu_item": colors["white"],
+        "button_background": colors["pale_green"],
+        "button_radius": 30,
+        "button_text": colors["black"],
+        "active_button_background": colors["yellow"],
+        "active_button_text": colors["black"],
+        "notification": colors["pale_green"],
+        "notification_text": colors["black"],
+    }
 
     async def background_task(self):
         global sim

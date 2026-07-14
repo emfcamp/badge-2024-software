@@ -120,6 +120,11 @@ class Menu:
         )
 
     def _calculate_max_focussed_font_size(self, item, ctx):
+        if not isinstance(item, str):
+            print(
+                f"[Menu] ERROR: menu item is not a string! type={type(item).__name__} value={item!r}"
+            )
+            return self.focused_item_font_size
         ctx.save()
         ctx.font_size = self.focused_item_font_size
         width = ctx.text_width(item)
@@ -143,10 +148,19 @@ class Menu:
         else:
             # calculate biggest font size a menu item should grow to
             if not self.focused_item_font_size_arr:
-                self.focused_item_font_size_arr = [
-                    self._calculate_max_focussed_font_size(item, ctx)
-                    for item in self.menu_items
-                ]
+                try:
+                    self.focused_item_font_size_arr = [
+                        self._calculate_max_focussed_font_size(item, ctx)
+                        for item in self.menu_items
+                    ]
+                except Exception as e:
+                    print(f"[Menu] ERROR in font_size calc: {e}")
+                    print(f"[Menu] menu_items: {self.menu_items!r}")
+                    for i, item in enumerate(self.menu_items):
+                        print(
+                            f"[Menu]   [{i}] type={type(item).__name__} value={item!r}"
+                        )
+                    raise
 
             if self.is_animating == "none":
                 animation_progress = 1.0
@@ -161,11 +175,15 @@ class Menu:
             ctx.text_align = ctx.CENTER
             ctx.text_baseline = ctx.MIDDLE
 
-            set_color(ctx, "label")
+            set_color(ctx, "menu_item")
             num_menu_items = len(self.menu_items)
             pos = self.position % num_menu_items if num_menu_items > 0 else 0
 
             # Current menu item
+            ctx.save()
+
+            # ctx.translate(0, y_offset)
+            set_color(ctx, "active_menu_item")
             ctx.font_size = self.item_font_size + animation_progress * (
                 self.focused_item_font_size_arr[pos] - self.item_font_size
             )
@@ -173,8 +191,10 @@ class Menu:
             ctx.move_to(0, y_offset).text(label)
             if ctx.a11y:
                 ctx.a11y.add_alt(self, label)
+            ctx.restore()
 
             # Previous menu items
+            set_color(ctx, "menu_item")
             ctx.font_size = self.item_font_size
             for i in range(1, 3):
                 if (self.position - i) >= 0 and num_menu_items:
