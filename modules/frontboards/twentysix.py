@@ -76,45 +76,19 @@ PROX = {
 }
 
 TOUCH = {
-    "TOUCH1": Button("TOUCH1", "TwentyTwentySix"),
-    "TOUCH2": Button("TOUCH2", "TwentyTwentySix"),
-    "TOUCH3": Button("TOUCH3", "TwentyTwentySix"),
-    "TOUCH4": Button("TOUCH4", "TwentyTwentySix"),
-    "TOUCH5": Button("TOUCH5", "TwentyTwentySix"),
-    "TOUCH6": Button("TOUCH6", "TwentyTwentySix"),
-    "TOUCH7": Button("TOUCH7", "TwentyTwentySix"),
-    "TOUCH8": Button("TOUCH8", "TwentyTwentySix"),
-    "TOUCH9": Button("TOUCH9", "TwentyTwentySix"),
+    "TOUCH01": Button("TOUCH01", "TwentyTwentySix"),
+    "TOUCH02": Button("TOUCH02", "TwentyTwentySix"),
+    "TOUCH03": Button("TOUCH03", "TwentyTwentySix"),
+    "TOUCH04": Button("TOUCH04", "TwentyTwentySix"),
+    "TOUCH05": Button("TOUCH05", "TwentyTwentySix"),
+    "TOUCH06": Button("TOUCH06", "TwentyTwentySix"),
+    "TOUCH07": Button("TOUCH07", "TwentyTwentySix"),
+    "TOUCH08": Button("TOUCH08", "TwentyTwentySix"),
+    "TOUCH09": Button("TOUCH09", "TwentyTwentySix"),
     "TOUCH10": Button("TOUCH10", "TwentyTwentySix"),
     "TOUCH11": Button("TOUCH11", "TwentyTwentySix"),
     "TOUCH12": Button("TOUCH12", "TwentyTwentySix"),
 }
-
-
-def buttondown(epin):
-    booped = not machine.Pin(0, mode=machine.Pin.IN).value()
-    hexindex = 1
-    for key in TwentyTwentySix.pin_assignment.keys():
-        if TwentyTwentySix.pin_assignment[key] is epin:
-            if booped:
-                now = time.ticks_ms()
-                if TwentyTwentySix.hexpansion_states[hexindex] is None:
-                    TwentyTwentySix.hexpansion_states[hexindex] = now
-                    eventbus.emit(HexpansionInsertionEvent(port=hexindex))
-                hexindex += 1
-            else:
-                eventbus.emit(ButtonDownEvent(button=BUTTONS[key]))
-                TwentyTwentySix.button_states[key][0] = True
-                print(f"{key} down")
-
-
-def buttonup(epin):
-    for key in TwentyTwentySix.pin_assignment.keys():
-        if TwentyTwentySix.pin_assignment[key] is epin:
-            eventbus.emit(ButtonUpEvent(button=BUTTONS[key]))
-            TwentyTwentySix.button_states[key][0] = False
-            TwentyTwentySix.button_states[key][1] = 0
-            print(f"{key} up")
 
 
 def joy_down(epin):
@@ -122,7 +96,6 @@ def joy_down(epin):
         if TwentyTwentySix.joy_assignment[key] is epin:
             eventbus.emit(ButtonDownEvent(button=JOYSTICK[key]))
             TwentyTwentySix.joystick_states[key][0] = True
-            print(f"{key} down")
 
 
 def joy_up(epin):
@@ -131,21 +104,18 @@ def joy_up(epin):
             eventbus.emit(ButtonUpEvent(button=JOYSTICK[key]))
             TwentyTwentySix.joystick_states[key][0] = False
             TwentyTwentySix.joystick_states[key][1] = 0
-            print(f"{key} up")
 
 
 def prox_down(prox):
     for key in TwentyTwentySix.PROX_INPUTS.keys():
         if TwentyTwentySix.PROX_INPUTS[key] is prox:
             eventbus.emit(ButtonDownEvent(button=PROX[key]))
-            print(f"{key} down")
 
 
 def prox_up(prox):
     for key in TwentyTwentySix.PROX_INPUTS.keys():
         if TwentyTwentySix.PROX_INPUTS[key] is prox:
             eventbus.emit(ButtonUpEvent(button=PROX[key]))
-            print(f"{key} up")
 
 
 def touch_down(touch):
@@ -153,14 +123,12 @@ def touch_down(touch):
         if TwentyTwentySix.TOUCH_INPUTS[key] is touch:
             eventbus.emit(ButtonDownEvent(button=TOUCH[key]))
             TwentyTwentySix.touch_states[key][0] = True
-            print(f"{key} down")
 
 
 def touch_up(touch):
     for key in TwentyTwentySix.TOUCH_INPUTS.keys():
         if TwentyTwentySix.TOUCH_INPUTS[key] is touch:
             eventbus.emit(ButtonUpEvent(button=TOUCH[key]))
-            print(f"{key} up")
             TwentyTwentySix.touch_states[key][0] = False
             TwentyTwentySix.touch_states[key][1] = 0
 
@@ -186,15 +154,15 @@ class TwentyTwentySix(FrontBoard):
         "RIGHTPROX": frontboard2026.PROX2,
     }
     TOUCH_INPUTS = {
-        "TOUCH1": frontboard2026.TOUCH1,
-        "TOUCH2": frontboard2026.TOUCH2,
-        "TOUCH3": frontboard2026.TOUCH3,
-        "TOUCH4": frontboard2026.TOUCH4,
-        "TOUCH5": frontboard2026.TOUCH5,
-        "TOUCH6": frontboard2026.TOUCH6,
-        "TOUCH7": frontboard2026.TOUCH7,
-        "TOUCH8": frontboard2026.TOUCH8,
-        "TOUCH9": frontboard2026.TOUCH9,
+        "TOUCH01": frontboard2026.TOUCH01,
+        "TOUCH02": frontboard2026.TOUCH02,
+        "TOUCH03": frontboard2026.TOUCH03,
+        "TOUCH04": frontboard2026.TOUCH04,
+        "TOUCH05": frontboard2026.TOUCH05,
+        "TOUCH06": frontboard2026.TOUCH06,
+        "TOUCH07": frontboard2026.TOUCH07,
+        "TOUCH08": frontboard2026.TOUCH08,
+        "TOUCH09": frontboard2026.TOUCH09,
         "TOUCH10": frontboard2026.TOUCH10,
         "TOUCH11": frontboard2026.TOUCH11,
         "TOUCH12": frontboard2026.TOUCH12,
@@ -283,13 +251,6 @@ class TwentyTwentySix(FrontBoard):
         for key in TwentyTwentySix.pin_assignment:
             gpio = self.BUTTON_PINS[BUTTONS[key]]
             TwentyTwentySix.pin_assignment[key] = ePin(gpio)
-            if not sim:
-                TwentyTwentySix.pin_assignment[key].irq(
-                    handler=buttondown, trigger=ePin.IRQ_FALLING
-                )
-                TwentyTwentySix.pin_assignment[key].irq(
-                    handler=buttonup, trigger=ePin.IRQ_RISING
-                )
         for key in TwentyTwentySix.PROX_INPUTS:
             if not sim:
                 frontboard2026.set_cb(
@@ -315,19 +276,24 @@ class TwentyTwentySix(FrontBoard):
                     frontboard2026.IRQ_FALLING,
                 )
 
+        self.run_time = 0
         while True:
-            frontboard2026.run()
+            now = time.ticks_ms()
+            if time.ticks_diff(now, self.run_time) > 150:
+                frontboard2026.run()
+                self.run_time = now
+
             booped = not machine.Pin(0, mode=machine.Pin.IN).value()
             if booped:
-                now = time.ticks_ms()
                 for i, gpio in enumerate(
-                    map(
-                        lambda i: self.BUTTON_PINS[BUTTONS[i]],
-                        ["A", "B", "C", "D", "E", "CANCEL"],
-                    )
+                    map(lambda i: self.BUTTON_PINS[BUTTONS[i]], "ABCDEF")
                 ):
                     state = TwentyTwentySix.hexpansion_states[i + 1]
-                    if state and time.ticks_diff(now, state) > 4000:
+                    button_down = not ePin(gpio).value()
+                    if button_down and state is None:
+                        TwentyTwentySix.hexpansion_states[i + 1] = now
+                        await eventbus.emit_async(HexpansionInsertionEvent(port=i + 1))
+                    elif state and time.ticks_diff(now, state) > 4000:
                         TwentyTwentySix.hexpansion_states[i + 1] = None
                         await eventbus.emit_async(HexpansionRemovalEvent(port=i + 1))
             else:
@@ -344,21 +310,46 @@ class TwentyTwentySix(FrontBoard):
                             )
                         TwentyTwentySix.button_states[key][0] = button_down
                 else:
-                    for key in TwentyTwentySix.button_states.keys():
-                        if TwentyTwentySix.button_states[key][0]:
-                            if TwentyTwentySix.button_states[key][1] > 4:
+                    for key in TwentyTwentySix.pin_assignment.keys():
+                        button_down = not TwentyTwentySix.pin_assignment[key].value()
+                        if button_down and not TwentyTwentySix.button_states[key][0]:
+                            await eventbus.emit_async(
+                                ButtonDownEvent(button=BUTTONS[key])
+                            )
+                            TwentyTwentySix.button_states[key][1] = now
+                        elif button_down:
+                            if (
+                                time.ticks_diff(
+                                    now, TwentyTwentySix.button_states[key][1]
+                                )
+                                > 200
+                            ):
                                 await eventbus.emit_async(
                                     ButtonDownEvent(button=BUTTONS[key])
                                 )
-                            else:
-                                TwentyTwentySix.button_states[key][1] += 1
+                                TwentyTwentySix.button_states[key][1] = now
+                        if not button_down and TwentyTwentySix.button_states[key][0]:
+                            await eventbus.emit_async(
+                                ButtonUpEvent(button=BUTTONS[key])
+                            )
+                        TwentyTwentySix.button_states[key][0] = button_down
+
                     for key in TwentyTwentySix.joystick_states.keys():
-                        if TwentyTwentySix.joystick_states[key][0]:
-                            if TwentyTwentySix.joystick_states[key][1] > 4:
+                        if (
+                            TwentyTwentySix.joystick_states[key][0]
+                            and not TwentyTwentySix.joystick_states[key][1]
+                        ):
+                            TwentyTwentySix.joystick_states[key][1] = now
+                        elif TwentyTwentySix.joystick_states[key][0]:
+                            if (
+                                time.ticks_diff(
+                                    now, TwentyTwentySix.joystick_states[key][1]
+                                )
+                                > 200
+                            ):
                                 await eventbus.emit_async(
                                     ButtonDownEvent(button=JOYSTICK[key])
                                 )
-                            else:
-                                TwentyTwentySix.joystick_states[key][1] += 1
+                                TwentyTwentySix.joystick_states[key][1] = now
 
-            await asyncio.sleep(0.15)
+            await asyncio.sleep(0.01)

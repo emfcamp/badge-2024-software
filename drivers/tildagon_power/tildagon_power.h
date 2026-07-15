@@ -40,6 +40,7 @@ extern pd_machine_state_t device_pd_state;
 extern pd_machine_state_t host_pd_state;
 extern bool badge_as_device;
 extern bool badge_as_host;
+extern uint8_t tildagon_message[20];
 /**
  * @brief initialise the badge power management task
  */

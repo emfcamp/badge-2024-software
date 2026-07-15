@@ -2,14 +2,16 @@ import settings
 import app
 import os
 import time
+import ota
 from app_components import layout, TextDialog
 from events.input import BUTTON_TYPES, ButtonDownEvent
 from system.eventbus import eventbus
 from system.patterndisplay.events import PatternReload
 from app_components.background import Background as bg
-from system.launcher.app import load_info
+from system.launcher.utils import load_info
 from system.scheduler.events import RequestForegroundPushEvent
 from app_components.tokens import MENU_HIGHLIGHT_COLOR_NAMES
+from system.notification.events import ShowNotificationEvent
 
 BG_DIR = "/backgrounds"
 PAT_DIR = "/pattern"
@@ -20,6 +22,10 @@ def string_formatter(value):
         return "Default"
     else:
         return str(value)
+
+
+def version_formatter(value):
+    return ota.get_version()
 
 
 def masked_string_formatter(value):
@@ -78,6 +84,7 @@ class SettingsApp(app.App):
         self.dialog = None
         self.load_alt_app_options()
         self.ctx = None
+        self.devmode = 0
         eventbus.on_async(ButtonDownEvent, self._button_handler, self)
         eventbus.on(RequestForegroundPushEvent, self.load_alt_app_options, self)
 
@@ -113,6 +120,14 @@ class SettingsApp(app.App):
     async def string_editor(self, label, id, render_update):
         self.dialog = TextDialog(label, self)
         self.dialog._settings_id = id
+
+    async def dev_mode(self, label, id, render_update):
+        self.devmode += 1
+        if self.devmode == 5:
+            settings.set("developer", True)
+            eventbus.emit(ShowNotificationEvent(message="You are now a developer"))
+        else:
+            eventbus.emit(ShowNotificationEvent(message=f"{5 - self.devmode}"))
 
     async def masked_string_editor(self, label, id, render_update):
         self.dialog = TextDialog(label, self, masked=True)
@@ -186,7 +201,10 @@ class SettingsApp(app.App):
                             return True
                         return False
 
-                    entry.button_handler = _button_event_pattern_toggle
+                    entry = layout.ButtonDisplay(
+                        "Next pattern", button_handler=_button_event_pattern_toggle
+                    )
+                    self.layout.items.append(entry)
 
                 if id == "pattern_brightness":
 
@@ -228,6 +246,25 @@ class SettingsApp(app.App):
 
                     entry = layout.ButtonDisplay(
                         "Toggle", button_handler=_button_event_mirror_toggle
+                    )
+                    self.layout.items.append(entry)
+
+                if id == "backleds_emotes":
+
+                    async def _button_event_backleds_emotes_toggle(event):
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            backleds_emotes = settings.get("backleds_emotes", True)
+
+                            backleds_emotes = not backleds_emotes
+
+                            settings.set("backleds_emotes", backleds_emotes)
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry = layout.ButtonDisplay(
+                        "Toggle", button_handler=_button_event_backleds_emotes_toggle
                     )
                     self.layout.items.append(entry)
 
@@ -337,8 +374,10 @@ class SettingsApp(app.App):
             ("pattern", "LED Pattern", tuple_formatter, None),
             ("pattern_brightness", "Pattern brightness", pct_formatter, None),
             ("pattern_mirror_hexpansions", "Mirror pattern", on_off_formatter, None),
+            ("backleds_emotes", "Flash emotes on backleds", on_off_formatter, None),
             ("background", "Background", tuple_formatter, None),
             ("menu_highlight_color", "Menu highlight", menu_highlight_formatter, None),
+            ("version", "Software version", version_formatter, self.dev_mode),
             ("update_channel", "Update channel", string_formatter, None),
             ("wifi_tx_power", "WiFi TX power", string_formatter, None),
             (

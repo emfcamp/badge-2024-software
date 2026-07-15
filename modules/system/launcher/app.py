@@ -1,37 +1,31 @@
-import json
 import os
 import sys
 
 from app import App
 from app_components import clear_background
 from app_components.menu import Menu
-from perf_timer import PerfTimer
 from system.eventbus import eventbus
-from events import Event
+from events.emote import EmoteNegativeEvent
 from system.scheduler.events import (
     RequestForegroundPushEvent,
     RequestStartAppEvent,
     RequestStopAppEvent,
 )
+from system.hexpansion.events import (
+    HexpansionAppLauncherAddEvent,
+    HexpansionAppLauncherRemoveEvent,
+    HexpansionAppRequestStartEvent,
+)
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
-
-APP_DIR = ["/apps"]
-APP_INSTALL_DIR = "/apps"
-
-
-class InstallNotificationEvent(Event):
-    pass
-
-
-class AppDirAddedNotificationEvent(Event):
-    def __init__(self, path):
-        self.path = path
-
-
-class AppDirRemovedNotificationEvent(Event):
-    def __init__(self, path):
-        self.path = path
+import settings
+from app_components.tokens import symbols
+from .events import (
+    InstallNotificationEvent,
+    AppDirAddedNotificationEvent,
+    AppDirRemovedNotificationEvent,
+)
+from .utils import APP_DIR, list_user_apps
 
 
 def path_isdir(path):
@@ -52,56 +46,19 @@ def recursive_delete(path):
     os.rmdir(path)
 
 
-def load_info(folder, name):
-    try:
-        info_file = "{}/{}/metadata.json".format(folder, name)
-        with open(info_file) as f:
-            information = f.read()
-        return json.loads(information)
-    except BaseException:
-        return {}
-
-
-def list_user_apps():
-    with PerfTimer("List user apps"):
-        apps = []
-        contents = []
-        for d in APP_DIR:
-            try:
-                contents.extend([(d, x) for x in os.listdir(d)])
-            except (OSError, UnicodeError):
-                # directory or mount point don't exist
-                pass
-
-        for dirname, name in contents:
-            path = dirname
-            for p in sys.path:
-                if p and dirname.startswith(p):
-                    path = dirname[len(p) :]
-                    break
-            path = ".".join(path.lstrip("/").split("/"))
-            app = {
-                "path": f"{path}.{name}.app",
-                "callable": "__app_export__",
-                "name": name,
-                "folder": name,
-                "hidden": False,
-            }
-            metadata = load_info(dirname, name)
-            if "version" not in metadata:
-                app["version"] = "0.0.0"
-            app.update(metadata)
-            if not app["hidden"]:
-                apps.append(app)
-        return apps
-
-
 class Launcher(App):
     def __init__(self):
         self.menu = None
+        self.hexpansion_apps = []
         self.update_menu()
         self._apps = {}
         eventbus.on_async(RequestStopAppEvent, self._handle_stop_app, self)
+        eventbus.on_async(
+            HexpansionAppLauncherAddEvent, self._handle_hexpansion_app_add, self
+        )
+        eventbus.on_async(
+            HexpansionAppLauncherRemoveEvent, self._handle_hexpansion_app_remove, self
+        )
         eventbus.on_async(
             InstallNotificationEvent, self._handle_refresh_notifications, self
         )
@@ -133,10 +90,46 @@ class Launcher(App):
                 self._apps[key] = None
                 print(f"Removing launcher cache for {key}")
 
+    async def _handle_hexpansion_app_add(self, event: HexpansionAppLauncherAddEvent):
+        # Handle a hexpansion EEPROM app requesting to be added to the launcher
+        print(
+            f"Adding hexpansion on port {event.port} with name {event.name} to launcher"
+        )
+
+        for app in self.hexpansion_apps:
+            if app["callable"] == "hexpansion_app":
+                if (
+                    app["port"] == event.port
+                ):  # A hexpansion for this port already has an app in the list, so remove it and re-launch
+                    print(
+                        f"Hexpansion app for port {event.port} already in launcher list, removing and re-adding"
+                    )
+                    self.hexpansion_apps.remove(app)
+
+        self.hexpansion_apps.append(
+            {
+                "port": event.port,
+                "callable": "hexpansion_app",
+                "name": f"{chr(0x2B23)}{event.port} {event.name}",  # Prepend hexpansion symbol and slot number to app name, requires EMFCampFont.h
+            }
+        )
+        self.hexpansion_apps.sort(key=lambda a: a["port"])
+        self.update_menu()
+
+    async def _handle_hexpansion_app_remove(
+        self, event: HexpansionAppLauncherRemoveEvent
+    ):
+        # Handle a hexpansion EEPROM app requesting to be added to the launcher
+        print(f"Removing hexpansion on port {event.port} from launcher")
+
+        for app in self.hexpansion_apps:
+            if app["port"] == event.port:
+                self.hexpansion_apps.remove(app)
+                self.update_menu()
+
     def list_core_apps(self):
         core_app_info = [
             ("App store", "firmware_apps.app_store", "AppStoreApp"),
-            ("Sponsors", "firmware_apps.sponsors", "Sponsors"),
             # ("Name Badge", "hello", "Hello"),
             # ("Logo", "firmware_apps.intro_app", "IntroApp"),
             # ("Menu demo", "firmware_apps.menu_demo", "MenuDemo"),
@@ -153,7 +146,37 @@ class Launcher(App):
             ("Power Off", "firmware_apps.poweroff", "PowerOff"),
             ("Settings", "firmware_apps.settings_app", "SettingsApp"),
             # ("Settings", "settings_app", "SettingsApp"),
+            # ("ESPNow ping", "firmware_apps.espnow_ping", "ESPNowPing"),
         ]
+        if settings.get("developer", False):
+            core_app_info += [
+                (
+                    f"{symbols['shark']} BoopSpinner",
+                    "system.boopscreen.app",
+                    "BoopSpinner",
+                ),
+                (
+                    f"{symbols['shark']} Menu demo",
+                    "firmware_apps.menu_demo",
+                    "MenuDemo",
+                ),
+                (
+                    f"{symbols['shark']} Text demo",
+                    "firmware_apps.text_demo",
+                    "TextDemo",
+                ),
+                (
+                    f"{symbols['shark']} Inhibit LEDs",
+                    "firmware_apps.patterninhibit",
+                    "PatternInhibit",
+                ),
+                (
+                    f"{symbols['shark']} ESPNow ping",
+                    "firmware_apps.espnow_ping",
+                    "ESPNowPing",
+                ),
+            ]
+
         core_apps = []
         for core_app in core_app_info:
             core_apps.append(
@@ -166,7 +189,9 @@ class Launcher(App):
         return core_apps
 
     def update_menu(self):
-        self.menu_items = self.list_core_apps() + list_user_apps()
+        self.menu_items = (
+            self.list_core_apps() + list_user_apps() + self.hexpansion_apps
+        )
         if self.menu:
             self.menu._cleanup()
         self.menu = Menu(
@@ -177,30 +202,35 @@ class Launcher(App):
         )
 
     def launch(self, item):
-        module_name = item["path"]
-        fn = item["callable"]
-        app_id = f"{module_name}.{fn}"
-        app = self._apps.get(app_id)
-        print(self._apps)
-        if app is None:
-            print(f"Creating app {app_id}...")
-            try:
-                module = __import__(module_name, None, None, (fn,))
-                app = getattr(module, fn)()
-            except Exception as e:
-                print(f"Error creating app: {e}")
-                sys.print_exception(e, sys.stderr)
-                eventbus.emit(
-                    ShowNotificationEvent(message=f"{item['name']} has crashed")
-                )
-                return
-            self._apps[app_id] = app
-            eventbus.emit(RequestStartAppEvent(app, foreground=True))
+        if item["callable"] == "hexpansion_app":
+            # We have a hexpansion app that needs to be launched through the HexpansionManager
+            eventbus.emit(HexpansionAppRequestStartEvent(item["port"]))
         else:
-            eventbus.emit(RequestForegroundPushEvent(app))
-        # with open("/lastapplaunch.txt", "w") as f:
-        #    f.write(str(self.window.focus_idx()))
-        # eventbus.emit(RequestForegroundPopEvent(self))
+            module_name = item["path"]
+            fn = item["callable"]
+            app_id = f"{module_name}.{fn}"
+            app = self._apps.get(app_id)
+            print(self._apps)
+            if app is None:
+                print(f"Creating app {app_id}...")
+                try:
+                    module = __import__(module_name, None, None, (fn,))
+                    app = getattr(module, fn)()
+                except Exception as e:
+                    print(f"Error creating app: {e}")
+                    sys.print_exception(e, sys.stderr)
+                    eventbus.emit(
+                        ShowNotificationEvent(message=f"{item['name']} has crashed")
+                    )
+                    eventbus.emit(EmoteNegativeEvent())
+                    return
+                self._apps[app_id] = app
+                eventbus.emit(RequestStartAppEvent(app, foreground=True))
+            else:
+                eventbus.emit(RequestForegroundPushEvent(app))
+            # with open("/lastapplaunch.txt", "w") as f:
+            #    f.write(str(self.window.focus_idx()))
+            # eventbus.emit(RequestForegroundPopEvent(self))
 
     def select_handler(self, item, idx):
         for app in self.menu_items:
@@ -224,3 +254,37 @@ class Launcher(App):
     def update(self, delta):
         bg.update(delta)
         self.menu.update(delta)
+
+    async def background_task(self):
+        # oneshot at startup, not a loop like most apps backgroud_tasks
+
+        try:
+            with open("/autoexec.bat", "r") as f:
+                lines = f.readlines()
+                if len(lines) == 0:
+                    raise RuntimeError("autoexec.bat must name an app to launch")
+                app_subname = lines[0].strip()
+                found = False
+                for app in self.menu_items:
+                    if app["name"].find(app_subname) != -1:
+                        self.launch(app)
+                        found = True
+                        break
+                if not found:
+                    raise RuntimeError(f"No app named '{app_subname}'")
+
+        except Exception as e:
+            # don't log file-not-found as an error because that's the default
+            # for all badges.
+            if isinstance(e, OSError) and e.errno == 2:
+                pass
+            else:
+                # log exceptions but don't propagate - an autoexec failure
+                # shouldn't crash the launcher. Most badges will emit this message
+                # at startup.
+                print(f"autoexec.bat not processed fully: {type(e)} {e}")
+                eventbus.emit(
+                    ShowNotificationEvent(
+                        message=f"autoexec {symbols['bat_open']} failed. {e}"
+                    )
+                )

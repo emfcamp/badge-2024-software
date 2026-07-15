@@ -23,12 +23,16 @@ class PatternInhibit(app.App):
 
     def update(self, delta):
         if self.button_states.get(BUTTON_TYPES["CANCEL"]):
-            eventbus.emit(PatternDisable())
-            self._inhibiting = True
-            self._make_red()
+            self.button_states.clear()
+            self.minimise()
         elif self.button_states.get(BUTTON_TYPES["CONFIRM"]):
-            eventbus.emit(PatternEnable())
-            self._inhibiting = False
+            if self._inhibiting:
+                eventbus.emit(PatternEnable())
+                self._inhibiting = False
+            else:
+                eventbus.emit(PatternDisable())
+                self._inhibiting = True
+                self._make_red()
 
     def draw(self, ctx):
         ctx.save()

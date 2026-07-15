@@ -17,20 +17,35 @@ import machine
 from app_components import Menu, fourteen_pt, sixteen_pt, ten_pt, seven_pt
 from app_components.tokens import set_color
 from events.input import ButtonDownEvent
+from events.emote import EmoteNegativeEvent, EmotePositiveEvent
 from frontboards.common import FRONTBOARD_BUTTON_TYPES
 from requests import get
 from system.eventbus import eventbus
-from system.launcher.app import (
+from system.launcher.events import (
+    InstallNotificationEvent,
+)
+from system.launcher.utils import (
     APP_DIR,
     APP_INSTALL_DIR,
     load_info,
-    InstallNotificationEvent,
 )
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
 from firmware_apps.settings_app import BG_DIR, PAT_DIR
 from random import random, choice, randint
 from app_components.tokens import symbols
+
+
+def get_first_category(manifest):
+    """Extract the first category from an app manifest.
+
+    Categories can be a string or a list of strings. This always returns a
+    single string (the first element if it's a list).
+    """
+    category = manifest.get("category")
+    if isinstance(category, list):
+        return category[0] if category else None
+    return category
 
 
 def dir_exists(filename):
@@ -40,7 +55,7 @@ def dir_exists(filename):
         return False
 
 
-APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/demo_api/apps.json"
+APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/v1/apps"
 
 CODE_INSTALL = "Use Code"
 AVAILABLE = "Browse Apps"
@@ -151,7 +166,11 @@ class AppStoreApp(app.App):
         self.app_categories = []
 
         for item in self.app_store_index:
-            app_category = item["manifest"]["app"].get("category")
+            app_name = item.get("manifest", {}).get("app", {}).get("name", "<unknown>")
+            app_category = get_first_category(item["manifest"]["app"])
+            if app_category is None:
+                print(f"[AppStore] WARNING: app '{app_name}' has no category field!")
+                continue
             if app_category not in self.app_categories:
                 self.app_categories.append(app_category)
 
@@ -163,11 +182,13 @@ class AppStoreApp(app.App):
             self.update_state("main_menu")
             eventbus.emit(InstallNotificationEvent())
             eventbus.emit(ShowNotificationEvent("Installed the app!"))
+            eventbus.emit(EmotePositiveEvent())
         except MemoryError:
             self.update_state("install_oom")
         except Exception as e:
             print(e)
             eventbus.emit(ShowNotificationEvent("Couldn't install app"))
+            eventbus.emit(EmoteNegativeEvent())
             self.update_state("main_menu")
 
     def update_state(self, state):
@@ -208,7 +229,7 @@ class AppStoreApp(app.App):
             return [
                 app
                 for app in self.app_store_index
-                if app["manifest"]["app"].get("category") == self.category_filter
+                if get_first_category(app["manifest"]["app"]) == self.category_filter
             ]
 
         def on_select(_, i):
@@ -253,14 +274,15 @@ class AppStoreApp(app.App):
             elif value == REFRESH:
                 self.get_index()
 
+        menu_items = [AVAILABLE, CODE_INSTALL, UPDATE]
+        if len(list_all_apps()) > 0:
+            menu_items.append(
+                INSTALLED
+            )  # Only show uninstall option if there are installed apps (else a zero-length menu crashes)
+
         self.menu = Menu(
             self,
-            menu_items=[
-                AVAILABLE,
-                CODE_INSTALL,
-                UPDATE,
-                INSTALLED,
-            ],
+            menu_items=menu_items,
             select_handler=on_select,
             back_handler=on_cancel,
         )
@@ -531,6 +553,7 @@ class CodeInstall:
 
     def _handle_buttondown(self, event: ButtonDownEvent):
         kbd_button = event.button.find_parent_in_group("Keyboard")
+        original_id = self.id
 
         if FRONTBOARD_BUTTON_TYPES["A"] in event.button:
             self.id += "0"
@@ -546,6 +569,10 @@ class CodeInstall:
             self.id += "5"
         elif kbd_button is not None and kbd_button.name in "012345":
             self.id += kbd_button.name
+
+        if original_id == self.id:
+            # We did not handle this button event, so bail now
+            return
 
         self.active_button = int(self.id[-1])
         self.activation_counter = 3
@@ -652,9 +679,9 @@ def install_app(app):
 
         # TODO: Check we have enough storage in advance
         # TODO: Does the app already exist? Delete it
-        if app["manifest"]["app"].get("category") == "Background":
+        if get_first_category(app["manifest"]["app"]) == "Background":
             TARGET_DIR = "/backgrounds"
-        elif app["manifest"]["app"].get("category") == "Pattern":
+        elif get_first_category(app["manifest"]["app"]) == "Pattern":
             TARGET_DIR = "/pattern"
         else:
             TARGET_DIR = APP_INSTALL_DIR
@@ -667,6 +694,8 @@ def install_app(app):
         app_module_name = "_".join([app["id"]["owner"], app["id"]["title"]]).replace(
             "-", "_"
         )
+
+        has_tildagon_json = False
 
         t = TarFile(fileobj=tar_bytesio)
         for i in t:
@@ -688,11 +717,31 @@ def install_app(app):
                     filename = f"{TARGET_DIR}/{i.name}"
                     filename = filename.replace(prefix, app_module_name, 1)
                     print(f"Filename: {filename}")
+
+                    # Track whether the tarball includes a tildagon.json
+                    if i.name == f"{prefix}/tildagon.json":
+                        has_tildagon_json = True
+
                     f = t.extractfile(i)
                     if f:
                         with open(filename, "wb") as file:
                             while data := f.read():
                                 file.write(data)
+
+        # Remove tildagon.toml if it was in the tarball (not used)
+        toml_path = f"{TARGET_DIR}/{app_module_name}/tildagon.toml"
+        try:
+            os.remove(toml_path)
+            print(f"Removed unused {toml_path}")
+        except OSError:
+            pass
+
+        # Write the app store manifest as tildagon.json if the tarball didn't include one
+        if not has_tildagon_json:
+            tildagon_json_path = f"{TARGET_DIR}/{app_module_name}/tildagon.json"
+            print(f"Writing manifest to {tildagon_json_path}")
+            with open(tildagon_json_path, "w+") as f:
+                json.dump(app["manifest"], f)
 
         internal_manifest = {
             "name": app["manifest"]["app"]["name"],

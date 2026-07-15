@@ -1,9 +1,12 @@
+import asyncio
 from eeprom_i2c import EEPROM
 
 from eeprom_partition import EEPROMPartition
 from system.hexpansion.header import HexpansionHeader
 
 import typing
+
+handle_insertion_lock = asyncio.Lock()
 
 
 def detect_eeprom_addr(i2c):

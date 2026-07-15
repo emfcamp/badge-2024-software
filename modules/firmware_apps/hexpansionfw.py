@@ -24,14 +24,15 @@ from system.hexpansion.util import (
     detect_eeprom_addr,
     get_hexpansion_block_devices,
     read_hexpansion_header,
+    handle_insertion_lock,
 )
 from system.notification.events import ShowNotificationEvent
 
 DEFAULT_REPO = (
     "https://github.com/emfcamp/hexpansion-firmwares/releases/download/latest/"
 )
-_FIRMWARE_URL = "{base}/firmware_0x{vid:04X}_0x{pid:04X}.tar.gz"
-_HEADER_URL = "{base}/firmware_0x{vid:04X}_0x{pid:04X}.json"
+_FIRMWARE_URL = "{base}/firmware_0x{vid:04x}_0x{pid:04x}.tar.gz"
+_HEADER_URL = "{base}/firmware_0x{vid:04x}_0x{pid:04x}.json"
 _TMP_PATH = "/firmware_dl.tar.gz"
 
 
@@ -48,6 +49,7 @@ class HexpansionDetail:
 
     def _build_items(self):
         items = []
+        developer = settings.get("developer", False)
         for field, label, parse, fmt, empty, show_without_header in [
             ("friendly_name", "Name", str, str, "Unknown", False),
             ("vid", "VID", self._parse_hex, lambda v: f"0x{v:04X}", "N/A", True),
@@ -63,6 +65,7 @@ class HexpansionDetail:
                 and field in {"vid", "pid"}
                 or self.header is not None
                 and field == "unique_id"
+                and developer
             ):
                 items.append(
                     layout.ButtonDisplay(
@@ -80,16 +83,17 @@ class HexpansionDetail:
                     "Update firmware", button_handler=self.update_handler
                 )
             )
-            items.append(
-                layout.ButtonDisplay(
-                    "Factory reset", button_handler=self.factory_reset_handler
+            if developer:
+                items.append(
+                    layout.ButtonDisplay(
+                        "Factory reset", button_handler=self.factory_reset_handler
+                    )
                 )
-            )
-            items.append(
-                layout.ButtonDisplay(
-                    "Bulk provisioning", button_handler=self.bulk_provision_handler
+                items.append(
+                    layout.ButtonDisplay(
+                        "Bulk provisioning", button_handler=self.bulk_provision_handler
+                    )
                 )
-            )
         return items
 
     @staticmethod
@@ -171,8 +175,16 @@ class HexpansionDetail:
         try:
             os.stat(mountpoint)
         except OSError:
-            print(f"{mountpoint} is not mounted")
-            return
+            print(f"{mountpoint} is not mounted - storing to filesystem")
+            try:
+                os.mkdir("/drivers")
+            except OSError:
+                pass
+            mountpoint = f"/drivers/hex_{self.header.vid:04x}_{self.header.pid:04x}"
+            try:
+                os.mkdir(mountpoint)
+            except OSError:
+                pass
 
         url = _FIRMWARE_URL.format(
             base=settings.get("hexpansion_firmware_repo", DEFAULT_REPO),
@@ -189,9 +201,13 @@ class HexpansionDetail:
         with open(_TMP_PATH, "wb") as f:
             f.write(response.content)
 
-        self.dialog.message = "Writing EEPROM"
+        if mountpoint.startswith("/drivers"):
+            self.dialog.message = "Saving driver to flash"
+        else:
+            self.dialog.message = "Writing EEPROM"
+
         try:
-            progress
+            await progress()
             with open(_TMP_PATH, "rb") as f:
                 tar_bytes = await async_helpers.unblock(
                     gzip.decompress, progress, f.read()
@@ -242,6 +258,8 @@ class HexpansionDetail:
         i2c = I2C(port)
         await progress()
         addr, addr_len = detect_eeprom_addr(i2c)
+        if addr is None:
+            raise ValueError("No EEPROM detected")
         write_header(
             port,
             self.header,
@@ -276,7 +294,15 @@ class HexpansionDetail:
                 continue
             with open(f"{mountpoint}/{name}", "wb") as f:
                 f.write(archive_file.read())
+                f.flush()
                 await progress()
+        await progress()
+
+        header = read_hexpansion_header(i2c, addr, addr_len=addr_len)
+        if header != self.header:
+            print(header)
+            print(self.header)
+            raise ValueError("Header data mismatch")
 
     async def _factory_reset_wrapper(self):
         try:
@@ -325,17 +351,24 @@ class HexpansionDetail:
         return True
 
     async def _bulk_provision(self):
+        self.dialog = ProgressDialog("Downloading firmware", self.app)
+        progress = self.dialog.make_progress_handler(self.render_update)
+
         url = _FIRMWARE_URL.format(
             base=settings.get("hexpansion_firmware_repo", DEFAULT_REPO),
             vid=self.header.vid,
             pid=self.header.pid,
         )
         print(f"Downloading {url}")
-        response = await async_helpers.unblock(requests.get, self.render_update, url)
+        response = await async_helpers.unblock(requests.get, progress, url)
         with open(_TMP_PATH, "wb") as f:
             f.write(response.content)
+            f.flush()
 
-        eventbus.emit(ShowNotificationEvent(message="Bulk mode enabled"))
+        await handle_insertion_lock.acquire()
+
+        self.dialog.message = f"Ready\n{self.header.unique_id}"
+        await progress()
         eventbus.on_async(HexpansionInsertionEvent, self.bulk_insert, self.app)
 
     def _cleanup(self):
@@ -343,15 +376,27 @@ class HexpansionDetail:
 
     async def bulk_insert(self, event):
         self.header.unique_id += 1
-        print(f"Provisioning port {event.port} with unique_id {self.header.unique_id}")
+        self.dialog.message = f"Provisioning {self.header.unique_id}"
+        progress = self.dialog.make_progress_handler(self.render_update)
+
+        await progress()
+        print(f"Provisioning {event.port}\n{self.header.unique_id}")
+
         try:
-            await self._provision_port(event.port, self.render_update)
+            await self._provision_port(event.port, progress)
         except Exception:
-            eventbus.emit(ShowNotificationEvent(message="Failed to provision"))
+            self.header.unique_id -= 1
+            self.dialog.message = f"Provisioning {self.header.unique_id} failed"
         else:
-            eventbus.emit(
-                ShowNotificationEvent(message=f"Provisioned {self.header.unique_id}")
-            )
+            self.dialog.message = f"Ready\n{self.header.unique_id}"
+
+        handle_insertion_lock.release()
+        await progress()
+        await asyncio.sleep(0.1)
+        await progress()
+        await handle_insertion_lock.acquire()
+        await progress()
+
         self._layout = layout.LinearLayout(items=self._build_items())
 
     async def button_event(self, event):
