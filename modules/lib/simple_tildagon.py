@@ -152,7 +152,17 @@ class BadgeDisplay:
         clear_background(ctx)
         hw_display.end_frame(ctx)
 
-    def draw_text(self, text, delay=0, x=0, y=0, font_size=30, color=(255, 255, 255), clear_before=True, align_center=True):
+    def draw_text(
+        self,
+        text,
+        delay=0,
+        x=0,
+        y=0,
+        font_size=30,
+        color=(255, 255, 255),
+        clear_before=True,
+        align_center=True,
+    ):
         # Draw text in the middle of the screen
 
         # Needed as first text write always fails (draws only first letter) for an unknown reason
@@ -160,7 +170,15 @@ class BadgeDisplay:
             ctx = hw_display.get_ctx()
             if clear_before:
                 clear_background(ctx)
-            Image.text(ctx, text, x=x, y=y, font_size=font_size, color=color, align_center=align_center)
+            Image.text(
+                ctx,
+                text,
+                x=x,
+                y=y,
+                font_size=font_size,
+                color=color,
+                align_center=align_center,
+            )
             hw_display.end_frame(ctx)
         if delay:
             time.sleep(delay)
@@ -184,7 +202,7 @@ class Image:
         eye_y = -size * 0.15
         ctx.rgb(*eye_color).arc(-eye_x, eye_y, eye_r, 0, 2 * math.pi, False).fill()
         ctx.rgb(*eye_color).arc(eye_x, eye_y, eye_r, 0, 2 * math.pi, False).fill()
-    
+
     @staticmethod
     def _arrow(ctx, size=140):
         # Draw the shaft
@@ -204,7 +222,9 @@ class Image:
         ctx.fill()
 
     @staticmethod
-    def text(ctx, text, x=0, y=0, font_size=30, color=(255, 255, 255), align_center=True):
+    def text(
+        ctx, text, x=0, y=0, font_size=30, color=(255, 255, 255), align_center=True
+    ):
         ctx.save()
         ctx.font = ctx.get_font_name(0)  # Select a real embedded font
         ctx.font_size = font_size
@@ -221,14 +241,38 @@ class Image:
         ctx.restore()
 
     @staticmethod
-    def HAPPY(ctx, x=0, y=0, size=160, face_color=(1, 1, 0), eye_color=(0, 0, 0), mouth_color=(0, 0, 0)):
-        Image._face_base(ctx, x=x, y=y, size=size, face_color=face_color, eye_color=eye_color)
-        ctx.rgb(*mouth_color).arc(0, size * 0.08, size * 0.35, 0.2 * math.pi, 0.8 * math.pi, False).fill()
+    def HAPPY(
+        ctx,
+        x=0,
+        y=0,
+        size=160,
+        face_color=(1, 1, 0),
+        eye_color=(0, 0, 0),
+        mouth_color=(0, 0, 0),
+    ):
+        Image._face_base(
+            ctx, x=x, y=y, size=size, face_color=face_color, eye_color=eye_color
+        )
+        ctx.rgb(*mouth_color).arc(
+            0, size * 0.08, size * 0.35, 0.2 * math.pi, 0.8 * math.pi, False
+        ).fill()
 
     @staticmethod
-    def SAD(ctx, x=0, y=0, size=160, face_color=(1, 1, 0), eye_color=(0, 0, 0), mouth_color=(0, 0, 0)):
-        Image._face_base(ctx, x=x, y=y, size=size, face_color=face_color, eye_color=eye_color)
-        ctx.rgb(*mouth_color).arc(0, size * 0.25, size * 0.35, 1.2 * math.pi, 1.8 * math.pi, False).fill()
+    def SAD(
+        ctx,
+        x=0,
+        y=0,
+        size=160,
+        face_color=(1, 1, 0),
+        eye_color=(0, 0, 0),
+        mouth_color=(0, 0, 0),
+    ):
+        Image._face_base(
+            ctx, x=x, y=y, size=size, face_color=face_color, eye_color=eye_color
+        )
+        ctx.rgb(*mouth_color).arc(
+            0, size * 0.25, size * 0.35, 1.2 * math.pi, 1.8 * math.pi, False
+        ).fill()
 
     @staticmethod
     def HEART(ctx):
@@ -269,7 +313,6 @@ class Image:
         Image._arrow(ctx, size)
         ctx.restore()
 
-
     @staticmethod
     def ARROW_S(ctx, size=140):
         ctx.save()
@@ -277,14 +320,12 @@ class Image:
         Image._arrow(ctx, size)
         ctx.restore()
 
-
     @staticmethod
     def ARROW_E(ctx, size=140):
         ctx.save()
         ctx.rotate(math.pi / 2)
         Image._arrow(ctx, size)
         ctx.restore()
-
 
     @staticmethod
     def ARROW_W(ctx, size=140):
@@ -337,4 +378,3 @@ class Image:
 
 # Export a simple display instance
 display = BadgeDisplay()
-
