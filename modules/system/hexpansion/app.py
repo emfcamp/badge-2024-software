@@ -326,7 +326,7 @@ class HexpansionManagerApp(app.App):
         if eep is not None and partition is not None:
             self._mount_eeprom(partition, event.port)
 
-        if not self.hexpansion_manifests[event.port]:
+        if not self.hexpansion_manifests.get(event.port):
             try:
                 self.hexpansion_manifests[event.port] = load_manifest(
                     "", self.mountpoints[event.port].strip("/")
