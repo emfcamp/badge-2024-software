@@ -96,7 +96,6 @@ def joy_down(epin):
         if TwentyTwentySix.joy_assignment[key] is epin:
             eventbus.emit(ButtonDownEvent(button=JOYSTICK[key]))
             TwentyTwentySix.joystick_states[key][0] = True
-            print(f"{key} down")
 
 
 def joy_up(epin):
@@ -105,21 +104,18 @@ def joy_up(epin):
             eventbus.emit(ButtonUpEvent(button=JOYSTICK[key]))
             TwentyTwentySix.joystick_states[key][0] = False
             TwentyTwentySix.joystick_states[key][1] = 0
-            print(f"{key} up")
 
 
 def prox_down(prox):
     for key in TwentyTwentySix.PROX_INPUTS.keys():
         if TwentyTwentySix.PROX_INPUTS[key] is prox:
             eventbus.emit(ButtonDownEvent(button=PROX[key]))
-            print(f"{key} down")
 
 
 def prox_up(prox):
     for key in TwentyTwentySix.PROX_INPUTS.keys():
         if TwentyTwentySix.PROX_INPUTS[key] is prox:
             eventbus.emit(ButtonUpEvent(button=PROX[key]))
-            print(f"{key} up")
 
 
 def touch_down(touch):
@@ -127,14 +123,12 @@ def touch_down(touch):
         if TwentyTwentySix.TOUCH_INPUTS[key] is touch:
             eventbus.emit(ButtonDownEvent(button=TOUCH[key]))
             TwentyTwentySix.touch_states[key][0] = True
-            print(f"{key} down")
 
 
 def touch_up(touch):
     for key in TwentyTwentySix.TOUCH_INPUTS.keys():
         if TwentyTwentySix.TOUCH_INPUTS[key] is touch:
             eventbus.emit(ButtonUpEvent(button=TOUCH[key]))
-            print(f"{key} up")
             TwentyTwentySix.touch_states[key][0] = False
             TwentyTwentySix.touch_states[key][1] = 0
 
