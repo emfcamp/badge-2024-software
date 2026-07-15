@@ -44,6 +44,30 @@ def scale_color(c):
     return (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0)
 
 
+def buttondown(epin):
+    booped = not machine.Pin(0, mode=machine.Pin.IN).value()
+    hexindex = 1
+    for key in TwentyTwentyFour.pin_assignment.keys():
+        if TwentyTwentyFour.pin_assignment[key] is epin:
+            if booped:
+                now = time.ticks_ms()
+                if TwentyTwentyFour.hexpansion_states[hexindex] is None:
+                    TwentyTwentyFour.hexpansion_states[hexindex] = now
+                    eventbus.emit_async(HexpansionInsertionEvent(port=hexindex))
+                hexindex += 1
+            else:
+                eventbus.emit(ButtonDownEvent(button=BUTTONS[key]))
+                TwentyTwentyFour.button_states[key][0] = True
+
+
+def buttonup(epin):
+    for key in TwentyTwentyFour.pin_assignment.keys():
+        if TwentyTwentyFour.pin_assignment[key] is epin:
+            eventbus.emit(ButtonUpEvent(button=BUTTONS[key]))
+            TwentyTwentyFour.button_states[key][0] = False
+            TwentyTwentyFour.button_states[key][1] = 0
+
+
 class TwentyTwentyFour(FrontBoard):
     BUTTON_PINS = {
         BUTTONS["A"]: (2, 6),
@@ -96,8 +120,14 @@ class TwentyTwentyFour(FrontBoard):
         for key in TwentyTwentyFour.pin_assignment:
             gpio = self.BUTTON_PINS[BUTTONS[key]]
             TwentyTwentyFour.pin_assignment[key] = ePin(gpio)
+            if not sim:
+                TwentyTwentyFour.pin_assignment[key].irq(
+                    handler=buttondown, trigger=ePin.IRQ_FALLING
+                )
+                TwentyTwentyFour.pin_assignment[key].irq(
+                    handler=buttonup, trigger=ePin.IRQ_RISING
+                )
 
-        tick_ms = 10
         while True:
             booped = not machine.Pin(0, mode=machine.Pin.IN).value()
             if booped:
@@ -106,11 +136,6 @@ class TwentyTwentyFour(FrontBoard):
                     map(lambda i: self.BUTTON_PINS[BUTTONS[i]], "ABCDEF")
                 ):
                     state = TwentyTwentyFour.hexpansion_states[i + 1]
-                    button_down = not ePin(gpio).value()
-                    # print(i, now, state)
-                    if button_down and state is None:
-                        TwentyTwentyFour.hexpansion_states[i + 1] = now
-                        await eventbus.emit_async(HexpansionInsertionEvent(port=i + 1))
                     if state and time.ticks_diff(now, state) > 4000:
                         TwentyTwentyFour.hexpansion_states[i + 1] = None
                         await eventbus.emit_async(HexpansionRemovalEvent(port=i + 1))
@@ -128,28 +153,12 @@ class TwentyTwentyFour(FrontBoard):
                             )
                         TwentyTwentyFour.button_states[key][0] = button_down
                 else:
-                    for key in TwentyTwentyFour.pin_assignment.keys():
-                        button_down = not TwentyTwentyFour.pin_assignment[key].value()
-                        if button_down and not TwentyTwentyFour.button_states[key][0]:
-                            await eventbus.emit_async(
-                                ButtonDownEvent(button=BUTTONS[key])
-                            )
-                        if not button_down and TwentyTwentyFour.button_states[key][0]:
-                            await eventbus.emit_async(
-                                ButtonUpEvent(button=BUTTONS[key])
-                            )
-                            TwentyTwentyFour.button_states[key][1] = 0
-                        TwentyTwentyFour.button_states[key][0] = button_down
-
                     for key in TwentyTwentyFour.button_states.keys():
                         if TwentyTwentyFour.button_states[key][0]:
-                            if TwentyTwentyFour.button_states[key][1] > (
-                                200 // tick_ms
-                            ):
+                            if TwentyTwentyFour.button_states[key][1] > 4:
                                 await eventbus.emit_async(
                                     ButtonDownEvent(button=BUTTONS[key])
                                 )
-                                TwentyTwentyFour.button_states[key][1] = 0
                             else:
                                 TwentyTwentyFour.button_states[key][1] += 1
-            await asyncio.sleep(tick_ms // 1000)
+            await asyncio.sleep(0.1)
