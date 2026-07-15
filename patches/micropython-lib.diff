@@ -1,8 +1,8 @@
 diff --git a/micropython/drivers/led/neopixel/neopixel.py b/micropython/drivers/led/neopixel/neopixel.py
-index caa12dc..1e1bc29 100644
+index caa12dc..41e1331 100644
 --- a/micropython/drivers/led/neopixel/neopixel.py
 +++ b/micropython/drivers/led/neopixel/neopixel.py
-@@ -48,3 +48,142 @@ class NeoPixel:
+@@ -48,3 +48,150 @@ class NeoPixel:
      def write(self):
          # BITSTREAM_TYPE_HIGH_LOW = 0
          bitstream(self.pin, 0, self.timing, self.buf)
@@ -24,6 +24,9 @@ index caa12dc..1e1bc29 100644
 +        for led in leds:
 +            return self.string[led]
 +        raise KeyError("No such LED in this string")
++
++    def __len__(self):
++        return self.n
 +
 +    def fill(self, v):
 +        self.string.fill(v)
@@ -67,6 +70,9 @@ index caa12dc..1e1bc29 100644
 +                return string[index]
 +        raise KeyError("No such LED in this string")
 +
++    def __len__(self):
++        return self.n
++
 +    def fill(self, v):
 +        for string in self.strings:
 +            string.fill(v)
@@ -94,6 +100,9 @@ index caa12dc..1e1bc29 100644
 +
 +    def __getitem__(self, i):
 +        return self.string[i]
++
++    def __len__(self):
++        return self.n
 +
 +    def fill(self, v):
 +        for i in range(self.n):
@@ -144,7 +153,6 @@ index caa12dc..1e1bc29 100644
 +
 +    def __call__(self, v):
 +        return self.callback(v, **self.kwargs)
-+
 diff --git a/python-ecosys/requests/requests/__init__.py b/python-ecosys/requests/requests/__init__.py
 index 68b4b18..2a1e72f 100644
 --- a/python-ecosys/requests/requests/__init__.py
