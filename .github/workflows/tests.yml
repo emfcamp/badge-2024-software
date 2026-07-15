@@ -1,0 +1,19 @@
+name: Unit tests
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Run unit tests
+        run: python -m unittest discover -t . -s tests -v

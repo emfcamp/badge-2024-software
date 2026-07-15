@@ -20,6 +20,7 @@ typedef struct
 #define WRITE MP_MACHINE_I2C_FLAG_STOP
 static const fusb_register_t select_cc              = { 0x02U, 0x0CU, 2U };
 static const fusb_register_t select_vcon            = { 0x02U, 0x30U, 4U };
+static const fusb_register_t pulldown               = { 0x02U, 0x03U, 0U };
 static const fusb_register_t enable_bmc             = { 0x03U, 0x03U, 0U };
 static const fusb_register_t auto_crc               = { 0x03U, 0x04U, 2U };
 static const fusb_register_t tx_flush               = { 0x06U, 0x40U, 6U };
@@ -95,6 +96,15 @@ void fusb_set_vcon(fusb_state_t* state, uint8_t cc_vcon )
     write_bits( state, select_vcon, cc_vcon );
 }
 
+/**
+ * @brief turn on/off the pull downs on CC lines 
+ * @param state the port object
+ * @param pull bitfield of enables
+ */
+void fusb_set_pulldown(fusb_state_t* state, uint8_t pull )
+{
+    write_bits( state, pulldown, pull );
+}
 /**
  * @brief disable toggle
  * @param state the port object

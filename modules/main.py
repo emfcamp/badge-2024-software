@@ -5,16 +5,21 @@ import wifi
 from system.scheduler import scheduler
 from system.hexpansion.app import HexpansionManagerApp
 from system.patterndisplay.app import PatternDisplay
+from system.backleds.app import BackLEDManager
 from system.notification.app import NotificationService
+from system.espnow import espnow_service
 from system.launcher.app import Launcher
 from system.power.handler import PowerEventHandler
 from system.power.app import PowerManager
+from system.boopscreen.app import BoopSpinner
+
 from frontboards.utils import detect_frontboard
 import frontboard2026
 
 fb = detect_frontboard()
 
 print(hex(fb))
+
 # Start front-board interface
 if (fb & 0xFF00) == 0x2600:
     from frontboards.twentysix import TwentyTwentySix
@@ -31,8 +36,14 @@ else:
 # Start expansion interface
 scheduler.start_app(HexpansionManagerApp())
 
+# Start the spinning-tilde boop animation
+scheduler.start_app(BoopSpinner(), always_on_top=True)
+
 # Start led pattern displayer app
 scheduler.start_app(PatternDisplay())
+
+# Start back led manager
+scheduler.start_app(BackLEDManager())
 
 # Start root app
 scheduler.start_app(Launcher(), foreground=True)
@@ -42,6 +53,9 @@ scheduler.start_app(NotificationService(), always_on_top=True)
 
 # Start power management app
 scheduler.start_app(PowerManager())
+
+# Start ESP-NOW background service
+scheduler.start_app(espnow_service)
 
 try:
     wifi.connect()

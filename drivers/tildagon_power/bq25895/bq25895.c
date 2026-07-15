@@ -107,11 +107,11 @@ void bq_set_input_current_limit( bq_state_t* state, float limit )
     write_scaled( state, input_Ilim, limit );
     if (limit > 1500.0F)
     {
-        write_bits( state, Ilim_pin, 1 );
+        write_bits( state, Ilim_pin, 0 );
     }
     else
     {
-        write_bits( state, Ilim_pin, 0 );
+        write_bits( state, Ilim_pin, 1 );
     }
 }
 

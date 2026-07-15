@@ -40,6 +40,10 @@ BUTTONS = {
 }
 
 
+def scale_color(c):
+    return (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0)
+
+
 def buttondown(epin):
     booped = not machine.Pin(0, mode=machine.Pin.IN).value()
     hexindex = 1
@@ -49,7 +53,7 @@ def buttondown(epin):
                 now = time.ticks_ms()
                 if TwentyTwentyFour.hexpansion_states[hexindex] is None:
                     TwentyTwentyFour.hexpansion_states[hexindex] = now
-                    eventbus.emit(HexpansionInsertionEvent(port=hexindex))
+                    eventbus.emit_async(HexpansionInsertionEvent(port=hexindex))
                 hexindex += 1
             else:
                 eventbus.emit(ButtonDownEvent(button=BUTTONS[key]))
@@ -62,10 +66,6 @@ def buttonup(epin):
             eventbus.emit(ButtonUpEvent(button=BUTTONS[key]))
             TwentyTwentyFour.button_states[key][0] = False
             TwentyTwentyFour.button_states[key][1] = 0
-
-
-def scale_color(c):
-    return (c[0] / 256.0, c[1] / 256.0, c[2] / 256.0)
 
 
 class TwentyTwentyFour(FrontBoard):

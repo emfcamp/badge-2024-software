@@ -246,10 +246,6 @@ MP_CTX_TEXT_FUN(text);
 MP_CTX_TEXT_FUN(parse);
 #endif
 
-#if MP_CTX_DESTROY
-MP_CTX_COMMON_FUN_0(destroy);
-#endif
-
 MP_CTX_COMMON_FUN_0(begin_path);
 MP_CTX_COMMON_FUN_0(save);
 MP_CTX_COMMON_FUN_0(restore);
@@ -400,233 +396,6 @@ static mp_obj_t mp_ctx_pointer_drop(size_t n_args, const mp_obj_t *args)
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_ctx_pointer_drop_obj, 6, 6, mp_ctx_pointer_drop);
 #endif
 
-
-STATIC void generic_method_lookup(mp_obj_t obj, qstr attr, mp_obj_t *dest) {
-    const mp_obj_type_t *type = mp_obj_get_type(obj);
-    if (MP_OBJ_TYPE_HAS_SLOT(type, locals_dict)) {
-        // generic method lookup
-        // this is a lookup in the object (ie not class or type)
-        // assert(type->locals_dict->base.type == &mp_type_dict); // MicroPython
-        // restriction, for now mp_map_t *locals_map =
-        // &MP_OBJ_TYPE_GET_SLOT(type, locals_dict)->map;
-        mp_map_elem_t *elem =
-            mp_map_lookup(&MP_OBJ_TYPE_GET_SLOT(type, locals_dict)->map,
-                          MP_OBJ_NEW_QSTR(attr), MP_MAP_LOOKUP);
-        if (elem != NULL) {
-            mp_convert_member_lookup(obj, type, elem->value, dest);
-        }
-    }
-}
-
-#if CTX_EVENTS
-
-extern const mp_obj_type_t mp_ctx_event_type;
-
-struct _mp_ctx_event_obj_t {
-  mp_obj_base_t base;
-  CtxEvent      *event;
-  mp_obj_t      user_data;
-  mp_obj_t      mp_ev;
-};
-
-
-static mp_obj_t mp_ctx_event_new (void)
-{
-  mp_ctx_event_obj_t *o = m_new_obj(mp_ctx_event_obj_t);
-  o->base.type    = &mp_ctx_event_type;
-  return MP_OBJ_FROM_PTR(o);
-}
-
-
-/** CtxEvent **/
-
-STATIC mp_obj_t
-mp_ctx_event_attr_op (mp_obj_t self_in, qstr attr, mp_obj_t set_val)
-{
-  mp_ctx_event_obj_t *self = MP_OBJ_TO_PTR(self_in);
-  if (set_val == MP_OBJ_NULL) {
-    switch (attr)
-    {
-      case MP_QSTR_ctx:
-        {
-	mp_ctx_obj_t *o = m_new_obj(mp_ctx_obj_t);
-	o->base.type    = &mp_ctx_type;
-        o->ctx = self->event->ctx;
-
-	return MP_OBJ_FROM_PTR(o);
-        }
-      case MP_QSTR_x:         return mp_obj_new_float((mp_float_t)self->event->x);
-      case MP_QSTR_y:         return mp_obj_new_float((mp_float_t)self->event->y);
-      case MP_QSTR_device_x:  return mp_obj_new_float((mp_float_t)self->event->device_x);
-      case MP_QSTR_device_y:  return mp_obj_new_float((mp_float_t)self->event->device_y);
-      case MP_QSTR_start_x:   return mp_obj_new_float((mp_float_t)self->event->start_x);
-      case MP_QSTR_start_y:   return mp_obj_new_float((mp_float_t)self->event->start_y);
-      case MP_QSTR_prev_x:    return mp_obj_new_float((mp_float_t)self->event->prev_x);
-      case MP_QSTR_prev_y:    return mp_obj_new_float((mp_float_t)self->event->prev_y);
-      case MP_QSTR_delta_x:   return mp_obj_new_float((mp_float_t)self->event->delta_x);
-      case MP_QSTR_delta_y:   return mp_obj_new_float((mp_float_t)self->event->delta_y);
-      case MP_QSTR_device_no: return mp_obj_new_int(self->event->device_no);
-      //case MP_QSTR_unicode:   return mp_obj_new_int(self->event->unicode);
-      case MP_QSTR_stop_propagate: return mp_obj_new_bool(self->event->stop_propagate);
-      case MP_QSTR_user_data: return self->user_data;
-      case MP_QSTR_scroll_direction:  return mp_obj_new_int(self->event->scroll_direction);
-      case MP_QSTR_time:      return mp_obj_new_int(self->event->time);
-      case MP_QSTR_modifier_state:   return mp_obj_new_int(self->event->state);
-      case MP_QSTR_string:    if (self->event->string)
-                                 // gambling on validity
-                                 return mp_obj_new_str(self->event->string, strlen(self->event->string));
-                              else
-                                 return mp_obj_new_str("", 0);
-    }
-  }
-  else
-  {
-     switch (attr) {
-       case MP_QSTR_stop_propagate:
-       self->event->stop_propagate = mp_obj_get_int(set_val);
-       break;
-     }
-     return set_val;
-  }
-  return self_in;
-}
-
-STATIC void mp_ctx_event_attr(mp_obj_t obj, qstr attr, mp_obj_t *dest) {
-
-    if(attr == MP_QSTR_x
-     ||attr == MP_QSTR_y
-     ||attr == MP_QSTR_ctx
-     ||attr == MP_QSTR_start_x
-     ||attr == MP_QSTR_start_y
-     ||attr == MP_QSTR_prev_x
-     ||attr == MP_QSTR_prev_y
-     ||attr == MP_QSTR_delta_x
-     ||attr == MP_QSTR_delta_y
-     ||attr == MP_QSTR_device_no
-     //||attr == MP_QSTR_unicode
-     ||attr == MP_QSTR_user_data
-     ||attr == MP_QSTR_stop_propagate
-     ||attr == MP_QSTR_scroll_direction
-     ||attr == MP_QSTR_time
-     ||attr == MP_QSTR_modifier_state
-     ||attr == MP_QSTR_string
-     ||attr == MP_QSTR_device_x
-     ||attr == MP_QSTR_device_y)
-    {
-        if (dest[0] == MP_OBJ_NULL) {
-            // load attribute
-            mp_obj_t val = mp_ctx_event_attr_op(obj, attr, MP_OBJ_NULL);
-            dest[0] = val;
-        } else {
-            // delete/store attribute
-            if (mp_ctx_event_attr_op(obj, attr, dest[1]) != MP_OBJ_NULL)
-                dest[0] = MP_OBJ_NULL; // indicate success
-        }
-    }
-    else {
-        // A method call
-        generic_method_lookup(obj, attr, dest);
-    }
-}
-
-static const mp_rom_map_elem_t mp_ctx_event_locals_dict_table[] = {
-       MP_CTX_ATTR(x),
-       MP_CTX_ATTR(y),
-       MP_CTX_ATTR(ctx),
-       MP_CTX_ATTR(device_x),
-       MP_CTX_ATTR(device_y),
-       MP_CTX_ATTR(start_x),
-       MP_CTX_ATTR(start_y),
-       MP_CTX_ATTR(prev_x),
-       MP_CTX_ATTR(prev_y),
-       MP_CTX_ATTR(delta_x),
-       MP_CTX_ATTR(delta_y),
-       MP_CTX_ATTR(device_no),
-       //MP_CTX_ATTR(unicode),
-       MP_CTX_ATTR(stop_propagate),
-       MP_CTX_ATTR(user_data),
-       MP_CTX_ATTR(scroll_direction),
-       MP_CTX_ATTR(time),
-       MP_CTX_ATTR(modifier_state),
-       MP_CTX_ATTR(string)
-};
-static MP_DEFINE_CONST_DICT(mp_ctx_event_locals_dict, mp_ctx_event_locals_dict_table);
-
-static mp_obj_t mp_ctx_event_make_new(
-	const mp_obj_type_t *type,
-	size_t n_args,
-	size_t n_kw,
-	const mp_obj_t *args
-) {
-	mp_ctx_event_obj_t *o = m_new_obj(mp_ctx_event_obj_t);
-	o->base.type    = type;
-	return MP_OBJ_FROM_PTR(o);
-}
-
-MP_DEFINE_CONST_OBJ_TYPE(mp_ctx_event_type, MP_QSTR_ctx_event_type, MP_TYPE_FLAG_NONE,
-                         make_new, mp_ctx_event_make_new, attr, mp_ctx_event_attr,
-                         locals_dict, &mp_ctx_event_locals_dict);
-
-
-static void mp_ctx_listen_cb_handler (CtxEvent *event, void *data1, void*data2)
-{
-  mp_obj_t event_in = data2;
-  mp_ctx_event_obj_t *mp_ctx_event = MP_OBJ_TO_PTR(event_in);
-  mp_ctx_event->event = event; // XXX todo stop copying, make stop_propagate work
-  mp_call_function_1(data1, event_in);
-  //if (mp_ctx_event->event.stop_propagate)
-  //event->stop_propagate = 1;
-}
-
-static mp_obj_t mp_ctx_listen (size_t n_args, const mp_obj_t *args)
-{
-  mp_obj_t self_in = args[0];
-  mp_obj_t event_mask = args[1];
-  mp_obj_t cb_in = args[2];
-  mp_obj_t user_data_in = n_args==4?args[3]:mp_const_none;
-  mp_ctx_obj_t *self = MP_OBJ_TO_PTR(self_in);
-  if (cb_in != mp_const_none && !mp_obj_is_callable(cb_in))
-    mp_raise_ValueError(MP_ERROR_TEXT("invalid handler"));
-  mp_ctx_event_obj_t *ctx_event = mp_ctx_event_new ();
-  ctx_event->user_data = user_data_in;
-  ctx_listen (self->ctx,
-              mp_obj_get_int(event_mask),
-              mp_ctx_listen_cb_handler,
-              (cb_in), ctx_event);
-  return MP_OBJ_FROM_PTR(self);
-}
-MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_ctx_listen_obj, 3, 4, mp_ctx_listen);
-
-static void mp_ctx_key_binding_cb_handler (CtxEvent *event, void *data1, void*data2)
-{
-  mp_ctx_event_obj_t *ctx_event = mp_ctx_event_new ();
-  ctx_event->event = event;
-  mp_call_function_1(data1, ctx_event);
-}
-
-static mp_obj_t mp_ctx_add_key_binding (size_t n_args, const mp_obj_t *args)
-{
-  mp_obj_t self_in    = args[0];
-  mp_obj_t key_in     = args[1];
-  mp_obj_t action_in  = args[2];
-  mp_obj_t label_in   = args[3];
-  mp_obj_t cb_in      = args[4];
-  //mp_obj_t user_data_in = args[5];
-  mp_ctx_obj_t *self = MP_OBJ_TO_PTR(self_in);
-  if (cb_in != mp_const_none && !mp_obj_is_callable(cb_in))
-    mp_raise_ValueError(MP_ERROR_TEXT("invalid handler"));
-  ctx_add_key_binding (self->ctx,
-                       mp_obj_str_get_str(key_in),
-                       mp_obj_str_get_str(action_in),
-                       mp_obj_str_get_str(label_in),
-                       mp_ctx_key_binding_cb_handler,
-                       (cb_in));//, ctx_event);
-  return MP_OBJ_FROM_PTR(self);
-}
-MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_ctx_add_key_binding_obj, 5, 5, mp_ctx_add_key_binding);
-
-#endif
-
 static mp_obj_t mp_ctx_line_dash(mp_obj_t self_in, mp_obj_t dashes_in) {
     mp_ctx_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
@@ -686,14 +455,14 @@ static mp_obj_t mp_ctx_image(size_t n_args, const mp_obj_t *args) {
     float clip_width = 0.0;
     float clip_height = 0.0;
 
-    if (n_args > 2) x0 = (float)mp_obj_get_float(args[2]);
-    if (n_args > 3) y0 = (float)mp_obj_get_float(args[3]);
-    if (n_args > 4) width = (float)mp_obj_get_float(args[4]);
-    if (n_args > 5) height = (float)mp_obj_get_float(args[5]);
-    if (n_args > 6) clip_x = (float)mp_obj_get_float(args[6]);
-    if (n_args > 7) clip_y = (float)mp_obj_get_float(args[7]);
-    if (n_args > 8) clip_width = (float)mp_obj_get_float(args[8]);
-    if (n_args > 9) clip_height = (float)mp_obj_get_float(args[9]);
+    if (n_args > 2) x0 = mp_obj_get_float(args[2]);
+    if (n_args > 3) y0 = mp_obj_get_float(args[3]);
+    if (n_args > 4) width = mp_obj_get_float(args[4]);
+    if (n_args > 5) height = mp_obj_get_float(args[5]);
+    if (n_args > 6) clip_x = mp_obj_get_float(args[6]);
+    if (n_args > 7) clip_y = mp_obj_get_float(args[7]);
+    if (n_args > 8) clip_width = mp_obj_get_float(args[8]);
+    if (n_args > 9) clip_height = mp_obj_get_float(args[9]);
     ctx_draw_image_clipped(self->ctx, path, x0, y0, width, height, clip_x,
                            clip_y, clip_width, clip_height);
 
@@ -726,7 +495,7 @@ MP_DEFINE_CONST_FUN_OBJ_2(mp_ctx_get_font_name_obj, mp_ctx_get_font_name);
 static mp_obj_t mp_ctx_text_width(mp_obj_t self_in, mp_obj_t string_in) {
     mp_ctx_obj_t *self = MP_OBJ_TO_PTR(self_in);
     const char *string = mp_obj_str_get_str(string_in);
-    return mp_obj_new_float((mp_float_t)ctx_text_width(self->ctx, string));
+    return mp_obj_new_float(ctx_text_width(self->ctx, string));
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mp_ctx_text_width_obj, mp_ctx_text_width);
 
@@ -784,8 +553,34 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_ctx_add_stop_obj, 3, 4, mp_ctx_add_stop);
 #include <unistd.h>
 #endif
 
+STATIC void generic_method_lookup(mp_obj_t obj, qstr attr, mp_obj_t *dest) {
+    const mp_obj_type_t *type = mp_obj_get_type(obj);
+    if (MP_OBJ_TYPE_HAS_SLOT(type, locals_dict)) {
+        // generic method lookup
+        // this is a lookup in the object (ie not class or type)
+        // assert(type->locals_dict->base.type == &mp_type_dict); // MicroPython
+        // restriction, for now mp_map_t *locals_map =
+        // &MP_OBJ_TYPE_GET_SLOT(type, locals_dict)->map;
+        mp_map_elem_t *elem =
+            mp_map_lookup(&MP_OBJ_TYPE_GET_SLOT(type, locals_dict)->map,
+                          MP_OBJ_NEW_QSTR(attr), MP_MAP_LOOKUP);
+        if (elem != NULL) {
+            mp_convert_member_lookup(obj, type, elem->value, dest);
+        }
+    }
+}
 
-#if 0
+static mp_obj_t mp_ctx_load_font_ctx(mp_obj_t self_in, mp_obj_t name_in, mp_obj_t buffer_in) {
+    mp_buffer_info_t buffer_info;
+    if (!mp_get_buffer(buffer_in, &buffer_info, MP_BUFFER_READ)) {
+        mp_raise_TypeError(MP_ERROR_TEXT("not a buffer"));
+    }
+    const char *name = mp_obj_str_get_str(name_in);
+    ctx_load_font_ctx(name, buffer_info.buf, buffer_info.len);
+    return self_in;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mp_ctx_load_font_ctx_obj, mp_ctx_load_font_ctx);
+
 #if CTX_TINYVG
 static mp_obj_t mp_ctx_tinyvg_get_size(mp_obj_t self_in, mp_obj_t buffer_in) {
     mp_buffer_info_t buffer_info;
@@ -813,7 +608,6 @@ static mp_obj_t mp_ctx_tinyvg_draw(mp_obj_t self_in, mp_obj_t buffer_in) {
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mp_ctx_tinyvg_draw_obj, mp_ctx_tinyvg_draw);
 #endif
-#endif
 /* CTX API functions }}} */
 
 static void mp_ctx_set_pixels(Ctx *ctx, void *user_data, int x_in, int y_in,
@@ -826,7 +620,7 @@ static void mp_ctx_set_pixels(Ctx *ctx, void *user_data, int x_in, int y_in,
     mp_call_function_n_kw(user_data, 5, 0, args);
 }
 
-static int mp_ctx_update_fb(Ctx *ctx, void *user_data, int a, int b, int c, int d) {
+static int mp_ctx_update_fb(Ctx *ctx, void *user_data) {
     mp_obj_t ret = mp_call_function_0(user_data);
     if (mp_obj_is_true(ret)) return 1;
     return 0;
@@ -899,17 +693,10 @@ static mp_obj_t mp_ctx_make_new(const mp_obj_type_t *type, size_t n_args,
             !mp_obj_is_callable(set_pixels_in))
             mp_raise_ValueError(MP_ERROR_TEXT("invalid set_pixels handler"));
 
-        CtxCbConfig config = {
-           .format = format,
-           .update_fb = update_fb_in != mp_const_none ? mp_ctx_update_fb : NULL,
-           .update_fb_user_data = update_fb_in,
-           .set_pixels = mp_ctx_set_pixels,
-           .set_pixels_user_data = set_pixels_in,
-           .buffer_size = memory_budget,
-           .flags = flags
-        };
         o->ctx =
-            ctx_new_cb(width, height, &config);
+            ctx_new_cb(width, height, format, mp_ctx_set_pixels, set_pixels_in,
+                       update_fb_in != mp_const_none ? mp_ctx_update_fb : NULL,
+                       update_fb_in, memory_budget, NULL, flags);
         return MP_OBJ_FROM_PTR(o);
     }
     if (args[ARG_buffer].u_obj != MP_OBJ_NULL) {
@@ -961,29 +748,29 @@ STATIC mp_obj_t mp_ctx_attr_op(mp_obj_t self_in, qstr attr, mp_obj_t set_val) {
             case MP_QSTR_text_baseline:
                 return mp_obj_new_int(ctx_get_text_baseline(self->ctx));
             case MP_QSTR_font_size:
-                return mp_obj_new_float((mp_float_t)ctx_get_font_size(self->ctx));
+                return mp_obj_new_float(ctx_get_font_size(self->ctx));
             case MP_QSTR_line_width:
-                return mp_obj_new_float((mp_float_t)ctx_get_line_width(self->ctx));
+                return mp_obj_new_float(ctx_get_line_width(self->ctx));
             case MP_QSTR_line_dash_offset:
-                return mp_obj_new_float((mp_float_t)ctx_get_line_dash_offset(self->ctx));
+                return mp_obj_new_float(ctx_get_line_dash_offset(self->ctx));
             case MP_QSTR_line_height:
-                return mp_obj_new_float((mp_float_t)ctx_get_line_height(self->ctx));
+                return mp_obj_new_float(ctx_get_line_height(self->ctx));
             case MP_QSTR_wrap_left:
-                return mp_obj_new_float((mp_float_t)ctx_get_wrap_left(self->ctx));
+                return mp_obj_new_float(ctx_get_wrap_left(self->ctx));
             case MP_QSTR_wrap_right:
-                return mp_obj_new_float((mp_float_t)ctx_get_wrap_right(self->ctx));
+                return mp_obj_new_float(ctx_get_wrap_right(self->ctx));
             case MP_QSTR_miter_limit:
-                return mp_obj_new_float((mp_float_t)ctx_get_miter_limit(self->ctx));
+                return mp_obj_new_float(ctx_get_miter_limit(self->ctx));
             case MP_QSTR_global_alpha:
-                return mp_obj_new_float((mp_float_t)ctx_get_global_alpha(self->ctx));
+                return mp_obj_new_float(ctx_get_global_alpha(self->ctx));
             case MP_QSTR_width:
-                return mp_obj_new_int((int)ctx_width(self->ctx));
+                return mp_obj_new_int(ctx_width(self->ctx));
             case MP_QSTR_height:
-                return mp_obj_new_int((int)ctx_height(self->ctx));
+                return mp_obj_new_int(ctx_height(self->ctx));
             case MP_QSTR_x:
-                return mp_obj_new_float((mp_float_t)ctx_x(self->ctx));
+                return mp_obj_new_float(ctx_x(self->ctx));
             case MP_QSTR_y:
-                return mp_obj_new_float((mp_float_t)ctx_y(self->ctx));
+                return mp_obj_new_float(ctx_y(self->ctx));
             case MP_QSTR_a11y:
                 return self->a11y;
         }
@@ -1111,9 +898,6 @@ static const mp_rom_map_elem_t mp_ctx_locals_dict_table[] = {
     MP_CTX_METHOD(fill),
     MP_CTX_METHOD(stroke),
     MP_CTX_METHOD(paint),
-#if MP_CTX_DESTROY
-    MP_CTX_METHOD(destroy),
-#endif
     MP_CTX_METHOD(save),
     MP_CTX_METHOD(restore),
     MP_CTX_METHOD(clip),
@@ -1141,17 +925,12 @@ static const mp_rom_map_elem_t mp_ctx_locals_dict_table[] = {
     MP_CTX_METHOD(start_frame),
     MP_CTX_METHOD(end_frame),
     MP_CTX_METHOD(get_font_name),
-
-#if CTX_EVENTS
-    MP_CTX_METHOD(listen),
-    MP_CTX_METHOD(add_key_binding),
-#endif
-
+    MP_CTX_METHOD(load_font_ctx),
 
 #if CTX_PARSER
     MP_CTX_METHOD(parse),
 #endif
-#if 0
+#if 1
 #if CTX_TINYVG
     MP_CTX_METHOD(tinyvg_draw),
     MP_CTX_METHOD(tinyvg_get_size),
@@ -1185,18 +964,19 @@ static const mp_rom_map_elem_t mp_ctx_locals_dict_table[] = {
     MP_CTX_ATTR(global_alpha),
     MP_CTX_ATTR(font_size),
 
-#if 0
     MP_CTX_INT_CONSTANT(FLAG, LOWFI),
     MP_CTX_INT_CONSTANT(FLAG, GRAY2),
     MP_CTX_INT_CONSTANT(FLAG, GRAY4),
     MP_CTX_INT_CONSTANT(FLAG, GRAY8),
     MP_CTX_INT_CONSTANT(FLAG, RGB332),
+    MP_CTX_INT_CONSTANT(FLAG, HASH_CACHE),
+    // MP_CTX_INT_CONSTANT(FLAG,DAMAGE_CONTROL),
+    MP_CTX_INT_CONSTANT(FLAG, KEEP_DATA),
     MP_CTX_INT_CONSTANT(FLAG, INTRA_UPDATE),
     MP_CTX_INT_CONSTANT(FLAG, STAY_LOW),
-    // MP_CTX_INT_CONSTANT(FLAG,DAMAGE_CONTROL),
+#if CTX_ENABLE_CBRLE
+    MP_CTX_INT_CONSTANT(FLAG, CBRLE),
 #endif
-    MP_CTX_INT_CONSTANT(FLAG, HASH_CACHE),
-    MP_CTX_INT_CONSTANT(FLAG, KEEP_DATA),
 
     MP_CTX_INT_CONSTANT(FILL_RULE, WINDING),
     MP_CTX_INT_CONSTANT(FILL_RULE, EVEN_ODD),
@@ -1324,18 +1104,19 @@ static const mp_rom_map_elem_t mp_ctx_module_globals_table[] = {
     MP_CTX_INT_CONSTANT(FORMAT, GRAY4),
     MP_CTX_INT_CONSTANT(FORMAT, YUV420),
 
-#if 0
     MP_CTX_INT_CONSTANT(FLAG, LOWFI),
     MP_CTX_INT_CONSTANT(FLAG, GRAY2),
     MP_CTX_INT_CONSTANT(FLAG, GRAY4),
     MP_CTX_INT_CONSTANT(FLAG, GRAY8),
     MP_CTX_INT_CONSTANT(FLAG, RGB332),
-    MP_CTX_INT_CONSTANT(FLAG, INTRA_UPDATE),
-    MP_CTX_INT_CONSTANT(FLAG, STAY_LOW),
-#endif
     MP_CTX_INT_CONSTANT(FLAG, HASH_CACHE),
     //      MP_CTX_INT_CONSTANT(FLAG,DAMAGE_CONTROL),
     MP_CTX_INT_CONSTANT(FLAG, KEEP_DATA),
+    MP_CTX_INT_CONSTANT(FLAG, INTRA_UPDATE),
+    MP_CTX_INT_CONSTANT(FLAG, STAY_LOW),
+#if CTX_ENABLE_CBRLE
+    MP_CTX_INT_CONSTANT(FLAG, CBRLE),
+#endif
 
 };
 static MP_DEFINE_CONST_DICT(mp_ctx_module_globals, mp_ctx_module_globals_table);
@@ -1351,7 +1132,7 @@ const mp_obj_module_t mp_module_ctx = {
 
 int mp_ctx_vfs_load_file (const char     *path,
                           unsigned char **contents,
-                          size_t         *length,
+                          long           *length,
                           long            max_length)
 {
   mp_obj_t filename = mp_obj_new_str(path, strlen(path));

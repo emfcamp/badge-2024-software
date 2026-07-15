@@ -1,4 +1,5 @@
 import settings
+from events.emote import EmoteNegativeEvent
 from system.backgrounds.emflogo import EmfLogo
 from system.backgrounds.wigglinghexagons import WigglingHexagons
 from system.eventbus import eventbus
@@ -38,6 +39,7 @@ class _Background:
                             message=f"Background {self.selection[0]} has crashed"
                         )
                     )
+                    eventbus.emit(EmoteNegativeEvent())
                     self.runner = None
             else:
                 print("path not a file: " + path)
@@ -58,6 +60,7 @@ class _Background:
                         message=f"Background {self.selection[0]} has crashed"
                     )
                 )
+                eventbus.emit(EmoteNegativeEvent())
                 self.runner = None
             ctx.restore()
         else:

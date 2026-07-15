@@ -120,6 +120,11 @@ class Menu:
         )
 
     def _calculate_max_focussed_font_size(self, item, ctx):
+        if not isinstance(item, str):
+            print(
+                f"[Menu] ERROR: menu item is not a string! type={type(item).__name__} value={item!r}"
+            )
+            return self.focused_item_font_size
         ctx.save()
         ctx.font_size = self.focused_item_font_size
         width = ctx.text_width(item)
@@ -143,10 +148,19 @@ class Menu:
         else:
             # calculate biggest font size a menu item should grow to
             if not self.focused_item_font_size_arr:
-                self.focused_item_font_size_arr = [
-                    self._calculate_max_focussed_font_size(item, ctx)
-                    for item in self.menu_items
-                ]
+                try:
+                    self.focused_item_font_size_arr = [
+                        self._calculate_max_focussed_font_size(item, ctx)
+                        for item in self.menu_items
+                    ]
+                except Exception as e:
+                    print(f"[Menu] ERROR in font_size calc: {e}")
+                    print(f"[Menu] menu_items: {self.menu_items!r}")
+                    for i, item in enumerate(self.menu_items):
+                        print(
+                            f"[Menu]   [{i}] type={type(item).__name__} value={item!r}"
+                        )
+                    raise
 
             if self.is_animating == "none":
                 animation_progress = 1.0
