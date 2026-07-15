@@ -22092,11 +22092,7 @@ ctx_rasterizer_rasterize_edges2 (CtxRasterizer *rasterizer, const int fill_rule,
   ctx_sort_edges (rasterizer);
 #endif
 
-  rasterizer->scanline = scan_start-CTX_FULL_AA;
-  ctx_rasterizer_feed_edges_full (rasterizer, 0.0f);
   rasterizer->scanline = scan_start;
-  ctx_rasterizer_increment_edges (rasterizer, CTX_FULL_AA);
-  ctx_rasterizer_discard_edges (rasterizer);
 
   while (rasterizer->scanline <= scan_end)
     {
