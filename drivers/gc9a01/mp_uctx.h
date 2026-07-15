@@ -7,8 +7,6 @@
 
 #define STATIC static
 
-
-typedef struct _mp_ctx_event_obj_t mp_ctx_event_obj_t;  
 typedef struct _mp_ctx_obj_t {
     mp_obj_base_t base;
     Ctx *ctx;
