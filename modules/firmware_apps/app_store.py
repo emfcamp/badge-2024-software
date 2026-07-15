@@ -553,6 +553,7 @@ class CodeInstall:
 
     def _handle_buttondown(self, event: ButtonDownEvent):
         kbd_button = event.button.find_parent_in_group("Keyboard")
+        original_id = self.id
 
         if FRONTBOARD_BUTTON_TYPES["A"] in event.button:
             self.id += "0"
@@ -568,6 +569,10 @@ class CodeInstall:
             self.id += "5"
         elif kbd_button is not None and kbd_button.name in "012345":
             self.id += kbd_button.name
+
+        if original_id == self.id:
+            # We did not handle this button event, so bail now
+            return
 
         self.active_button = int(self.id[-1])
         self.activation_counter = 3
