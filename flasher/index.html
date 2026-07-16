@@ -23,6 +23,21 @@
       <esp-web-install-button
         manifest="manifest.json"></esp-web-install-button>
       
+      <esp-web-install-button
+        manifest="provision.json">
+        <button slot="activate" style="position: relative;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 24px;
+    color: var(--esp-tools-button-text-color, #fff);
+    background-color: var(--esp-tools-button-color, #03a9f4);
+    border: none;
+    border-radius: var(--esp-tools-button-border-radius, 9999px);
+background-color: #F5515E">Factory reset</button>
+        <span slot="unsupported">Ah snap, your browser doesn't work!</span>
+        <span slot="not-allowed">Ah snap, you are not allowed to use this on HTTP!</span>
+      </esp-web-install-button>
     </div>
   </body>
 </html>

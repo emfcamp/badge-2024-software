@@ -15,3 +15,10 @@ Now, serve this as HTTP:
 You can then load the flasher from http://localhost:8080
 
 If you are building multiple versions, be careful that the old version isn't cached by your browser.
+
+## Setting up an initial vfs
+
+Prepare a badge with a VFS you want to provision from the factory, and run:
+
+	esptool.py read_flash --flash_size 8MB 0x4f0000 0x310000 ./flasher/sponsors-vfs.bak
+
