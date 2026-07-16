@@ -9,14 +9,6 @@
         "parts": [
           { "path": "merged-firmware.bin", "offset": 0 }
         ]
-      },
-      {
-        "improv": false,
-        "chipFamily": "ESP32-S3",
-        "parts": [
-          { "path": "merged-firmware.bin", "offset": 0 },
-          { "path": "sponsors-vfs.bin", "offset": 5177344 }
-        ]
       }
     ]
   }
