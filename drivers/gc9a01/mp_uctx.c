@@ -260,6 +260,7 @@ MP_CTX_COMMON_FUN_0(start_group);
 MP_CTX_COMMON_FUN_0(end_group);
 #endif
 MP_CTX_COMMON_FUN_0(clip);
+MP_CTX_COMMON_FUN_0(identity);
 MP_CTX_COMMON_FUN_1F(rotate);
 MP_CTX_COMMON_FUN_2F(scale);
 MP_CTX_COMMON_FUN_2F(translate);
@@ -903,6 +904,7 @@ static const mp_rom_map_elem_t mp_ctx_locals_dict_table[] = {
     MP_CTX_METHOD(clip),
     MP_CTX_METHOD(text),
     MP_CTX_METHOD(text_width),
+    MP_CTX_METHOD(identity),
     MP_CTX_METHOD(rotate),
     MP_CTX_METHOD(scale),
     MP_CTX_METHOD(translate),
