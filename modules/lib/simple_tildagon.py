@@ -8,6 +8,9 @@ import imu as tilda_imu
 import math
 import time
 import display as hw_display
+
+# Required for now due to import bug with eventbus
+import system.scheduler.events  # noqa: F401
 from app_components import clear_background
 
 
