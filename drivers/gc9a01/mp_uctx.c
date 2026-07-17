@@ -582,6 +582,21 @@ static mp_obj_t mp_ctx_load_font_ctx(mp_obj_t self_in, mp_obj_t name_in, mp_obj_
 }
 MP_DEFINE_CONST_FUN_OBJ_3(mp_ctx_load_font_ctx_obj, mp_ctx_load_font_ctx);
 
+static mp_obj_t mp_ctx_textureclock(mp_obj_t self_in) {
+    mp_ctx_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    int clock = ctx_textureclock(self->ctx);
+    return mp_obj_new_int(clock);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mp_ctx_textureclock_obj, mp_ctx_textureclock);
+
+static mp_obj_t mp_ctx_set_textureclock(mp_obj_t self_in, mp_obj_t clock_obj) {
+    mp_ctx_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    int clock = mp_obj_get_int(clock_obj);
+    ctx_set_textureclock(self->ctx, clock);
+    return mp_const_none;
+}
+MP_DEFINE_CONST_FUN_OBJ_2(mp_ctx_set_textureclock_obj, mp_ctx_set_textureclock);
+
 #if CTX_TINYVG
 static mp_obj_t mp_ctx_tinyvg_get_size(mp_obj_t self_in, mp_obj_t buffer_in) {
     mp_buffer_info_t buffer_info;
@@ -923,6 +938,8 @@ static const mp_rom_map_elem_t mp_ctx_locals_dict_table[] = {
     MP_CTX_METHOD(add_stop),
     MP_CTX_METHOD(line_dash),
     MP_CTX_METHOD(texture),
+    MP_CTX_METHOD(textureclock),
+    MP_CTX_METHOD(set_textureclock),
     MP_CTX_METHOD(image),
     MP_CTX_METHOD(start_frame),
     MP_CTX_METHOD(end_frame),
