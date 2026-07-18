@@ -14,9 +14,10 @@ import async_helpers
 import wifi
 import shutil
 import machine
-from app_components import Menu, fourteen_pt, sixteen_pt, ten_pt, seven_pt
+from app_components import Menu, fourteen_pt, sixteen_pt, twelve_pt, ten_pt, seven_pt
 from app_components.tokens import set_color
-from events.input import ButtonDownEvent
+from app_components.utils import wrap_text
+from events.input import BUTTON_TYPES, ButtonDownEvent
 from events.emote import EmoteNegativeEvent, EmotePositiveEvent
 from frontboards.common import FRONTBOARD_BUTTON_TYPES
 from requests import get
@@ -113,6 +114,9 @@ class AppStoreApp(app.App):
         self.installed_menu = None
         self.update_menu = None
         self.codeinstall = None
+        self.app_details = None
+        self.details_app = None
+        self.available_menu_position = 0
         self.response = None
         self.app_store_index = []
         self.apps_with_updates = []
@@ -131,6 +135,7 @@ class AppStoreApp(app.App):
             self.installed_menu,
             self.update_menu,
             self.codeinstall,
+            self.app_details,
         ]
 
         for widget in widgets:
@@ -143,6 +148,7 @@ class AppStoreApp(app.App):
             self.installed_menu = None
             self.update_menu = None
             self.codeinstall = None
+            self.app_details = None
 
     def get_index(self):
         if not wifi.status():
@@ -208,6 +214,7 @@ class AppStoreApp(app.App):
     def prepare_available_categories_menu(self):
         def on_select(_, i):
             self.category_filter = self.app_categories[i]
+            self.available_menu_position = 0
             self.update_state("available_menu")
             self.cleanup_ui_widgets()
 
@@ -233,24 +240,44 @@ class AppStoreApp(app.App):
             ]
 
         def on_select(_, i):
-            self.to_install_app = filtered_index()[i]
-            self.update_state("installing_app")
+            self.details_app = filtered_index()[i]
+            self.available_menu_position = i
             self.cleanup_ui_widgets()
+            self.update_state("app_details")
 
         def exit_available_menu():
+            self.available_menu_position = 0
             self.cleanup_ui_widgets()
             self.update_state("available_categories_menu")
 
         self.available_menu = Menu(
             self,
             menu_items=[app["manifest"]["app"]["name"] for app in filtered_index()],
-            info_items=[
-                app["manifest"]["metadata"]["description"] for app in filtered_index()
-            ],
+            position=self.available_menu_position,
             select_handler=on_select,
             back_handler=exit_available_menu,
             focused_item_font_size=fourteen_pt,
             item_font_size=ten_pt,
+        )
+
+    def prepare_app_details(self):
+        def on_install():
+            app_to_install = self.details_app
+            self.details_app = None
+            self.cleanup_ui_widgets()
+            self.to_install_app = app_to_install
+            self.update_state("installing_app")
+
+        def on_back():
+            self.details_app = None
+            self.cleanup_ui_widgets()
+            self.update_state("available_menu")
+
+        self.app_details = AppDetails(
+            self,
+            self.details_app,
+            install_handler=on_install,
+            back_handler=on_back,
         )
 
     def prepare_main_menu(self):
@@ -421,6 +448,8 @@ class AppStoreApp(app.App):
             self.prepare_available_categories_menu()
         elif self.state == "available_menu" and not self.available_menu:
             self.prepare_available_menu()
+        elif self.state == "app_details" and not self.app_details:
+            self.prepare_app_details()
         elif self.state == "installed_menu" and not self.installed_menu:
             self.prepare_installed_menu()
         elif self.state == "update_menu" and not self.update_menu:
@@ -469,6 +498,10 @@ class AppStoreApp(app.App):
             self.available_menu.draw(ctx)
         elif self.state == "available_menu" and not self.available_menu:
             pass
+        elif self.state == "app_details" and self.app_details:
+            self.app_details.draw(ctx)
+        elif self.state == "app_details" and not self.app_details:
+            pass
         elif self.state == "installed_menu" and self.installed_menu:
             self.installed_menu.draw(ctx)
         elif self.state == "update_menu" and self.update_menu:
@@ -506,6 +539,150 @@ class AppStoreApp(app.App):
         ctx.restore()
 
         self.draw_overlays(ctx)
+
+
+class AppDetails:
+    """Scrollable app detail page with an install option at the end."""
+
+    def __init__(
+        self,
+        app: app.App,
+        store_entry: dict,
+        install_handler: Callable[[], Any],
+        back_handler: Callable[[], Any],
+    ):
+        self.app = app
+        self.install_handler = install_handler
+        self.back_handler = back_handler
+        self._cleaned_up = False
+
+        manifest = store_entry.get("manifest", {})
+        app_info = manifest.get("app", {})
+        metadata = manifest.get("metadata", {})
+        entry_id = store_entry.get("id", {})
+
+        self.title = app_info.get("name") or entry_id.get("title", "Unknown app")
+        self.author = (
+            metadata.get("author")
+            or metadata.get("maintainer")
+            or entry_id.get("owner", "Unknown author")
+        )
+        self.description = metadata.get("description") or "No description provided."
+        self.version = metadata.get("version", "")
+
+        # rows of (text, font_size, colour, gap_after), built in draw()
+        self._rows = None
+        self._total_height = None
+        self._max_scroll = None
+
+        self.scroll = 0
+        self._scroll_step = seven_pt * 1.1
+
+        self._page_top = -75
+        self._page_bottom = 80
+        self._draw_bottom = 118
+
+        eventbus.on(ButtonDownEvent, self._handle_buttondown, app)
+
+    def _at_end(self):
+        return self._max_scroll is not None and self.scroll >= self._max_scroll
+
+    def _scroll_down(self):
+        if self._max_scroll is not None:
+            self.scroll = min(self._max_scroll, self.scroll + self._scroll_step)
+
+    def _handle_buttondown(self, event: ButtonDownEvent):
+        if BUTTON_TYPES["CONFIRM"] in event.button:
+            if self._at_end():
+                self._cleanup()
+                self.install_handler()
+        elif BUTTON_TYPES["CANCEL"] in event.button:
+            self._cleanup()
+            self.back_handler()
+        elif BUTTON_TYPES["UP"] in event.button:
+            self.scroll = max(0, self.scroll - self._scroll_step)
+        elif BUTTON_TYPES["DOWN"] in event.button:
+            self._scroll_down()
+
+    def _cleanup(self):
+        if not self._cleaned_up:
+            eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
+            self._cleaned_up = True
+
+    def _build_rows(self, ctx):
+        rows = []
+
+        title_lines = wrap_text(ctx, self.title, twelve_pt, width=170)
+        for line in title_lines:
+            rows.append((line, twelve_pt, "label", 0))
+
+        author_lines = wrap_text(ctx, f"by {self.author}", seven_pt, width=175)
+        for line in author_lines:
+            rows.append((line, seven_pt, "button_background", 0))
+        if self.version:
+            rows.append((f"v{self.version}", seven_pt, "button_background", 0))
+        if rows:
+            text, size, colour, _ = rows[-1]
+            rows[-1] = (text, size, colour, 6)
+
+        for line in wrap_text(ctx, self.description, seven_pt, width=175):
+            rows.append((line, seven_pt, "label", 0))
+        text, size, colour, _ = rows[-1]
+        rows[-1] = (text, size, colour, 6)
+
+        rows.append(("Install now", seven_pt, None, 0))
+
+        self._rows = rows
+        self._total_height = sum(size * 1.1 + gap for (_, size, _, gap) in rows)
+        page_height = self._page_bottom - self._page_top
+        self._max_scroll = max(0, self._total_height - page_height)
+        self.scroll = min(self.scroll, self._max_scroll)
+
+    @staticmethod
+    def _draw_download_icon(ctx, cx, cy):
+        """Draw a small download glyph."""
+        ctx.begin_path()
+        ctx.rectangle(cx - 1.5, cy - 8, 3, 6).fill()
+        ctx.begin_path()
+        ctx.move_to(cx - 5, cy - 3)
+        ctx.line_to(cx + 5, cy - 3)
+        ctx.line_to(cx, cy + 3)
+        ctx.close_path()
+        ctx.fill()
+        ctx.begin_path()
+        ctx.rectangle(cx - 6, cy + 5, 12, 2.5).fill()
+
+    def draw(self, ctx):
+        ctx.save()
+        ctx.text_align = ctx.CENTER
+        ctx.text_baseline = ctx.MIDDLE
+
+        if self._rows is None:
+            self._build_rows(ctx)
+
+        at_end = self._at_end()
+        y = self._page_top - self.scroll
+
+        for text, size, colour, gap in self._rows:
+            row_height = size * 1.1
+            center = y + row_height / 2
+            # rows straddling the bottom clip against the screen edge
+            if -84 <= center and center - row_height / 2 <= self._draw_bottom:
+                if colour is None:
+                    # install row, highlighted once scrolled to the end
+                    set_color(ctx, "active_menu_item" if at_end else "label")
+                    ctx.font_size = size
+                    ctx.move_to(0, center).text(text)
+                    icon_offset = ctx.text_width(text) / 2 + 14
+                    self._draw_download_icon(ctx, -icon_offset, center)
+                    self._draw_download_icon(ctx, icon_offset, center)
+                else:
+                    set_color(ctx, colour)
+                    ctx.font_size = size
+                    ctx.move_to(0, center).text(text)
+            y += row_height + gap
+
+        ctx.restore()
 
 
 class CodeInstall:
