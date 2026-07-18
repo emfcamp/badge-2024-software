@@ -11,6 +11,7 @@ import vfs
 from machine import I2C
 from tarfile import TarFile, DIRTYPE
 from app_components import layout
+import frontboards.utils
 from app_components.dialog import HexDialog, NumberDialog, YesNoDialog, ProgressDialog
 from app_components.background import Background as bg
 from events.input import BUTTON_TYPES, ButtonDownEvent
@@ -94,6 +95,13 @@ class HexpansionDetail:
                         "Bulk provisioning", button_handler=self.bulk_provision_handler
                     )
                 )
+        if self.port == 0:
+            items.append(
+                layout.ButtonDisplay(
+                    "Autodetect", button_handler=self.reset_frontboard_handler
+                )
+            )
+
         return items
 
     @staticmethod
@@ -102,6 +110,32 @@ class HexpansionDetail:
         if s.lower().startswith("0x"):
             s = s[2:]
         return int(s, 16)
+
+    async def reset_frontboard_handler(self, event):
+        try:
+            i2c = I2C(0)
+            old_header = i2c.readfrom_mem(87, 0, 32, addrsize=16)
+            print("Resetting frontboard")
+            print(f"Old header: {old_header}")
+            i2c.writeto(87, bytes([0, 0, 0, 0, 0, 0, 0, 0]))
+            frontboards.utils.detected_frontboard = None
+            frontboard = frontboards.utils.detect_frontboard()
+            print(f"Found frontboard {frontboard:04x}")
+            await asyncio.sleep(0.1)
+            addr, addr_len = detect_eeprom_addr(i2c)
+            self.header = read_hexpansion_header(i2c, addr, addr_len=addr_len)
+            print(self.header)
+            self._displays = {}
+            self._layout = layout.LinearLayout(items=self._build_items())
+            if self.header is None:
+                raise ValueError()
+            eventbus.emit(
+                ShowNotificationEvent(message="Found " + self.header.friendly_name)
+            )
+        except Exception as e:
+            print(e)
+            raise
+            eventbus.emit(ShowNotificationEvent(message="Failed"))
 
     def _make_edit_handler(self, field, label):
         display, parse, fmt = self._displays[field]
