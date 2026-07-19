@@ -36,6 +36,60 @@ line_height = 1.5
 colors = frontboard.colors
 ui_colors = frontboard.ui_colors
 
+# Menu highlight colours available to the user, in cycle order.
+# Keys are stored in settings under "menu_highlight_color".
+# "theme" restores the frontboard's default active_menu_item colour.
+MENU_HIGHLIGHT_COLOR_NAMES = [
+    "theme", 
+    "yellow", 
+    "pink", 
+    "white", 
+    "green", 
+    "orange", 
+    "blue"
+]
+
+_MENU_HIGHLIGHT_COLORS = {
+    "yellow": colors["yellow"],
+    "pink": colors["pink"],
+    "white": colors["white"],
+    "orange": colors["orange"],
+}
+
+# green and blue differ between frontboards so we pull from their colors dict
+if "pale_green" in colors:
+    _MENU_HIGHLIGHT_COLORS["green"] = colors["pale_green"]
+elif "green" in colors:
+    _MENU_HIGHLIGHT_COLORS["green"] = colors["green"]
+
+if "pale_blue" in colors:
+    _MENU_HIGHLIGHT_COLORS["blue"] = colors["pale_blue"]
+elif "blue" in colors:
+    _MENU_HIGHLIGHT_COLORS["blue"] = colors["blue"]
+
+_default_active_menu_item = ui_colors.get("active_menu_item")
+
+
+def _apply_active_menu_item_color(ctx):
+    import settings as _settings
+    
+    key = _settings.get("menu_highlight_color", "theme")
+    if not key or key == "theme":
+        color = _default_active_menu_item
+        if callable(color):
+            color(ctx)
+        else:
+            ctx.rgb(*color)
+    else:
+        color = _MENU_HIGHLIGHT_COLORS.get(key, _default_active_menu_item)
+        ctx.rgb(*color)
+
+
+# Patch ui_colors so set_color(ctx, "active_menu_item") picks up the user's choice.
+# set_color calls callables with ctx directly, matching the gradient pattern.
+ui_colors["active_menu_item"] = _apply_active_menu_item_color
+
+
 symbols = {
     "arrows": {
         "left": "←",
@@ -64,7 +118,7 @@ symbols = {
         "cross": "✕",
         "solderparty": "⭍",
     },
-    "emf_logo": "",
+    "emf_logo": "",
     "shark": "ǩ",
     "duck": "⇩",
     "spider": "臩",
