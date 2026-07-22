@@ -135,7 +135,7 @@ class DefinitionDisplay(Layoutable):
         # Draw label
         ctx.font_size = tokens.one_pt * 8
         if focused:
-            ctx.rgb(*tokens.ui_colors["definition_label_active"])
+            ctx.rgb(*tokens.ui_colors["active_definition_label"])
         else:
             ctx.rgb(*tokens.ui_colors["definition_label"])
         y = 0
