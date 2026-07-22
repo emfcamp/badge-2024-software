@@ -239,6 +239,28 @@ class SettingsApp(app.App):
                     )
                     self.layout.items.append(entry)
 
+                if id == "enable_boot_animation":
+
+                    async def _button_event_mirror_toggle(event):
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            enable_boot_animation = settings.get(
+                                "enable_boot_animation"
+                            )
+
+                            # default will evaluate to False here
+                            enable_boot_animation = not enable_boot_animation
+
+                            settings.set("enable_boot_animation", enable_boot_animation)
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry = layout.ButtonDisplay(
+                        "Toggle", button_handler=_button_event_mirror_toggle
+                    )
+                    self.layout.items.append(entry)
+
                 if id == "backleds_emotes":
 
                     async def _button_event_backleds_emotes_toggle(event):
@@ -344,6 +366,7 @@ class SettingsApp(app.App):
             ("pattern_mirror_hexpansions", "Mirror pattern", on_off_formatter, None),
             ("backleds_emotes", "Flash emotes on backleds", on_off_formatter, None),
             ("background", "Background", tuple_formatter, None),
+            ("enable_boot_animation", "Enable Boot Animation", on_off_formatter, None),
             ("version", "Software version", version_formatter, self.dev_mode),
             ("update_channel", "Update channel", string_formatter, None),
             ("wifi_tx_power", "WiFi TX power", string_formatter, None),
