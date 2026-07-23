@@ -191,6 +191,8 @@ class SettingsApp(app.App):
                             return True
                         return False
 
+                    entry.button_handler = _button_event_pattern_toggle
+                    
                     entry = layout.ButtonDisplay(
                         "Next pattern", button_handler=_button_event_pattern_toggle
                     )
@@ -214,6 +216,8 @@ class SettingsApp(app.App):
                             return True
                         return False
 
+                    entry.button_handler = _button_event_pattern_toggle
+
                     entry = layout.ButtonDisplay(
                         "Toggle", button_handler=_button_event_pattern_toggle
                     )
@@ -234,6 +238,8 @@ class SettingsApp(app.App):
                             return True
                         return False
 
+                    entry.button_handler = _button_event_mirror_toggle
+
                     entry = layout.ButtonDisplay(
                         "Toggle", button_handler=_button_event_mirror_toggle
                     )
@@ -252,6 +258,8 @@ class SettingsApp(app.App):
                             await render_update()
                             return True
                         return False
+
+                    entry.button_handler = _button_event_backleds_emotes_toggle
 
                     entry = layout.ButtonDisplay(
                         "Toggle", button_handler=_button_event_backleds_emotes_toggle
@@ -274,6 +282,8 @@ class SettingsApp(app.App):
                             await render_update()
                             return True
                         return False
+
+                    entry.button_handler = _button_event_channel_toggle
 
                     entry = layout.ButtonDisplay(
                         "Toggle", button_handler=_button_event_channel_toggle
@@ -298,6 +308,8 @@ class SettingsApp(app.App):
                             await render_update()
                             return True
                         return False
+
+                    entry.button_handler = _button_event_background_toggle
 
                     entry = layout.ButtonDisplay(
                         "Next",
