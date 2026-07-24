@@ -558,9 +558,6 @@ class AppStoreApp(app.App):
             item_font_size=ten_pt,
         )
 
-    def prepare_capabilities_menu(self):
-        self.update_state("loading_capabilities")
-
     def _build_capabilities_menu(self):
         caps = self.available_capabilities
         self._capability_entries = []
@@ -759,7 +756,7 @@ class AppStoreApp(app.App):
             elif value == SEARCH:
                 self.update_state("search_input")
             elif value == CAPABILITIES:
-                self.update_state("capabilities_menu")
+                self.update_state("loading_capabilities")
             elif value == INSTALLED:
                 self.update_state("installed_menu")
             elif value == UPDATE:
@@ -1002,7 +999,26 @@ class AppStoreApp(app.App):
                             for item in items:
                                 code = item.get("code")
                                 if code and code in self._update_code_map:
+                                    store_name = (
+                                        item.get("manifest", {})
+                                        .get("app", {})
+                                        .get("name", "")
+                                    )
                                     for ia in self._update_code_map[code]:
+                                        # If this code matches the stored
+                                        # app_code from metadata.json it is
+                                        # authoritative; skip name verification.
+                                        stored_code = _get_app_code_from_metadata(
+                                            ia.get("app_dir", APP_INSTALL_DIR),
+                                            ia["folder"],
+                                        )
+                                        if not stored_code or stored_code != code:
+                                            # Guessed code — verify the names
+                                            # match before persisting.
+                                            if store_name and store_name != ia.get(
+                                                "name"
+                                            ):
+                                                continue
                                         self._update_results[ia["folder"]] = item
                                         _store_app_code(
                                             ia.get("app_dir", APP_INSTALL_DIR),
