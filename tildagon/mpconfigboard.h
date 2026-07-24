@@ -1,6 +1,9 @@
 #ifndef MICROPY_HW_BOARD_NAME
-// Can be set by mpconfigboard.cmake.
+#ifdef TILDAGON_USB_JTAG_DEBUG
+#define MICROPY_HW_BOARD_NAME               "Tildagon (USB-JTAG debug)"
+#else
 #define MICROPY_HW_BOARD_NAME               "Tildagon"
+#endif
 #endif
 #define MICROPY_HW_MCU_NAME                 "ESP32S3"
 
