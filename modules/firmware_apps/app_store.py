@@ -15,6 +15,7 @@ import wifi
 import shutil
 import machine
 from app_components import Menu, fourteen_pt, sixteen_pt, twelve_pt, ten_pt, seven_pt
+from app_components.dialog import TextDialog
 from app_components.tokens import set_color
 from app_components.utils import wrap_text
 from events.input import BUTTON_TYPES, ButtonDownEvent
@@ -168,10 +169,6 @@ def _find_app_codes(app_dir, folder_name, manifest):
     if manifest_name and manifest_name != folder_name:
         if manifest_author:
             pass  # already added above
-        for service in APP_STORE_SERVICES:
-            candidates.append(
-                (service, manifest_name)
-            )  # service as owner? weird but try
 
     # Try each candidate with both services, collect all codes
     codes = []
@@ -251,6 +248,7 @@ def _get_available_capabilities():
 
 
 CODE_INSTALL = "Use Code"
+SEARCH = "Search"
 AVAILABLE = "Browse Apps"
 CAPABILITIES = "By Capability"
 INSTALLED = "Uninstall"
@@ -327,18 +325,21 @@ class AppStoreApp(app.App):
         self.available_menu_position = 0
         self.response = None
         self._filtered_apps = []  # Apps from filtered API calls (category/capability)
-        self.apps_with_updates = []
         self.app_categories = APP_STORE_CATEGORIES  # Hardcoded, no longer from index
         self.category_filter = None
         self.available_capabilities = None  # Detected badge capabilities
         self.category_apps_response = None  # Response for per-category fetch
         self.capability_apps_response = None  # Response for per-capability fetch
         self.to_install_app = None
-        self.tarball = None
-        self.wait_one_cycle = False
         self._lookup_code = None  # Code being looked up via API
         self._capability_params = None  # Params for capability-filtered API call
         self._last_error = None  # Last error message for display
+        # Search state
+        self._search_query = None  # Current search query
+        self._search_results = None  # Results from search API call
+        self.search_results_menu = None  # Menu widget for search results
+        # Track where we came from when showing app details
+        self._app_details_return_state = None
         # Update-check state
         self._update_code_map = {}  # code -> list of installed app dicts
         self._update_results = {}  # folder_name -> app store entry
@@ -379,6 +380,7 @@ class AppStoreApp(app.App):
             self.codeinstall,
             self.app_details,
             self._update_detail_widget,
+            self.search_results_menu,
         ]
 
         for widget in widgets:
@@ -395,6 +397,7 @@ class AppStoreApp(app.App):
             self.codeinstall = None
             self.app_details = None
             self._update_detail_widget = None
+            self.search_results_menu = None
 
     def _start_update_check(self):
         """Start checking installed apps for available updates.
@@ -683,6 +686,7 @@ class AppStoreApp(app.App):
         def on_select(_, i):
             self.details_app = self._filtered_apps[i]
             self.available_menu_position = i
+            self._app_details_return_state = "available_menu"
             self.cleanup_ui_widgets()
             self.update_state("app_details")
 
@@ -705,6 +709,33 @@ class AppStoreApp(app.App):
             item_font_size=ten_pt,
         )
 
+    def prepare_search_results_menu(self):
+        """Build menu showing search results."""
+
+        def on_select(_, i):
+            self.details_app = self._search_results[i]
+            self._app_details_return_state = "search_results"
+            self.cleanup_ui_widgets()
+            self.update_state("app_details")
+
+        def exit_search_results():
+            self._search_results = None
+            self.cleanup_ui_widgets()
+            self.update_state("main_menu")
+
+        self.search_results_menu = Menu(
+            self,
+            menu_items=[app["manifest"]["app"]["name"] for app in self._search_results],
+            info_items=[
+                app["manifest"]["metadata"]["description"]
+                for app in self._search_results
+            ],
+            select_handler=on_select,
+            back_handler=exit_search_results,
+            focused_item_font_size=fourteen_pt,
+            item_font_size=ten_pt,
+        )
+
     def prepare_app_details(self):
         def on_install():
             app_to_install = self.details_app
@@ -714,9 +745,11 @@ class AppStoreApp(app.App):
             self.update_state("installing_app")
 
         def on_back():
+            return_state = self._app_details_return_state or "available_menu"
             self.details_app = None
+            self._app_details_return_state = None
             self.cleanup_ui_widgets()
-            self.update_state("available_menu")
+            self.update_state(return_state)
 
         self.app_details = AppDetails(
             self,
@@ -765,6 +798,8 @@ class AppStoreApp(app.App):
                 self.update_state("code_install_input")
             elif value == AVAILABLE:
                 self.update_state("available_categories_menu")
+            elif value == SEARCH:
+                self.update_state("search_input")
             elif value == CAPABILITIES:
                 self.update_state("capabilities_menu")
             elif value == INSTALLED:
@@ -772,7 +807,7 @@ class AppStoreApp(app.App):
             elif value == UPDATE:
                 self._start_update_check()
 
-        menu_items = [AVAILABLE, CAPABILITIES, CODE_INSTALL, UPDATE]
+        menu_items = [AVAILABLE, SEARCH, CAPABILITIES, CODE_INSTALL, UPDATE]
         if len(list_all_apps()) > 0:
             menu_items.append(
                 INSTALLED
@@ -937,8 +972,46 @@ class AppStoreApp(app.App):
             self.handle_capability_apps()
         elif self.state == "code_lookup_received":
             self.handle_code_lookup_response()
+        elif self.state == "search_input":
+            dialog = TextDialog("Search apps by name", self)
+            self.overlays = [dialog]
+            result = await dialog.run(render_update)
+            self.overlays = []
+            if result and result.strip():
+                self._search_query = result.strip()
+                self.update_state("searching")
+            else:
+                self.update_state("main_menu")
+        elif self.state == "searching":
+            gc.collect()
+            try:
+                url = _build_app_url("/apps", {"q": self._search_query})
+                print(f"Searching apps: {url}")
+                self.response = await async_helpers.unblock(get, render_update, url)
+                status = getattr(self.response, "status_code", 0)
+                if status == 200:
+                    self._search_results = self.response.json().get("items", [])
+                    if self._search_results:
+                        self.update_state("search_results")
+                    else:
+                        eventbus.emit(
+                            ShowNotificationEvent(
+                                f"No results for '{self._search_query}'"
+                            )
+                        )
+                        self.update_state("main_menu")
+                else:
+                    print(f"Search returned HTTP {status}")
+                    self.update_state("no_index")
+                    self._last_error = f"HTTP {status}"
+            except Exception as e:
+                print(f"Search error: {e}")
+                self._last_error = str(e)
+                self.update_state("no_index")
         elif self.state == "main_menu" and not self.menu:
             self.prepare_main_menu()
+        elif self.state == "search_results" and not self.search_results_menu:
+            self.prepare_search_results_menu()
         elif (
             self.state == "available_categories_menu"
             and not self.available_categories_menu
@@ -1011,7 +1084,7 @@ class AppStoreApp(app.App):
                                 app_dir = d
                                 break
                     try:
-                        url = _build_app_url("/apps", {"search": name})
+                        url = _build_app_url("/apps", {"q": name})
                         print(f"Searching for unmatched app '{name}': {url}")
                         self.response = await async_helpers.unblock(
                             get, render_update, url
@@ -1123,6 +1196,8 @@ class AppStoreApp(app.App):
             self.installed_menu.update(delta)
         if self.update_menu:
             self.update_menu.update(delta)
+        if self.search_results_menu:
+            self.search_results_menu.update(delta)
 
     def draw(self, ctx):
         ctx.save()
@@ -1146,6 +1221,10 @@ class AppStoreApp(app.App):
             self.available_menu.draw(ctx)
         elif self.state == "available_menu" and not self.available_menu:
             pass
+        elif self.state == "search_results" and self.search_results_menu:
+            self.search_results_menu.draw(ctx)
+        elif self.state == "search_results" and not self.search_results_menu:
+            self.error_screen(ctx, "Loading...")
         elif self.state == "app_details" and self.app_details:
             self.app_details.draw(ctx)
         elif self.state == "app_details" and not self.app_details:
@@ -1168,6 +1247,8 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Loading...")
         elif self.state == "update_detail" and self._update_detail_widget:
             self._update_detail_widget.draw(ctx)
+        elif self.state == "update_detail" and not self._update_detail_widget:
+            self.error_screen(ctx, "Loading...")
         elif self.state == "no_wifi":
             self.error_screen(ctx, "No Wi-Fi\nconnection")
         elif self.state == "checking_wifi":
@@ -1186,8 +1267,8 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Loading\ncapability\napps...")
         elif self.state == "looking_up_code":
             self.error_screen(ctx, "Looking up\napp code...")
-        elif self.state == "index_received":
-            self.error_screen(ctx, "Index\nreceived")
+        elif self.state == "searching":
+            self.error_screen(ctx, f"Searching...\n{self._search_query}")
         elif self.state == "category_apps_received":
             self.error_screen(ctx, "Category\nreceived")
         elif self.state == "capability_apps_received":
