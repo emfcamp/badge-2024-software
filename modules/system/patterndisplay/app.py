@@ -10,12 +10,22 @@ from system.patterndisplay.events import (
     PatternDisable,
     PatternReload,
     PatternSet,
+    PatternOverride,
+    PatternClearOverride,
 )
 from system.eventbus import eventbus
 from app_components.utils import path_isfile
 from firmware_apps.settings_app import PAT_DIR
 from system.notification.events import ShowNotificationEvent
 from frontboards.twentysix import TwentyTwentySix
+
+
+class OverrideNeoPixel:
+    def __init__(self, override_value):
+        self.override = override_value
+
+    def __call__(self, _):
+        return self.override
 
 
 class PatternDisplay(App):
@@ -25,6 +35,8 @@ class PatternDisplay(App):
         eventbus.on_async(PatternDisable, self._disable, self)
         eventbus.on_async(PatternReload, self._reload, self)
         eventbus.on_async(PatternSet, self._set, self)
+        eventbus.on_async(PatternOverride, self._override, self)
+        eventbus.on_async(PatternClearOverride, self._clear_override, self)
         self.load_pattern()
         self.enabled = settings.get("pattern_generator_enabled", True)
         self.correction = neopixel.DimCorrection(1.0)
@@ -118,6 +130,14 @@ class PatternDisplay(App):
 
     async def _set(self, event: PatternSet):
         self._p = event.pattern_class()
+
+    async def _override(self, event: PatternOverride):
+        if event.led < 12:
+            self.leds.alterations[event.led] = OverrideNeoPixel(event.new_value)
+
+    async def _clear_override(self, event: PatternClearOverride):
+        if event.led < 12:
+            self.leds.alterations[event.led] = self.correction
 
     async def background_task(self):
         while True:
