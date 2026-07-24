@@ -22,7 +22,7 @@ SPECIAL_KEY_SPACE = "Space"
 
 LOWERCASE_ALPHABET = list("abcdefghijklmnopqrstuvwxyz")
 UPPERCASE_ALPHABET = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890")
-SYMBOL_ALPHABET = list("-=!\"£$%^&*()_+[];'#,./{}:@~<>?") + [SPECIAL_KEY_SPACE]
+SYMBOL_ALPHABET = list("""!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~£""") + [SPECIAL_KEY_SPACE]
 HEX_ALPHABET = list("0123456789ABCDEF")
 NUM_ALPHABET = list("0123456789.")
 
