@@ -70,7 +70,8 @@ def _quote(s):
         if c in safe:
             res.append(c)
         else:
-            res.append("%%%02X" % ord(c))
+            for b in c.encode("utf-8"):
+                res.append("%%%02X" % b)
     return "".join(res)
 
 
@@ -124,9 +125,19 @@ def _find_app_codes(app_dir, folder_name, manifest):
 
     if len(parts) >= 2:
         for split_idx in range(1, len(parts)):
-            owner = "_".join(parts[:split_idx])
-            title = "_".join(parts[split_idx:])
-            candidates.append((owner, title))
+            owner_us = "_".join(parts[:split_idx])
+            title_us = "_".join(parts[split_idx:])
+            candidates.append((owner_us, title_us))
+            # Also try hyphenated variants: install_app replaces hyphens
+            # with underscores, so the folder loses the original separators.
+            title_hy = "-".join(parts[split_idx:])
+            if title_hy != title_us:
+                candidates.append((owner_us, title_hy))
+            owner_hy = "-".join(parts[:split_idx])
+            if owner_hy != owner_us:
+                candidates.append((owner_hy, title_us))
+            if owner_hy != owner_us and title_hy != title_us:
+                candidates.append((owner_hy, title_hy))
     else:
         candidates.append(("emfcamp", folder_name))
         candidates.append(("badge", folder_name))
@@ -144,14 +155,12 @@ def _find_app_codes(app_dir, folder_name, manifest):
 
 
 def _store_app_code(app_dir, folder_name, code):
-    import json
-
     metadata_path = f"{app_dir}/{folder_name}/metadata.json"
     try:
         with open(metadata_path, "r") as f:
             metadata = json.loads(f.read())
     except Exception:
-        metadata = {}
+        return
     if metadata.get("app_code") != code:
         metadata["app_code"] = code
         try:
@@ -205,6 +214,8 @@ CAPABILITIES = "By Capability"
 INSTALLED = "Uninstall"
 UPDATE = "Update Apps"
 
+# TODO: These categories are coupled to the server-side category list.
+# If categories change on the server, this list must be updated.
 APP_STORE_CATEGORIES = [
     "Badge",
     "Music",
@@ -296,6 +307,9 @@ class AppStoreApp(app.App):
         self._update_phase = 0
         self._update_unmatched = []
         self._update_updatable = False
+        self._update_installed_apps = None
+        self._capability_entries = []
+        self.overlays = []
 
         eventbus.on(ButtonDownEvent, self._handle_error_back, self)
 
@@ -490,6 +504,9 @@ class AppStoreApp(app.App):
 
     def handle_code_input(self, code):
         print(f"Looking up app by code: {code}")
+        if not wifi.status():
+            self.update_state("no_wifi")
+            return
         self._lookup_code = code
         self.update_state("looking_up_code")
 
@@ -542,8 +559,9 @@ class AppStoreApp(app.App):
         )
 
     def prepare_capabilities_menu(self):
-        self.available_capabilities = _get_available_capabilities()
+        self.update_state("loading_capabilities")
 
+    def _build_capabilities_menu(self):
         caps = self.available_capabilities
         self._capability_entries = []
 
@@ -902,9 +920,7 @@ class AppStoreApp(app.App):
             self.handle_code_lookup_response()
         elif self.state == "search_input":
             dialog = TextDialog("Search apps by name", self)
-            self.overlays = [dialog]
             result = await dialog.run(render_update)
-            self.overlays = []
             if result and result.strip():
                 self._search_query = result.strip()
                 self.update_state("searching")
@@ -949,8 +965,18 @@ class AppStoreApp(app.App):
             self.prepare_available_menu()
         elif self.state == "app_details" and not self.app_details:
             self.prepare_app_details()
+        elif self.state == "loading_capabilities":
+            gc.collect()
+            try:
+                self.available_capabilities = await async_helpers.unblock(
+                    _get_available_capabilities, render_update
+                )
+            except Exception as e:
+                print(f"Capabilities detection error: {e}")
+                self.available_capabilities = {}
+            self.update_state("capabilities_menu")
         elif self.state == "capabilities_menu" and not self.capabilities_menu:
-            self.prepare_capabilities_menu()
+            self._build_capabilities_menu()
         elif self.state == "capability_apps_menu" and not self.capability_apps_menu:
             self.prepare_capability_apps_menu()
         elif self.state == "installed_menu" and not self.installed_menu:
@@ -1155,6 +1181,8 @@ class AppStoreApp(app.App):
             self.app_details.draw(ctx)
         elif self.state == "app_details" and not self.app_details:
             pass
+        elif self.state == "loading_capabilities":
+            self.error_screen(ctx, "Detecting\ncapabilities...")
         elif self.state == "capabilities_menu" and self.capabilities_menu:
             self.capabilities_menu.draw(ctx)
         elif self.state == "capabilities_menu" and not self.capabilities_menu:
@@ -1602,6 +1630,7 @@ class CodeInstall:
 
 def install_app(app):
     try:
+        ## This is fine to block because we only call it from background_update
         print("GC")
         gc.collect()
 
