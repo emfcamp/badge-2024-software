@@ -11,7 +11,7 @@ from system.espnow import espnow_service
 from system.launcher.app import Launcher
 from system.power.handler import PowerEventHandler
 from system.power.app import PowerManager
-from system.boopscreen.app import BoopSpinner
+from settings import get
 
 from frontboards.utils import detect_frontboard
 import frontboard2026
@@ -37,7 +37,10 @@ else:
 scheduler.start_app(HexpansionManagerApp())
 
 # Start the spinning-tilde boop animation
-scheduler.start_app(BoopSpinner(), always_on_top=True)
+if get("enable_boot_animation", default=True):
+    from system.boopscreen.app import BoopSpinner
+
+    scheduler.start_app(BoopSpinner(), always_on_top=True)
 
 # Start led pattern displayer app
 scheduler.start_app(PatternDisplay())
