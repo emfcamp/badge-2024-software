@@ -40,7 +40,10 @@ def copyfileobj(src, dest, length=512):
 
 def copytree(src, dst, **kwargs):
     os.mkdir(dst)
-    for name, type, *_ in os.ilistdir(src):
+    # the ilistdir generator is not re-entrant so calling copytree recursively fails
+    # unless we take a list copy of the directory entries first
+    dir_content = list(os.ilistdir(src))
+    for name, type, *_ in dir_content:
         if type & 0x4000:
             # it's a directory
             copytree(f"{src}/{name}", f"{dst}/{name}")
