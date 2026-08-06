@@ -69,7 +69,8 @@ index b4aad22db..0d01c03c8 100644
 --- a/ports/webassembly/mpconfigport.h
 +++ b/ports/webassembly/mpconfigport.h
 @@ -54,7 +54,6 @@
- #define MICROPY_USE_INTERNAL_ERRNO  (1)
+-#define MICROPY_USE_INTERNAL_ERRNO  (1)
++#define MICROPY_USE_INTERNAL_ERRNO  (0)
  #define MICROPY_USE_INTERNAL_PRINTF (0)
  
 -#define MICROPY_EPOCH_IS_1970       (1)
