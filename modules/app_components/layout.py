@@ -28,6 +28,10 @@ class TextDisplay(Layoutable):
             rgb = tokens.ui_colors["label"]
         self.rgb = rgb
 
+    def set_text(self, text):
+        self.text = text
+        self.lines = None
+
     def draw(self, ctx, focused=False):
         ctx.save()
         ctx.font_size = self.font_size
