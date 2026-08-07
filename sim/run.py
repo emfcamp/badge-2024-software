@@ -43,16 +43,25 @@ class UnderscoreFinder(importlib.abc.MetaPathFinder):
         self.pathfinder = pathfinder
 
     def find_spec(self, fullname, path, target=None):
+        # Our fake 'time' module wants to import _time as a backdoor to the
+        # original time module, which is a builtin C module.  Invoke the
+        # BuiltinImporter with "time" to satisfy this.
         if fullname == "_time":
             return self.builtin.find_spec("time", path, target)
-        if fullname in ["random", "math"]:
-            return self.builtin.find_spec(fullname, path, target)
+
+        # Suppress the simulator's sys.path prefixed entries temporarily while
+        # looking for 'json' or 'tarfile'.
         if fullname in ["json", "tarfile"]:
             sys_path_saved = sys.path
             sys.path = sys_path_orig
             res = self.pathfinder.find_spec(fullname, path, target)
             sys.path = sys_path_saved
             return res
+
+        # Provide a general fallback to other builtin (C) modules.
+        # It's OK to do this indiscriminately as the BuiltinImporter won't find
+        # modules that aren't builtin.
+        return self.builtin.find_spec(fullname, path, target)
 
 
 # sys.meta_path.insert(0, Hook())
