@@ -143,7 +143,7 @@ class Launcher(App):
             # ("Magnetometer", "magnet_app", "Magnetometer"),
             ("Update", "system.ota.ota", "OtaUpdate"),
             ("Hexpansions", "firmware_apps.hexpansionfw", "HexpansionInfoApp"),
-            ("Power Off", "firmware_apps.poweroff", "PowerOff"),
+            ("Power", "firmware_apps.power_app", "PowerApp"),
             ("Settings", "firmware_apps.settings_app", "SettingsApp"),
             # ("Settings", "settings_app", "SettingsApp"),
             # ("ESPNow ping", "firmware_apps.espnow_ping", "ESPNowPing"),
