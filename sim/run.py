@@ -169,6 +169,17 @@ def replace_launcher(module_name: str, class_name: str):
     import system.launcher.app
     system.launcher.app.Launcher = app_class
 
+def replace_launcher_wrap(menu_item: str):
+    "Wrap the launcher a subclass that selects a given item on initialisation"
+    import system.scheduler # import first to prevent circular import
+    import system.launcher.app
+    class WrappedLauncher(system.launcher.app.Launcher):
+        init_menu_item = menu_item
+        def __init__(self):
+            super().__init__()
+            self.select_handler(self.init_menu_item, 0)
+
+    system.launcher.app.Launcher = WrappedLauncher
 
 def sim_main():
     parser = argparse.ArgumentParser()
@@ -183,6 +194,11 @@ def sim_main():
         nargs="?",
         help="App to start instead of the main launcher. "
         + "This is in the format 'module.class', for example 'example.ExampleApp'.",
+    )
+    parser.add_argument(
+        "--menu",
+        help="At startup select this menu item. "
+        + "For example to start an app: --menu 'ExampleApp'.",
     )
     args = parser.parse_args()
 
@@ -201,6 +217,9 @@ def sim_main():
         except Exception as ex:
             print(f"Error: {ex}")
             sys.exit(1)
+
+    if args.menu is not None:
+        replace_launcher_wrap(args.menu)
 
     import main
 
