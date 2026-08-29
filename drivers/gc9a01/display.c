@@ -61,9 +61,14 @@ static mp_obj_t get_ctx() {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(get_ctx_obj, get_ctx);
 
+#include "flow3r_bsp_display_mirror.h"
+
 void tildagon_blit_fb (void)
 {
   flow3r_bsp_display_send_fb(tildagon_fb, 16);
+  
+  // Dispatch to all registered auxiliary display sinks (HDMI mirror, secondary screens, virtual sinks)
+  flow3r_bsp_display_dispatch_sinks(tildagon_fb, sizeof(tildagon_fb));
 }
 
 void tildagon_end_frame(Ctx *ctx)
@@ -83,6 +88,39 @@ static mp_obj_t end_frame(mp_obj_t ctx) {
     return ctx;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(end_frame_obj, end_frame);
+
+static mp_obj_t get_framebuffer() {
+    return mp_obj_new_bytes(tildagon_fb, sizeof(tildagon_fb));
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(get_framebuffer_obj, get_framebuffer);
+
+static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *args) {
+    int port = 1;
+    int baudrate = 40000000;
+    if (n_args >= 1) {
+        port = mp_obj_get_int(args[0]);
+    }
+    if (n_args >= 2) {
+        baudrate = mp_obj_get_int(args[1]);
+    }
+    esp_err_t err = flow3r_bsp_display_mirror_init_port(port, baudrate);
+    if (err != ESP_OK) {
+        mp_raise_OSError(err);
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(attach_mirror_obj, 0, 2, attach_mirror);
+
+static mp_obj_t detach_mirror() {
+    flow3r_bsp_display_mirror_deinit();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(detach_mirror_obj, detach_mirror);
+
+static mp_obj_t is_mirror_active() {
+    return mp_obj_new_bool(flow3r_bsp_display_mirror_is_active());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(is_mirror_active_obj, is_mirror_active);
 
 static mp_obj_t splash() {
     for (int i = 0; i < 5; i++) {
@@ -146,6 +184,10 @@ static const mp_rom_map_elem_t display_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_get_ctx), MP_ROM_PTR(&get_ctx_obj) },
     { MP_ROM_QSTR(MP_QSTR_end_frame), MP_ROM_PTR(&end_frame_obj) },
     { MP_ROM_QSTR(MP_QSTR_hexagon), MP_ROM_PTR(&hexagon_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_framebuffer), MP_ROM_PTR(&get_framebuffer_obj) },
+    { MP_ROM_QSTR(MP_QSTR_attach_mirror), MP_ROM_PTR(&attach_mirror_obj) },
+    { MP_ROM_QSTR(MP_QSTR_detach_mirror), MP_ROM_PTR(&detach_mirror_obj) },
+    { MP_ROM_QSTR(MP_QSTR_is_mirror_active), MP_ROM_PTR(&is_mirror_active_obj) },
 };
 static MP_DEFINE_CONST_DICT(display_module_globals, display_module_globals_table);
 
@@ -155,3 +197,4 @@ const mp_obj_module_t display_user_module = {
 };
 
 MP_REGISTER_MODULE(MP_QSTR_display, display_user_module);
+
