@@ -16,12 +16,12 @@ static const char *TAG = "bsp-display-mirror";
 
 static const flow3r_bsp_port_pins_t PORT_PINS[7] = {
     { -1, -1, -1, -1 },         // 0: Invalid
-    { 39, 40, 41, 42 },         // Port 1: SCK=HS0(39), MOSI=HS1(40), CS=HS2(41), DC=HS3(42)
-    { 35, 36, 37, 38 },         // Port 2: SCK=HS0(35), MOSI=HS1(36), CS=HS2(37), DC=HS3(38)
-    { 34, 33, 47, 48 },         // Port 3: SCK=HS0(34), MOSI=HS1(33), CS=HS2(47), DC=HS3(48)
-    { 11, 14, 13, 12 },         // Port 4: SCK=HS0(11), MOSI=HS1(14), CS=HS2(13), DC=HS3(12)
-    { 18, 16, 15, 17 },         // Port 5: SCK=HS0(18), MOSI=HS1(16), CS=HS2(15), DC=HS3(17)
-    {  3,  4,  5,  6 },         // Port 6: SCK=HS0(3),  MOSI=HS1(4),  CS=HS2(5),  DC=HS3(6)
+    { 40, 39, 41, 42 },         // Port 1: SCK=40, MOSI=39, CS=41, DC=42
+    { 36, 35, 37, 38 },         // Port 2: SCK=36, MOSI=35, CS=37, DC=38
+    { 33, 34, 47, 48 },         // Port 3: SCK=33, MOSI=34, CS=47, DC=48
+    { 14, 11, 13, 12 },         // Port 4: SCK=14, MOSI=11, CS=13, DC=12
+    { 16, 18, 15, 17 },         // Port 5: SCK=16, MOSI=18, CS=15, DC=17
+    {  4,  3,  5,  6 },         // Port 6: SCK=4,  MOSI=3,  CS=5,  DC=6
 };
 
 const flow3r_bsp_port_pins_t *flow3r_bsp_display_get_port_pins(int port) {
@@ -55,8 +55,8 @@ static uint8_t header_buf[4] WORD_ALIGNED_ATTR = { 'T', 'D', 'H', 'D' };
 
 void flow3r_bsp_display_lcd_send_cmd(spi_device_handle_t spi, int cs_pin, int dc_pin, uint8_t cmd) {
     if (spi == NULL) return;
-    if (dc_pin >= 0) gpio_set_level(dc_pin, 0); // Command mode
     if (cs_pin >= 0) gpio_set_level(cs_pin, 0);
+    if (dc_pin >= 0) gpio_set_level(dc_pin, 0); // Command mode
 
     spi_transaction_t t;
     memset(&t, 0, sizeof(t));
@@ -64,14 +64,12 @@ void flow3r_bsp_display_lcd_send_cmd(spi_device_handle_t spi, int cs_pin, int dc
     t.length = 8;
     t.tx_data[0] = cmd;
     spi_device_polling_transmit(spi, &t);
-
-    if (cs_pin >= 0) gpio_set_level(cs_pin, 1);
 }
 
 void flow3r_bsp_display_lcd_send_data(spi_device_handle_t spi, int cs_pin, int dc_pin, const uint8_t *data, size_t len) {
     if (spi == NULL || data == NULL || len == 0) return;
-    if (dc_pin >= 0) gpio_set_level(dc_pin, 1); // Data mode
     if (cs_pin >= 0) gpio_set_level(cs_pin, 0);
+    if (dc_pin >= 0) gpio_set_level(dc_pin, 1); // Data mode
 
     size_t offset = 0;
     while (offset < len) {
@@ -87,12 +85,12 @@ void flow3r_bsp_display_lcd_send_data(spi_device_handle_t spi, int cs_pin, int d
 
         offset += chunk;
     }
-
-    if (cs_pin >= 0) gpio_set_level(cs_pin, 1);
 }
 
 void flow3r_bsp_display_lcd_init_gc9a01(spi_device_handle_t spi, int cs_pin, int dc_pin) {
     ESP_LOGI(TAG, "Initializing GC9A01 LCD controller (CS=%d, DC=%d)...", cs_pin, dc_pin);
+
+    if (cs_pin >= 0) gpio_set_level(cs_pin, 0);
 
     static const uint8_t c_eb[] = { 0x14 };
     static const uint8_t c_84[] = { 0x40 };
@@ -179,12 +177,12 @@ void flow3r_bsp_display_lcd_init_gc9a01(spi_device_handle_t spi, int cs_pin, int
     flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x35); // TEON
     flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x21); // INVON
     flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x11); // SLPOUT
-    vTaskDelay(pdMS_TO_TICKS(120));
+    vTaskDelay(pdMS_TO_TICKS(150));
 
     flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x36); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_madctl, sizeof(c_madctl));
     flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x3a); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_colmod, sizeof(c_colmod));
     flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x29); // DISPON
-    vTaskDelay(pdMS_TO_TICKS(20));
+    vTaskDelay(pdMS_TO_TICKS(150));
 
     // Set 240x240 address window and enter RAMWR
     flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x2a); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_window, sizeof(c_window));
@@ -193,6 +191,9 @@ void flow3r_bsp_display_lcd_init_gc9a01(spi_device_handle_t spi, int cs_pin, int
 
     if (dc_pin >= 0) {
         gpio_set_level(dc_pin, 1); // Set to data mode for streaming
+    }
+    if (cs_pin >= 0) {
+        gpio_set_level(cs_pin, 1);
     }
 }
 
@@ -211,16 +212,14 @@ static void mirror_sink_send_frame(const void *fb_data, size_t len, void *user_d
         gpio_set_level(mp->cs_pin, 0);
     }
 
-    // 2. If driving raw LCD (GC9A01), send RAMWR command (0x2C) with DC=0 while holding CS LOW
+    // 2. If driving raw LCD (GC9A01), reset address window and send RAMWR
     if (mp->raw && mp->dc_pin >= 0) {
-        gpio_set_level(mp->dc_pin, 0); // Command mode
-        spi_transaction_t cmd_tx;
-        memset(&cmd_tx, 0, sizeof(cmd_tx));
-        cmd_tx.flags = SPI_TRANS_USE_TXDATA;
-        cmd_tx.length = 8;
-        cmd_tx.tx_data[0] = 0x2c;
-        spi_device_polling_transmit(mp->spi, &cmd_tx);
-
+        static const uint8_t c_win[] = { 0x00, 0x00, 0x00, 0xef };
+        flow3r_bsp_display_lcd_send_cmd(mp->spi, mp->cs_pin, mp->dc_pin, 0x2a);
+        flow3r_bsp_display_lcd_send_data(mp->spi, mp->cs_pin, mp->dc_pin, c_win, sizeof(c_win));
+        flow3r_bsp_display_lcd_send_cmd(mp->spi, mp->cs_pin, mp->dc_pin, 0x2b);
+        flow3r_bsp_display_lcd_send_data(mp->spi, mp->cs_pin, mp->dc_pin, c_win, sizeof(c_win));
+        flow3r_bsp_display_lcd_send_cmd(mp->spi, mp->cs_pin, mp->dc_pin, 0x2c);
         gpio_set_level(mp->dc_pin, 1); // Switch to Data mode (CS remains LOW!)
     }
 

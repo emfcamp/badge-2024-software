@@ -372,16 +372,14 @@ static mp_obj_t mp_display_screen_end_frame(size_t n_args, const mp_obj_t *args)
         gpio_set_level(self->cs_pin, 0);
     }
 
-    // 2. If raw LCD, send RAMWR (0x2C) with DC=0 while holding CS LOW
+    // 2. If raw LCD, reset address window and send RAMWR while holding CS LOW
     if (self->raw && self->dc_pin >= 0) {
-        gpio_set_level(self->dc_pin, 0); // Command mode
-        spi_transaction_t cmd_tx;
-        memset(&cmd_tx, 0, sizeof(cmd_tx));
-        cmd_tx.flags = SPI_TRANS_USE_TXDATA;
-        cmd_tx.length = 8;
-        cmd_tx.tx_data[0] = 0x2c;
-        spi_device_polling_transmit(self->spi, &cmd_tx);
-
+        static const uint8_t c_win[] = { 0x00, 0x00, 0x00, 0xef };
+        flow3r_bsp_display_lcd_send_cmd(self->spi, self->cs_pin, self->dc_pin, 0x2a);
+        flow3r_bsp_display_lcd_send_data(self->spi, self->cs_pin, self->dc_pin, c_win, sizeof(c_win));
+        flow3r_bsp_display_lcd_send_cmd(self->spi, self->cs_pin, self->dc_pin, 0x2b);
+        flow3r_bsp_display_lcd_send_data(self->spi, self->cs_pin, self->dc_pin, c_win, sizeof(c_win));
+        flow3r_bsp_display_lcd_send_cmd(self->spi, self->cs_pin, self->dc_pin, 0x2c);
         gpio_set_level(self->dc_pin, 1); // Switch to Data mode (CS remains LOW!)
     }
 
