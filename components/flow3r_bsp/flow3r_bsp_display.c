@@ -27,6 +27,9 @@ static flow3r_bsp_gc9a01_t gc9a01;
 static uint8_t gc9a01_initialized = 0;
 
 void flow3r_bsp_display_init(void) {
+    if (gc9a01_initialized) {
+        return;
+    }
     ESP_LOGI(TAG, "gc9a01 initializing...");
     esp_err_t ret = flow3r_bsp_gc9a01_init(&gc9a01, &gc9a01_config);
     if (ret != ESP_OK) {
