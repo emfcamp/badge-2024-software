@@ -16,7 +16,7 @@ static const char *TAG = "bsp-display-mirror";
 
 static const flow3r_bsp_port_pins_t PORT_PINS[7] = {
     { -1, -1, -1, -1 },         // 0: Invalid
-    { 39, 40, 41, 42 },         // Port 1: SCK=39, MOSI=40, CS=41, DC=42
+    { 40, 39, 41, 42 },         // Port 1: SCK=40, MOSI=39, CS=41, DC=42
     { 36, 35, 37, 38 },         // Port 2: SCK=36, MOSI=35, CS=37, DC=38
     { 33, 34, 47, 48 },         // Port 3: SCK=33, MOSI=34, CS=47, DC=48
     { 14, 11, 13, 12 },         // Port 4: SCK=14, MOSI=11, CS=13, DC=12
