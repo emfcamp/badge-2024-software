@@ -832,28 +832,45 @@ static mp_obj_t splash() {
 static MP_DEFINE_CONST_FUN_OBJ_0(splash_obj, splash);
 
 static mp_obj_t hexagon(size_t n_args, const mp_obj_t *args) {
+    // Draw a regular hexagon in a context and return the context
     mp_ctx_obj_t *ctx = MP_OBJ_TO_PTR(args[0]);
     float x = mp_obj_get_float(args[1]);
     float y = mp_obj_get_float(args[2]);
     float dim = mp_obj_get_float(args[3]);
     
+    // All the internal angles are 120 degrees, or 2/3 pi radians
+    // This translates to either an offset of (1, 0) or the pair below
     float minor_component = cos(M_PI / 3);
     float major_component = sin(M_PI / 3);
     
+    // Stash the caller's axes
     ctx_save(ctx->ctx);
+    
+    // Set the origin to the centre of the hexagon and scale to the size
     ctx_translate (ctx->ctx, x, y);
     ctx_scale (ctx->ctx, dim, dim);
+    
+    // Rotate so point is at the top - the drawing code has the flat side at the top
     ctx_rotate(ctx->ctx, M_PI / 2.0f);
+    
+    // Move to the start of the top left line
     ctx_move_to(ctx->ctx, -minor_component, -major_component);
+    
+    // Draw the six segments
     ctx_rel_line_to(ctx->ctx, 1.0f, 0.0f);
     ctx_rel_line_to(ctx->ctx, minor_component, major_component);
     ctx_rel_line_to(ctx->ctx, -minor_component, major_component);
     ctx_rel_line_to(ctx->ctx, -1.0f, 0.0f);
     ctx_rel_line_to(ctx->ctx, -minor_component, -major_component);
     ctx_rel_line_to(ctx->ctx, minor_component, -major_component);
+    
+    // Fill the hexagon
     ctx_fill(ctx->ctx);
+    
+    // Restore the axes
     ctx_restore(ctx->ctx);
 
+    // Return the mp version ctx, for chaining
     return args[0];
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR(hexagon_obj, 4, hexagon);
