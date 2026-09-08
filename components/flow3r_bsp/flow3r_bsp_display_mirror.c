@@ -318,6 +318,10 @@ esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, 
         return ESP_ERR_INVALID_ARG;
     }
 
+    // Since SPI2_HOST is shared and can only route to one port's pins at a time,
+    // deinit all active mirror ports before setting up the new port.
+    flow3r_bsp_display_mirror_deinit_all();
+
     mirror_port_state_t *mp = &mirror_ports[port];
 
     if (driver != NULL) {
@@ -325,10 +329,6 @@ esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, 
     } else {
         memset(&mp->driver, 0, sizeof(mp->driver));
     }
-
-    // Since SPI2_HOST is shared and can only route to one port's pins at a time,
-    // deinit all active mirror ports before setting up the new port.
-    flow3r_bsp_display_mirror_deinit_all();
 
     const flow3r_bsp_port_pins_t *p = &PORT_PINS[port];
     if (sck < 0) sck = p->sck;
