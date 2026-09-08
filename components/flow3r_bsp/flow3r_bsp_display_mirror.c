@@ -13,7 +13,7 @@ static const char *TAG = "bsp-display-mirror";
 
 #define MIRROR_SPI_HOST         SPI2_HOST
 #define MIRROR_MAX_XFER         (115200 + 128)
-#define MIRROR_CHUNK_BYTES      MIRROR_MAX_XFER
+#define MIRROR_CHUNK_BYTES      4096
 
 // High-speed SPI pins for hexpansion ports 1..6 based on Tildagon v1.1 schematic
 // (Port HS lines connected directly to ESP32-S3 GPIOs).

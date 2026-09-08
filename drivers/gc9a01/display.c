@@ -268,50 +268,44 @@ static void parse_driver_dict(mp_obj_t driver_obj, flow3r_bsp_display_driver_t *
     mp_obj_dict_t *dict = MP_OBJ_TO_PTR(driver_obj);
     custom_driver->is_allocated = true;
 
-    // init / init_sequence
-    mp_map_elem_t *elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_init), MP_MAP_LOOKUP);
-    if (!elem) elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_init_sequence), MP_MAP_LOOKUP);
-    if (elem && elem->value != mp_const_none) {
-        custom_driver->init_seq = parse_cmd_sequence(elem->value, &custom_driver->init_seq_len, true);
-    }
+    for (size_t i = 0; i < dict->map.alloc; i++) {
+        if (mp_map_slot_is_filled(&dict->map, i)) {
+            const char *key = mp_obj_str_get_str(dict->map.table[i].key);
+            mp_obj_t val = dict->map.table[i].value;
 
-    // prefix / frame_prefix
-    elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_prefix), MP_MAP_LOOKUP);
-    if (!elem) elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_frame_prefix), MP_MAP_LOOKUP);
-    if (elem && elem->value != mp_const_none) {
-        custom_driver->prefix_seq = parse_cmd_sequence(elem->value, &custom_driver->prefix_seq_len, false);
-    }
-
-    // postfix / frame_postfix
-    elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_postfix), MP_MAP_LOOKUP);
-    if (!elem) elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_frame_postfix), MP_MAP_LOOKUP);
-    if (elem && elem->value != mp_const_none) {
-        custom_driver->postfix_seq = parse_cmd_sequence(elem->value, &custom_driver->postfix_seq_len, false);
-    }
-
-    // header
-    elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_header), MP_MAP_LOOKUP);
-    if (elem && elem->value != mp_const_none) {
-        mp_buffer_info_t hbuf;
-        if (!mp_get_buffer(elem->value, &hbuf, MP_BUFFER_READ)) {
-            mp_raise_TypeError(MP_ERROR_TEXT("header must be a bytes-like object"));
-        }
-        if (hbuf.len > 0) {
-            uint8_t *hcopy = malloc(hbuf.len);
-            if (!hcopy) {
-                mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate header copy"));
+            if (strcmp(key, "init") == 0 || strcmp(key, "init_sequence") == 0) {
+                if (val != mp_const_none) {
+                    custom_driver->init_seq = parse_cmd_sequence(val, &custom_driver->init_seq_len, true);
+                }
+            } else if (strcmp(key, "prefix") == 0 || strcmp(key, "frame_prefix") == 0) {
+                if (val != mp_const_none) {
+                    custom_driver->prefix_seq = parse_cmd_sequence(val, &custom_driver->prefix_seq_len, false);
+                }
+            } else if (strcmp(key, "postfix") == 0 || strcmp(key, "frame_postfix") == 0) {
+                if (val != mp_const_none) {
+                    custom_driver->postfix_seq = parse_cmd_sequence(val, &custom_driver->postfix_seq_len, false);
+                }
+            } else if (strcmp(key, "header") == 0) {
+                if (val != mp_const_none) {
+                    mp_buffer_info_t hbuf;
+                    if (!mp_get_buffer(val, &hbuf, MP_BUFFER_READ)) {
+                        mp_raise_TypeError(MP_ERROR_TEXT("header must be a bytes-like object"));
+                    }
+                    if (hbuf.len > 0) {
+                        uint8_t *hcopy = malloc(hbuf.len);
+                        if (!hcopy) {
+                            mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate header copy"));
+                        }
+                        memcpy(hcopy, hbuf.buf, hbuf.len);
+                        custom_driver->header = hcopy;
+                        custom_driver->header_len = hbuf.len;
+                    }
+                }
+            } else if (strcmp(key, "baudrate") == 0) {
+                if (val != mp_const_none && *baudrate_out <= 0) {
+                    *baudrate_out = mp_obj_get_int(val);
+                }
             }
-            memcpy(hcopy, hbuf.buf, hbuf.len);
-            custom_driver->header = hcopy;
-            custom_driver->header_len = hbuf.len;
-        }
-    }
-
-    // baudrate
-    elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_baudrate), MP_MAP_LOOKUP);
-    if (elem && elem->value != mp_const_none) {
-        if (*baudrate_out <= 0) {
-            *baudrate_out = mp_obj_get_int(elem->value);
         }
     }
 }
@@ -673,7 +667,7 @@ static mp_obj_t mp_display_screen_end_frame(size_t n_args, const mp_obj_t *args)
     const uint8_t *src = self->fb;
     size_t remaining = self->fb_size;
     while (remaining > 0) {
-        size_t chunk = (remaining > (115200 + 128)) ? (115200 + 128) : remaining;
+        size_t chunk = (remaining > 4096) ? 4096 : remaining;
         spi_transaction_t tx_data;
         memset(&tx_data, 0, sizeof(tx_data));
         tx_data.length = chunk * 8;
