@@ -445,8 +445,6 @@ typedef struct _mp_display_screen_obj_t {
 
 extern const mp_obj_type_t display_screen_type;
 
-#define FB_DMA_ALIGN 64
-
 static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
     int port = 1;
     int width = 240;
@@ -515,6 +513,16 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
         mp_raise_ValueError(MP_ERROR_TEXT("invalid or reserved GPIO pin"));
     }
 
+    esp_err_t claim_err = flow3r_bsp_display_port_claim(port);
+    if (claim_err != ESP_OK) {
+        flow3r_bsp_display_driver_free(&custom_driver);
+        if (claim_err == ESP_ERR_INVALID_STATE) {
+            mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("SPI bus is in use by another port/device; detach it first"));
+        } else {
+            mp_raise_ValueError(MP_ERROR_TEXT("invalid hexpansion port"));
+        }
+    }
+
     mp_display_screen_obj_t *self = mp_obj_malloc_with_finaliser(mp_display_screen_obj_t, &display_screen_type);
     self->ctx = NULL;
     self->fb = NULL;
@@ -530,15 +538,13 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     self->baudrate = baudrate;
     self->driver = custom_driver;
 
-    // Allocate 64-byte aligned framebuffer in PSRAM for DMA
     self->fb_size = (size_t)width * (size_t)height * 2u;
-    self->fb_size = (self->fb_size + (FB_DMA_ALIGN - 1)) & ~(size_t)(FB_DMA_ALIGN - 1);
-
-    self->fb = (uint8_t *)heap_caps_aligned_alloc(FB_DMA_ALIGN, self->fb_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    self->fb = (uint8_t *)heap_caps_malloc(self->fb_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!self->fb) {
-        self->fb = (uint8_t *)heap_caps_aligned_alloc(FB_DMA_ALIGN, self->fb_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+        self->fb = (uint8_t *)heap_caps_malloc(self->fb_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     }
     if (!self->fb) {
+        flow3r_bsp_display_port_release(port);
         flow3r_bsp_display_driver_free(&self->driver);
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate screen framebuffer"));
     }
@@ -549,6 +555,7 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     if (!self->ctx) {
         heap_caps_free(self->fb);
         self->fb = NULL;
+        flow3r_bsp_display_port_release(port);
         flow3r_bsp_display_driver_free(&self->driver);
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to create ctx for screen"));
     }
@@ -588,6 +595,7 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
         self->ctx = NULL;
         heap_caps_free(self->fb);
         self->fb = NULL;
+        flow3r_bsp_display_port_release(self->port);
         flow3r_bsp_display_driver_free(&self->driver);
         if (ret == ESP_ERR_INVALID_STATE) {
             mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("SPI bus is in use by another port/device; detach it first"));
@@ -753,6 +761,7 @@ static mp_obj_t mp_display_screen_deinit(mp_obj_t self_in) {
             self->fb = NULL;
         }
         flow3r_bsp_display_driver_free(&self->driver);
+        flow3r_bsp_display_port_release(self->port);
         self->active = false;
         ESP_LOGI(TAG, "Screen on port %d closed/deinitialized.", self->port);
     }

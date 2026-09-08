@@ -75,6 +75,22 @@ static int spi2_active_sck = -1;
 static int spi2_active_mosi = -1;
 static int spi2_user_count = 0;
 
+static bool port_claimed[7];
+
+esp_err_t flow3r_bsp_display_port_claim(int port) {
+    if (port < 1 || port > 6) return ESP_ERR_INVALID_ARG;
+    if (port_claimed[port]) {
+        ESP_LOGE(TAG, "port %d is already in use by another mirror or Screen", port);
+        return ESP_ERR_INVALID_STATE;
+    }
+    port_claimed[port] = true;
+    return ESP_OK;
+}
+
+void flow3r_bsp_display_port_release(int port) {
+    if (port >= 1 && port <= 6) port_claimed[port] = false;
+}
+
 
 
 // ----------------------------------------------------------------------------
@@ -381,10 +397,6 @@ esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, 
         return ESP_ERR_INVALID_ARG;
     }
 
-    // Since SPI2_HOST is shared and can only route to one port's pins at a time,
-    // deinit all active mirror ports before setting up the new port.
-    flow3r_bsp_display_mirror_deinit_all();
-
     const flow3r_bsp_port_pins_t *p = &PORT_PINS[port];
     if (sck < 0) sck = p->sck;
     if (mosi < 0) mosi = p->mosi;
@@ -397,9 +409,18 @@ esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, 
         return ESP_ERR_INVALID_ARG;
     }
 
-    esp_err_t ret = mirror_init_pins(sck, mosi, cs, dc);
+    // Since SPI2_HOST is shared and can only route to one port's pins at a time,
+    // deinit all active mirror ports before setting up the new port.
+    flow3r_bsp_display_mirror_deinit_all();
+
+    esp_err_t ret = flow3r_bsp_display_port_claim(port);
     if (ret != ESP_OK) {
-        goto fail_pins;
+        return ret;
+    }
+
+    ret = mirror_init_pins(sck, mosi, cs, dc);
+    if (ret != ESP_OK) {
+        goto fail_claim;
     }
 
     spi_device_handle_t spi = NULL;
@@ -449,6 +470,8 @@ esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, 
 fail_pins:
     if (cs >= 0) gpio_reset_pin(cs);
     if (dc >= 0) gpio_reset_pin(dc);
+fail_claim:
+    flow3r_bsp_display_port_release(port);
     return ret;
 }
 
@@ -484,6 +507,7 @@ void flow3r_bsp_display_mirror_deinit_port(int port) {
 
     flow3r_bsp_display_driver_free(&mp->driver);
 
+    flow3r_bsp_display_port_release(port);
     mp->active = false;
     ESP_LOGI(TAG, "Display mirror detached from port %d.", port);
 }

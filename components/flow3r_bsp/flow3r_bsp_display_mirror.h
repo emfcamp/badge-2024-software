@@ -52,6 +52,16 @@ const flow3r_bsp_port_pins_t *flow3r_bsp_display_get_port_pins(int port);
 bool flow3r_bsp_display_pin_ok(int pin, bool need_output);
 
 /**
+ * @brief Claim exclusive display ownership of a hexpansion port (1..6).
+ */
+esp_err_t flow3r_bsp_display_port_claim(int port);
+
+/**
+ * @brief Release exclusive display ownership of a hexpansion port (1..6).
+ */
+void flow3r_bsp_display_port_release(int port);
+
+/**
  * @brief Acquire an SPI device on SPI2_HOST for a hexpansion port.
  */
 esp_err_t flow3r_bsp_display_spi_acquire(int port, int baudrate, spi_device_handle_t *handle_out);
