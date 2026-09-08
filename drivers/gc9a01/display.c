@@ -214,11 +214,17 @@ static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count
                 if (mp_get_buffer(t_items[1], &bufinfo, MP_BUFFER_READ)) {
                     if (bufinfo.len > 0) {
                         uint8_t *copy = malloc(bufinfo.len);
-                        if (copy) {
-                            memcpy(copy, bufinfo.buf, bufinfo.len);
-                            cmds[i].data = copy;
-                            cmds[i].data_len = bufinfo.len;
+                        if (!copy) {
+                            for (size_t k = 0; k < i; k++) {
+                                if (cmds[k].data) free((void *)cmds[k].data);
+                            }
+                            free(cmds);
+                            *count_out = 0;
+                            mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate command sequence data"));
                         }
+                        memcpy(copy, bufinfo.buf, bufinfo.len);
+                        cmds[i].data = copy;
+                        cmds[i].data_len = bufinfo.len;
                     }
                 } else if (mp_obj_is_type(t_items[1], &mp_type_list)) {
                     size_t d_len = 0;
@@ -226,13 +232,19 @@ static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count
                     mp_obj_list_get(t_items[1], &d_len, &d_items);
                     if (d_len > 0) {
                         uint8_t *copy = malloc(d_len);
-                        if (copy) {
-                            for (size_t j = 0; j < d_len; j++) {
-                                copy[j] = (uint8_t)mp_obj_get_int(d_items[j]);
+                        if (!copy) {
+                            for (size_t k = 0; k < i; k++) {
+                                if (cmds[k].data) free((void *)cmds[k].data);
                             }
-                            cmds[i].data = copy;
-                            cmds[i].data_len = d_len;
+                            free(cmds);
+                            *count_out = 0;
+                            mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate command sequence data"));
                         }
+                        for (size_t j = 0; j < d_len; j++) {
+                            copy[j] = (uint8_t)mp_obj_get_int(d_items[j]);
+                        }
+                        cmds[i].data = copy;
+                        cmds[i].data_len = d_len;
                     }
                 }
             }
@@ -324,15 +336,15 @@ static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
     if (kw_args != NULL) {
         for (size_t i = 0; i < kw_args->alloc; i++) {
             if (mp_map_slot_is_filled(kw_args, i)) {
-                const char *k = mp_obj_str_get_str(kw_args->table[i].key);
+                qstr k = mp_obj_str_get_qstr(kw_args->table[i].key);
                 mp_obj_t v = kw_args->table[i].value;
-                if (strcmp(k, "port") == 0) port = mp_obj_get_int(v);
-                else if (strcmp(k, "baudrate") == 0) baudrate = mp_obj_get_int(v);
-                else if (strcmp(k, "driver") == 0) driver_obj = v;
-                else if (strcmp(k, "sck") == 0) sck = mp_obj_get_int(v);
-                else if (strcmp(k, "mosi") == 0) mosi = mp_obj_get_int(v);
-                else if (strcmp(k, "cs") == 0) cs = mp_obj_get_int(v);
-                else if (strcmp(k, "dc") == 0) dc = mp_obj_get_int(v);
+                if (k == MP_QSTR_port) port = mp_obj_get_int(v);
+                else if (k == MP_QSTR_baudrate) baudrate = mp_obj_get_int(v);
+                else if (k == MP_QSTR_driver) driver_obj = v;
+                else if (k == MP_QSTR_sck) sck = mp_obj_get_int(v);
+                else if (k == MP_QSTR_mosi) mosi = mp_obj_get_int(v);
+                else if (k == MP_QSTR_cs) cs = mp_obj_get_int(v);
+                else if (k == MP_QSTR_dc) dc = mp_obj_get_int(v);
             }
         }
     }
@@ -495,16 +507,19 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     }
 
     mp_display_screen_obj_t *self = mp_obj_malloc_with_finaliser(mp_display_screen_obj_t, &display_screen_type);
-    self->port = port;
-    self->width = width;
-    self->height = height;
-    self->baudrate = baudrate;
-    self->driver = custom_driver;
+    self->ctx = NULL;
+    self->fb = NULL;
+    self->fb_size = 0;
     self->active = false;
     self->spi = NULL;
     self->cs_pin = cs;
     self->dc_pin = dc;
     self->ctx_obj = MP_OBJ_NULL;
+    self->port = port;
+    self->width = width;
+    self->height = height;
+    self->baudrate = baudrate;
+    self->driver = custom_driver;
 
     // Allocate 64-byte aligned framebuffer in PSRAM for DMA
     self->fb_size = (size_t)width * (size_t)height * 2u;
@@ -648,7 +663,10 @@ static mp_obj_t mp_display_screen_end_frame(size_t n_args, const mp_obj_t *args)
         memset(&tx_hdr, 0, sizeof(tx_hdr));
         tx_hdr.length = self->driver.header_len * 8;
         tx_hdr.tx_buffer = self->driver.header;
-        spi_device_polling_transmit(self->spi, &tx_hdr);
+        esp_err_t hret = spi_device_polling_transmit(self->spi, &tx_hdr);
+        if (hret != ESP_OK) {
+            ESP_LOGE(TAG, "Screen header tx failed: %s", esp_err_to_name(hret));
+        }
     }
 
     // 4. Transmit pixel data via DMA while holding CS LOW

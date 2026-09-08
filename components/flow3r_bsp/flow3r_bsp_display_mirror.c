@@ -12,7 +12,6 @@
 static const char *TAG = "bsp-display-mirror";
 
 #define MIRROR_SPI_HOST         SPI2_HOST
-#define MIRROR_MAX_DEVICES      6
 #define MIRROR_MAX_XFER         (115200 + 128)
 #define MIRROR_CHUNK_BYTES      MIRROR_MAX_XFER
 
@@ -75,25 +74,6 @@ static bool spi2_bus_inited = false;
 static int spi2_active_sck = -1;
 static int spi2_active_mosi = -1;
 static int spi2_user_count = 0;
-static spi_device_handle_t spi2_devices[MIRROR_MAX_DEVICES];
-
-static void spi2_track(spi_device_handle_t h) {
-    for (int i = 0; i < MIRROR_MAX_DEVICES; i++) {
-        if (spi2_devices[i] == NULL) {
-            spi2_devices[i] = h;
-            return;
-        }
-    }
-}
-
-static void spi2_untrack(spi_device_handle_t h) {
-    for (int i = 0; i < MIRROR_MAX_DEVICES; i++) {
-        if (spi2_devices[i] == h) {
-            spi2_devices[i] = NULL;
-            return;
-        }
-    }
-}
 
 
 
@@ -225,11 +205,25 @@ static void mirror_sink_send_frame(const void *fb_data, size_t len, void *user_d
         memset(&tx_hdr, 0, sizeof(tx_hdr));
         tx_hdr.length = mp->driver.header_len * 8;
         tx_hdr.tx_buffer = mp->driver.header;
-        spi_device_polling_transmit(mp->spi, &tx_hdr);
+        esp_err_t hret = spi_device_polling_transmit(mp->spi, &tx_hdr);
+        if (hret != ESP_OK) {
+            static bool had_hdr_err = false;
+            if (!had_hdr_err) {
+                ESP_LOGE(TAG, "mirror header tx failed: %s", esp_err_to_name(hret));
+                had_hdr_err = true;
+            }
+        }
     }
 
     // 4. Transmit pixel payload via SPI DMA while holding CS LOW
-    mirror_tx_blob(mp->spi, (const uint8_t *)fb_data, len);
+    esp_err_t tret = mirror_tx_blob(mp->spi, (const uint8_t *)fb_data, len);
+    if (tret != ESP_OK) {
+        static bool had_frame_err = false;
+        if (!had_frame_err) {
+            ESP_LOGE(TAG, "mirror frame tx failed: %s", esp_err_to_name(tret));
+            had_frame_err = true;
+        }
+    }
 
     // 5. Postfix commands (e.g. e-ink refresh trigger or latch)
     if (mp->driver.postfix_seq != NULL && mp->driver.postfix_seq_len > 0) {
@@ -354,7 +348,6 @@ esp_err_t flow3r_bsp_display_spi_acquire_pins(int port, int sck, int mosi, int b
         return ret;
     }
 
-    spi2_track(*handle_out);
     spi2_user_count++;
     return ESP_OK;
 }
@@ -366,7 +359,6 @@ esp_err_t flow3r_bsp_display_spi_acquire(int port, int baudrate, spi_device_hand
 void flow3r_bsp_display_spi_release(spi_device_handle_t handle) {
     if (handle == NULL) return;
     spi_bus_remove_device(handle);
-    spi2_untrack(handle);
     if (spi2_user_count > 0) {
         spi2_user_count--;
     }
@@ -444,6 +436,8 @@ esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, 
     mp->sink_handle = flow3r_bsp_display_register_sink(&sink);
     if (mp->sink_handle <= 0) {
         ESP_LOGE(TAG, "Sink registration failed for port %d", port);
+        // Hand driver ownership back to caller to prevent double free
+        mp->driver.is_allocated = false;
         flow3r_bsp_display_mirror_deinit_port(port);
         return ESP_ERR_NO_MEM;
     }
