@@ -435,6 +435,7 @@ static mp_obj_t mp_display_screen_deinit(mp_obj_t self_in) {
             self->spi = NULL;
         }
         if (self->cs_pin >= 0) {
+            gpio_set_level(self->cs_pin, 1);
             gpio_reset_pin(self->cs_pin);
             self->cs_pin = -1;
         }

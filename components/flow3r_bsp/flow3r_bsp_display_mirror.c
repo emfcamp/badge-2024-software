@@ -16,7 +16,7 @@ static const char *TAG = "bsp-display-mirror";
 
 static const flow3r_bsp_port_pins_t PORT_PINS[7] = {
     { -1, -1, -1, -1 },         // 0: Invalid
-    { 40, 39, 41, 42 },         // Port 1: SCK=40, MOSI=39, CS=41, DC=42
+    { 39, 40, 41, 42 },         // Port 1: SCK=39, MOSI=40, CS=41, DC=42
     { 36, 35, 37, 38 },         // Port 2: SCK=36, MOSI=35, CS=37, DC=38
     { 33, 34, 47, 48 },         // Port 3: SCK=33, MOSI=34, CS=47, DC=48
     { 14, 11, 13, 12 },         // Port 4: SCK=14, MOSI=11, CS=13, DC=12
@@ -318,6 +318,12 @@ esp_err_t flow3r_bsp_display_spi_acquire_pins(int port, int sck, int mosi, int b
     if (spi2_bus_inited && (spi2_active_sck != sck || spi2_active_mosi != mosi)) {
         ESP_LOGW(TAG, "Reallocating SPI2_HOST with new pins (SCK: %d->%d, MOSI: %d->%d)",
                  spi2_active_sck, sck, spi2_active_mosi, mosi);
+        for (int i = 1; i <= 6; i++) {
+            if (mirror_ports[i].active && mirror_ports[i].spi != NULL) {
+                spi_bus_remove_device(mirror_ports[i].spi);
+                mirror_ports[i].spi = NULL;
+            }
+        }
         spi_bus_free(MIRROR_SPI_HOST);
         spi2_bus_inited = false;
         spi2_user_count = 0;
@@ -390,6 +396,10 @@ esp_err_t flow3r_bsp_display_mirror_init_custom(int port, int sck, int mosi, int
         return ESP_ERR_INVALID_ARG;
     }
 
+    // Since SPI2_HOST is shared and can only route to one port's pins at a time,
+    // deinit all active mirror ports before setting up the new port.
+    flow3r_bsp_display_mirror_deinit_all();
+
     const flow3r_bsp_port_pins_t *p = &PORT_PINS[port];
     if (sck < 0) sck = p->sck;
     if (mosi < 0) mosi = p->mosi;
@@ -397,9 +407,6 @@ esp_err_t flow3r_bsp_display_mirror_init_custom(int port, int sck, int mosi, int
     if (dc < 0) dc = p->dc;
 
     mirror_port_state_t *mp = &mirror_ports[port];
-    if (mp->active) {
-        flow3r_bsp_display_mirror_deinit_port(port);
-    }
 
     esp_err_t ret = flow3r_bsp_display_mirror_init_pins(sck, mosi, cs, dc, baudrate, raw);
     if (ret != ESP_OK) {
@@ -459,6 +466,7 @@ void flow3r_bsp_display_mirror_deinit_port(int port) {
     }
 
     if (mp->cs_pin >= 0) {
+        gpio_set_level(mp->cs_pin, 1);
         gpio_reset_pin(mp->cs_pin);
         mp->cs_pin = -1;
     }
