@@ -103,21 +103,106 @@ static mp_obj_t get_framebuffer() {
 static MP_DEFINE_CONST_FUN_OBJ_0(get_framebuffer_obj, get_framebuffer);
 
 // ----------------------------------------------------------------------------
-// Mirror API (Multi-Port Support)
+// Mirror API (Multi-Port Support with Generic Driver Descriptors)
 // ----------------------------------------------------------------------------
+
+static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count_out) {
+    if (list_obj == mp_const_none) {
+        *count_out = 0;
+        return NULL;
+    }
+    size_t len = 0;
+    mp_obj_t *items = NULL;
+    if (mp_obj_is_type(list_obj, &mp_type_list)) {
+        mp_obj_list_get(list_obj, &len, &items);
+    } else if (mp_obj_is_type(list_obj, &mp_type_tuple)) {
+        mp_obj_tuple_get(list_obj, &len, &items);
+    } else {
+        *count_out = 0;
+        return NULL;
+    }
+    if (len == 0 || items == NULL) {
+        *count_out = 0;
+        return NULL;
+    }
+    flow3r_bsp_lcd_cmd_t *cmds = calloc(len, sizeof(flow3r_bsp_lcd_cmd_t));
+    if (!cmds) {
+        *count_out = 0;
+        return NULL;
+    }
+    for (size_t i = 0; i < len; i++) {
+        if (mp_obj_is_int(items[i])) {
+            cmds[i].cmd = (uint8_t)mp_obj_get_int(items[i]);
+            cmds[i].data = NULL;
+            cmds[i].data_len = 0;
+            cmds[i].delay_ms = 0;
+        } else if (mp_obj_is_type(items[i], &mp_type_tuple) || mp_obj_is_type(items[i], &mp_type_list)) {
+            size_t t_len = 0;
+            mp_obj_t *t_items = NULL;
+            if (mp_obj_is_type(items[i], &mp_type_tuple)) {
+                mp_obj_tuple_get(items[i], &t_len, &t_items);
+            } else {
+                mp_obj_list_get(items[i], &t_len, &t_items);
+            }
+            if (t_len >= 1 && t_items) cmds[i].cmd = (uint8_t)mp_obj_get_int(t_items[0]);
+            if (t_len >= 2 && t_items && t_items[1] != mp_const_none) {
+                mp_buffer_info_t bufinfo;
+                if (mp_get_buffer(t_items[1], &bufinfo, MP_BUFFER_READ)) {
+                    if (bufinfo.len > 0) {
+                        uint8_t *copy = malloc(bufinfo.len);
+                        if (copy) {
+                            memcpy(copy, bufinfo.buf, bufinfo.len);
+                            cmds[i].data = copy;
+                            cmds[i].data_len = bufinfo.len;
+                        }
+                    }
+                } else if (mp_obj_is_type(t_items[1], &mp_type_list)) {
+                    size_t d_len = 0;
+                    mp_obj_t *d_items;
+                    mp_obj_list_get(t_items[1], &d_len, &d_items);
+                    if (d_len > 0) {
+                        uint8_t *copy = malloc(d_len);
+                        if (copy) {
+                            for (size_t j = 0; j < d_len; j++) {
+                                copy[j] = (uint8_t)mp_obj_get_int(d_items[j]);
+                            }
+                            cmds[i].data = copy;
+                            cmds[i].data_len = d_len;
+                        }
+                    }
+                }
+            }
+            if (t_len >= 3 && t_items) {
+                cmds[i].delay_ms = (uint16_t)mp_obj_get_int(t_items[2]);
+            }
+        }
+    }
+    *count_out = len;
+    return cmds;
+}
 
 static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     int port = 1;
-    int baudrate = 40000000;
-    bool raw = false;
+    int baudrate = 0;
     int sck = -1;
     int mosi = -1;
     int cs = -1;
     int dc = -1;
+    mp_obj_t driver_obj = mp_const_none;
+    bool raw_specified = false;
+    bool raw_val = false;
 
     if (n_args >= 1) port = mp_obj_get_int(pos_args[0]);
     if (n_args >= 2) baudrate = mp_obj_get_int(pos_args[1]);
-    if (n_args >= 3) raw = mp_obj_is_true(pos_args[2]);
+    if (n_args >= 3) {
+        // Can be raw bool or driver obj
+        if (mp_obj_is_bool(pos_args[2])) {
+            raw_specified = true;
+            raw_val = mp_obj_is_true(pos_args[2]);
+        } else {
+            driver_obj = pos_args[2];
+        }
+    }
     if (n_args >= 4) sck = mp_obj_get_int(pos_args[3]);
     if (n_args >= 5) mosi = mp_obj_get_int(pos_args[4]);
     if (n_args >= 6) cs = mp_obj_get_int(pos_args[5]);
@@ -130,7 +215,11 @@ static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
                 mp_obj_t v = kw_args->table[i].value;
                 if (strcmp(k, "port") == 0) port = mp_obj_get_int(v);
                 else if (strcmp(k, "baudrate") == 0) baudrate = mp_obj_get_int(v);
-                else if (strcmp(k, "raw") == 0) raw = mp_obj_is_true(v);
+                else if (strcmp(k, "driver") == 0) driver_obj = v;
+                else if (strcmp(k, "raw") == 0) {
+                    raw_specified = true;
+                    raw_val = mp_obj_is_true(v);
+                }
                 else if (strcmp(k, "sck") == 0) sck = mp_obj_get_int(v);
                 else if (strcmp(k, "mosi") == 0) mosi = mp_obj_get_int(v);
                 else if (strcmp(k, "cs") == 0) cs = mp_obj_get_int(v);
@@ -139,7 +228,67 @@ static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
         }
     }
 
-    esp_err_t err = flow3r_bsp_display_mirror_init_custom(port, sck, mosi, cs, dc, baudrate, raw);
+    const flow3r_bsp_display_driver_t *driver_to_use = NULL;
+    flow3r_bsp_display_driver_t custom_driver;
+    memset(&custom_driver, 0, sizeof(custom_driver));
+
+    if (driver_obj != mp_const_none) {
+        if (mp_obj_is_str(driver_obj)) {
+            const char *dname = mp_obj_str_get_str(driver_obj);
+            if (strcmp(dname, "gc9a01") == 0) {
+                driver_to_use = &flow3r_bsp_display_driver_gc9a01;
+            } else if (strcmp(dname, "hdmi") == 0) {
+                driver_to_use = &flow3r_bsp_display_driver_hdmi;
+            } else {
+                driver_to_use = &flow3r_bsp_display_driver_raw;
+            }
+        } else if (mp_obj_is_type(driver_obj, &mp_type_dict)) {
+            mp_obj_dict_t *dict = MP_OBJ_TO_PTR(driver_obj);
+            custom_driver.is_allocated = true;
+            for (size_t i = 0; i < dict->map.alloc; i++) {
+                if (mp_map_slot_is_filled(&dict->map, i)) {
+                    const char *key = mp_obj_str_get_str(dict->map.table[i].key);
+                    mp_obj_t val = dict->map.table[i].value;
+
+                    if (strcmp(key, "init") == 0 || strcmp(key, "init_sequence") == 0) {
+                        custom_driver.init_seq = parse_cmd_sequence(val, &custom_driver.init_seq_len);
+                    } else if (strcmp(key, "prefix") == 0 || strcmp(key, "frame_prefix") == 0) {
+                        custom_driver.prefix_seq = parse_cmd_sequence(val, &custom_driver.prefix_seq_len);
+                    } else if (strcmp(key, "postfix") == 0 || strcmp(key, "frame_postfix") == 0) {
+                        custom_driver.postfix_seq = parse_cmd_sequence(val, &custom_driver.postfix_seq_len);
+                    } else if (strcmp(key, "header") == 0) {
+                        mp_buffer_info_t hbuf;
+                        if (mp_get_buffer(val, &hbuf, MP_BUFFER_READ) && hbuf.len > 0) {
+                            uint8_t *hcopy = malloc(hbuf.len);
+                            if (hcopy) {
+                                memcpy(hcopy, hbuf.buf, hbuf.len);
+                                custom_driver.header = hcopy;
+                                custom_driver.header_len = hbuf.len;
+                            }
+                        }
+                    } else if (strcmp(key, "baudrate") == 0 && baudrate <= 0) {
+                        baudrate = mp_obj_get_int(val);
+                    }
+                }
+            }
+            driver_to_use = &custom_driver;
+        }
+    } else if (raw_specified) {
+        driver_to_use = raw_val ? &flow3r_bsp_display_driver_gc9a01 : &flow3r_bsp_display_driver_hdmi;
+    } else {
+        driver_to_use = &flow3r_bsp_display_driver_hdmi; // Safe default with HDMI sync header
+    }
+
+    // Default baudrates if not explicitly specified
+    if (baudrate <= 0) {
+        if (driver_to_use == &flow3r_bsp_display_driver_gc9a01) {
+            baudrate = 40000000;
+        } else {
+            baudrate = 10000000;
+        }
+    }
+
+    esp_err_t err = flow3r_bsp_display_mirror_attach(port, sck, mosi, cs, dc, baudrate, driver_to_use);
     if (err != ESP_OK) {
         mp_raise_OSError(err);
     }

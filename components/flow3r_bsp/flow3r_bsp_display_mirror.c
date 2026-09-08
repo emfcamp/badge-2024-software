@@ -35,7 +35,7 @@ typedef struct {
     int cs_pin;
     int dc_pin;
     int sink_handle;
-    bool raw;
+    flow3r_bsp_display_driver_t driver;
     spi_device_handle_t spi;
 } mirror_port_state_t;
 
@@ -50,7 +50,7 @@ static int spi2_user_count = 0;
 static uint8_t header_buf[4] WORD_ALIGNED_ATTR = { 'T', 'D', 'H', 'D' };
 
 // ----------------------------------------------------------------------------
-// Low-Level LCD Panel Commands (GC9A01 / Raw Displays)
+// Low-Level LCD Panel Commands & Drivers
 // ----------------------------------------------------------------------------
 
 void flow3r_bsp_display_lcd_send_cmd(spi_device_handle_t spi, int cs_pin, int dc_pin, uint8_t cmd) {
@@ -87,114 +87,149 @@ void flow3r_bsp_display_lcd_send_data(spi_device_handle_t spi, int cs_pin, int d
     }
 }
 
+void flow3r_bsp_display_exec_cmds(spi_device_handle_t spi, int cs_pin, int dc_pin, const flow3r_bsp_lcd_cmd_t *cmds, size_t count) {
+    if (spi == NULL || cmds == NULL || count == 0) return;
+    for (size_t i = 0; i < count; i++) {
+        flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, cmds[i].cmd);
+        if (cmds[i].data != NULL && cmds[i].data_len > 0) {
+            flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, cmds[i].data, cmds[i].data_len);
+        }
+        if (cmds[i].delay_ms > 0) {
+            vTaskDelay(pdMS_TO_TICKS(cmds[i].delay_ms));
+        }
+    }
+}
+
+// Static byte tables for built-in GC9A01 LCD driver
+static const uint8_t c_eb[] = { 0x14 };
+static const uint8_t c_84[] = { 0x40 };
+static const uint8_t c_ff_1[] = { 0xff };
+static const uint8_t c_88[] = { 0x0a };
+static const uint8_t c_89[] = { 0x21 };
+static const uint8_t c_8a[] = { 0x00 };
+static const uint8_t c_8b[] = { 0x80 };
+static const uint8_t c_01[] = { 0x01 };
+static const uint8_t c_b6[] = { 0x00, 0x20 };
+static const uint8_t c_90[] = { 0x08, 0x08, 0x08, 0x08 };
+static const uint8_t c_bd[] = { 0x06 };
+static const uint8_t c_bc[] = { 0x00 };
+static const uint8_t c_ff_3[] = { 0x60, 0x01, 0x04 };
+static const uint8_t c_c3[] = { 0x13 };
+static const uint8_t c_c4[] = { 0x13 };
+static const uint8_t c_c9[] = { 0x22 };
+static const uint8_t c_be[] = { 0x11 };
+static const uint8_t c_e1[] = { 0x10, 0x0e };
+static const uint8_t c_df[] = { 0x21, 0x0c, 0x02 };
+static const uint8_t c_f0[] = { 0x45, 0x09, 0x08, 0x08, 0x26, 0x2a };
+static const uint8_t c_f1[] = { 0x43, 0x70, 0x72, 0x36, 0x37, 0x6f };
+static const uint8_t c_ed[] = { 0x1b, 0x0b };
+static const uint8_t c_ae[] = { 0x77 };
+static const uint8_t c_cd[] = { 0x63 };
+static const uint8_t c_70[] = { 0x07, 0x07, 0x04, 0x0e, 0x0f, 0x09, 0x07, 0x08, 0x03 };
+static const uint8_t c_e8[] = { 0x34 };
+static const uint8_t c_62[] = { 0x18, 0x0d, 0x71, 0xed, 0x70, 0x70, 0x18, 0x0f, 0x71, 0xef, 0x70, 0x70 };
+static const uint8_t c_63[] = { 0x18, 0x11, 0x71, 0xf1, 0x70, 0x70, 0x18, 0x13, 0x71, 0xf3, 0x70, 0x70 };
+static const uint8_t c_64[] = { 0x28, 0x29, 0xf1, 0x01, 0xf1, 0x00, 0x07 };
+static const uint8_t c_66[] = { 0x3c, 0x00, 0xcd, 0x67, 0x45, 0x45, 0x10, 0x00, 0x00, 0x00 };
+static const uint8_t c_67[] = { 0x00, 0x3c, 0x00, 0x00, 0x00, 0x01, 0x54, 0x10, 0x32, 0x98 };
+static const uint8_t c_74[] = { 0x10, 0x85, 0x80, 0x00, 0x00, 0x4e, 0x00 };
+static const uint8_t c_98[] = { 0x3e, 0x07 };
+static const uint8_t c_madctl[] = { 0xc8 }; // BGR + MX + MY (matches native rotation)
+static const uint8_t c_colmod[] = { 0x05 }; // 16-bit RGB565
+static const uint8_t c_window[] = { 0x00, 0x00, 0x00, 0xef }; // 0..239
+
+static const flow3r_bsp_lcd_cmd_t gc9a01_init_cmds[] = {
+    { 0xef, NULL, 0, 0 },
+    { 0xeb, c_eb, sizeof(c_eb), 0 },
+    { 0xfe, NULL, 0, 0 },
+    { 0xef, NULL, 0, 0 },
+    { 0xeb, c_eb, sizeof(c_eb), 0 },
+    { 0x84, c_84, sizeof(c_84), 0 },
+    { 0x85, c_ff_1, sizeof(c_ff_1), 0 },
+    { 0x86, c_ff_1, sizeof(c_ff_1), 0 },
+    { 0x87, c_ff_1, sizeof(c_ff_1), 0 },
+    { 0x88, c_88, sizeof(c_88), 0 },
+    { 0x89, c_89, sizeof(c_89), 0 },
+    { 0x8a, c_8a, sizeof(c_8a), 0 },
+    { 0x8b, c_8b, sizeof(c_8b), 0 },
+    { 0x8c, c_01, sizeof(c_01), 0 },
+    { 0x8d, c_01, sizeof(c_01), 0 },
+    { 0x8e, c_ff_1, sizeof(c_ff_1), 0 },
+    { 0x8f, c_ff_1, sizeof(c_ff_1), 0 },
+    { 0xb6, c_b6, sizeof(c_b6), 0 },
+    { 0x90, c_90, sizeof(c_90), 0 },
+    { 0xbd, c_bd, sizeof(c_bd), 0 },
+    { 0xbc, c_bc, sizeof(c_bc), 0 },
+    { 0xff, c_ff_3, sizeof(c_ff_3), 0 },
+    { 0xc3, c_c3, sizeof(c_c3), 0 },
+    { 0xc4, c_c4, sizeof(c_c4), 0 },
+    { 0xc9, c_c9, sizeof(c_c9), 0 },
+    { 0xbe, c_be, sizeof(c_be), 0 },
+    { 0xe1, c_e1, sizeof(c_e1), 0 },
+    { 0xdf, c_df, sizeof(c_df), 0 },
+    { 0xf0, c_f0, sizeof(c_f0), 0 },
+    { 0xf1, c_f1, sizeof(c_f1), 0 },
+    { 0xf2, c_f0, sizeof(c_f0), 0 },
+    { 0xf3, c_f1, sizeof(c_f1), 0 },
+    { 0xed, c_ed, sizeof(c_ed), 0 },
+    { 0xae, c_ae, sizeof(c_ae), 0 },
+    { 0xcd, c_cd, sizeof(c_cd), 0 },
+    { 0x70, c_70, sizeof(c_70), 0 },
+    { 0xe8, c_e8, sizeof(c_e8), 0 },
+    { 0x62, c_62, sizeof(c_62), 0 },
+    { 0x63, c_63, sizeof(c_63), 0 },
+    { 0x64, c_64, sizeof(c_64), 0 },
+    { 0x66, c_66, sizeof(c_66), 0 },
+    { 0x67, c_67, sizeof(c_67), 0 },
+    { 0x74, c_74, sizeof(c_74), 0 },
+    { 0x98, c_98, sizeof(c_98), 0 },
+    { 0x35, NULL, 0, 0 },           // TEON
+    { 0x21, NULL, 0, 0 },           // INVON
+    { 0x11, NULL, 0, 150 },         // SLPOUT, wait 150ms
+    { 0x36, c_madctl, sizeof(c_madctl), 0 },
+    { 0x3a, c_colmod, sizeof(c_colmod), 0 },
+    { 0x29, NULL, 0, 150 },         // DISPON, wait 150ms
+    { 0x2a, c_window, sizeof(c_window), 0 }, // CASET
+    { 0x2b, c_window, sizeof(c_window), 0 }, // PASET
+    { 0x2c, NULL, 0, 0 },           // RAMWR
+};
+
+static const flow3r_bsp_lcd_cmd_t gc9a01_prefix_cmds[] = {
+    { 0x2a, c_window, sizeof(c_window), 0 },
+    { 0x2b, c_window, sizeof(c_window), 0 },
+    { 0x2c, NULL, 0, 0 },
+};
+
+const flow3r_bsp_display_driver_t flow3r_bsp_display_driver_raw = {
+    .header = NULL, .header_len = 0,
+    .init_seq = NULL, .init_seq_len = 0,
+    .prefix_seq = NULL, .prefix_seq_len = 0,
+    .postfix_seq = NULL, .postfix_seq_len = 0,
+    .is_allocated = false,
+};
+
+const flow3r_bsp_display_driver_t flow3r_bsp_display_driver_hdmi = {
+    .header = header_buf, .header_len = 4,
+    .init_seq = NULL, .init_seq_len = 0,
+    .prefix_seq = NULL, .prefix_seq_len = 0,
+    .postfix_seq = NULL, .postfix_seq_len = 0,
+    .is_allocated = false,
+};
+
+const flow3r_bsp_display_driver_t flow3r_bsp_display_driver_gc9a01 = {
+    .header = NULL, .header_len = 0,
+    .init_seq = gc9a01_init_cmds, .init_seq_len = sizeof(gc9a01_init_cmds) / sizeof(gc9a01_init_cmds[0]),
+    .prefix_seq = gc9a01_prefix_cmds, .prefix_seq_len = sizeof(gc9a01_prefix_cmds) / sizeof(gc9a01_prefix_cmds[0]),
+    .postfix_seq = NULL, .postfix_seq_len = 0,
+    .is_allocated = false,
+};
+
 void flow3r_bsp_display_lcd_init_gc9a01(spi_device_handle_t spi, int cs_pin, int dc_pin) {
     ESP_LOGI(TAG, "Initializing GC9A01 LCD controller (CS=%d, DC=%d)...", cs_pin, dc_pin);
-
     if (cs_pin >= 0) gpio_set_level(cs_pin, 0);
-
-    static const uint8_t c_eb[] = { 0x14 };
-    static const uint8_t c_84[] = { 0x40 };
-    static const uint8_t c_ff_1[] = { 0xff };
-    static const uint8_t c_88[] = { 0x0a };
-    static const uint8_t c_89[] = { 0x21 };
-    static const uint8_t c_8a[] = { 0x00 };
-    static const uint8_t c_8b[] = { 0x80 };
-    static const uint8_t c_01[] = { 0x01 };
-    static const uint8_t c_b6[] = { 0x00, 0x20 };
-    static const uint8_t c_90[] = { 0x08, 0x08, 0x08, 0x08 };
-    static const uint8_t c_bd[] = { 0x06 };
-    static const uint8_t c_bc[] = { 0x00 };
-    static const uint8_t c_ff_3[] = { 0x60, 0x01, 0x04 };
-    static const uint8_t c_c3[] = { 0x13 };
-    static const uint8_t c_c4[] = { 0x13 };
-    static const uint8_t c_c9[] = { 0x22 };
-    static const uint8_t c_be[] = { 0x11 };
-    static const uint8_t c_e1[] = { 0x10, 0x0e };
-    static const uint8_t c_df[] = { 0x21, 0x0c, 0x02 };
-    static const uint8_t c_f0[] = { 0x45, 0x09, 0x08, 0x08, 0x26, 0x2a };
-    static const uint8_t c_f1[] = { 0x43, 0x70, 0x72, 0x36, 0x37, 0x6f };
-    static const uint8_t c_ed[] = { 0x1b, 0x0b };
-    static const uint8_t c_ae[] = { 0x77 };
-    static const uint8_t c_cd[] = { 0x63 };
-    static const uint8_t c_70[] = { 0x07, 0x07, 0x04, 0x0e, 0x0f, 0x09, 0x07, 0x08, 0x03 };
-    static const uint8_t c_e8[] = { 0x34 };
-    static const uint8_t c_62[] = { 0x18, 0x0d, 0x71, 0xed, 0x70, 0x70, 0x18, 0x0f, 0x71, 0xef, 0x70, 0x70 };
-    static const uint8_t c_63[] = { 0x18, 0x11, 0x71, 0xf1, 0x70, 0x70, 0x18, 0x13, 0x71, 0xf3, 0x70, 0x70 };
-    static const uint8_t c_64[] = { 0x28, 0x29, 0xf1, 0x01, 0xf1, 0x00, 0x07 };
-    static const uint8_t c_66[] = { 0x3c, 0x00, 0xcd, 0x67, 0x45, 0x45, 0x10, 0x00, 0x00, 0x00 };
-    static const uint8_t c_67[] = { 0x00, 0x3c, 0x00, 0x00, 0x00, 0x01, 0x54, 0x10, 0x32, 0x98 };
-    static const uint8_t c_74[] = { 0x10, 0x85, 0x80, 0x00, 0x00, 0x4e, 0x00 };
-    static const uint8_t c_98[] = { 0x3e, 0x07 };
-    static const uint8_t c_madctl[] = { 0xc8 }; // BGR + MX + MY (matches native rotation)
-    static const uint8_t c_colmod[] = { 0x05 }; // 16-bit RGB565
-    static const uint8_t c_window[] = { 0x00, 0x00, 0x00, 0xef }; // 0..239
-
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xef);
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xeb); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_eb, sizeof(c_eb));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xfe);
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xef);
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xeb); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_eb, sizeof(c_eb));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x84); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_84, sizeof(c_84));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x85); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_ff_1, sizeof(c_ff_1));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x86); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_ff_1, sizeof(c_ff_1));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x87); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_ff_1, sizeof(c_ff_1));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x88); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_88, sizeof(c_88));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x89); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_89, sizeof(c_89));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x8a); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_8a, sizeof(c_8a));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x8b); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_8b, sizeof(c_8b));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x8c); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_01, sizeof(c_01));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x8d); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_01, sizeof(c_01));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x8e); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_ff_1, sizeof(c_ff_1));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x8f); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_ff_1, sizeof(c_ff_1));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xb6); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_b6, sizeof(c_b6));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x90); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_90, sizeof(c_90));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xbd); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_bd, sizeof(c_bd));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xbc); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_bc, sizeof(c_bc));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xff); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_ff_3, sizeof(c_ff_3));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xc3); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_c3, sizeof(c_c3));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xc4); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_c4, sizeof(c_c4));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xc9); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_c9, sizeof(c_c9));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xbe); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_be, sizeof(c_be));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xe1); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_e1, sizeof(c_e1));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xdf); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_df, sizeof(c_df));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xf0); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_f0, sizeof(c_f0));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xf1); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_f1, sizeof(c_f1));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xf2); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_f0, sizeof(c_f0));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xf3); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_f1, sizeof(c_f1));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xed); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_ed, sizeof(c_ed));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xae); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_ae, sizeof(c_ae));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xcd); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_cd, sizeof(c_cd));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x70); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_70, sizeof(c_70));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0xe8); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_e8, sizeof(c_e8));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x62); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_62, sizeof(c_62));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x63); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_63, sizeof(c_63));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x64); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_64, sizeof(c_64));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x66); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_66, sizeof(c_66));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x67); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_67, sizeof(c_67));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x74); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_74, sizeof(c_74));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x98); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_98, sizeof(c_98));
-
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x35); // TEON
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x21); // INVON
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x11); // SLPOUT
-    vTaskDelay(pdMS_TO_TICKS(150));
-
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x36); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_madctl, sizeof(c_madctl));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x3a); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_colmod, sizeof(c_colmod));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x29); // DISPON
-    vTaskDelay(pdMS_TO_TICKS(150));
-
-    // Set 240x240 address window and enter RAMWR
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x2a); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_window, sizeof(c_window));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x2b); flow3r_bsp_display_lcd_send_data(spi, cs_pin, dc_pin, c_window, sizeof(c_window));
-    flow3r_bsp_display_lcd_send_cmd(spi, cs_pin, dc_pin, 0x2c); // RAMWR
-
-    if (dc_pin >= 0) {
-        gpio_set_level(dc_pin, 1); // Set to data mode for streaming
-    }
-    if (cs_pin >= 0) {
-        gpio_set_level(cs_pin, 1);
-    }
+    flow3r_bsp_display_exec_cmds(spi, cs_pin, dc_pin, gc9a01_init_cmds, sizeof(gc9a01_init_cmds) / sizeof(gc9a01_init_cmds[0]));
+    if (dc_pin >= 0) gpio_set_level(dc_pin, 1);
+    if (cs_pin >= 0) gpio_set_level(cs_pin, 1);
 }
 
 // ----------------------------------------------------------------------------
@@ -212,27 +247,20 @@ static void mirror_sink_send_frame(const void *fb_data, size_t len, void *user_d
         gpio_set_level(mp->cs_pin, 0);
     }
 
-    // 2. If driving raw LCD (GC9A01), reset address window and send RAMWR
-    if (mp->raw && mp->dc_pin >= 0) {
-        static const uint8_t c_win[] = { 0x00, 0x00, 0x00, 0xef };
-        flow3r_bsp_display_lcd_send_cmd(mp->spi, mp->cs_pin, mp->dc_pin, 0x2a);
-        flow3r_bsp_display_lcd_send_data(mp->spi, mp->cs_pin, mp->dc_pin, c_win, sizeof(c_win));
-        flow3r_bsp_display_lcd_send_cmd(mp->spi, mp->cs_pin, mp->dc_pin, 0x2b);
-        flow3r_bsp_display_lcd_send_data(mp->spi, mp->cs_pin, mp->dc_pin, c_win, sizeof(c_win));
-        flow3r_bsp_display_lcd_send_cmd(mp->spi, mp->cs_pin, mp->dc_pin, 0x2c);
-        gpio_set_level(mp->dc_pin, 1); // Switch to Data mode (CS remains LOW!)
+    // 2. Prefix commands (e.g. for GC9A01 LCD window/RAMWR)
+    if (mp->driver.prefix_seq != NULL && mp->driver.prefix_seq_len > 0) {
+        flow3r_bsp_display_exec_cmds(mp->spi, mp->cs_pin, mp->dc_pin, mp->driver.prefix_seq, mp->driver.prefix_seq_len);
+        if (mp->dc_pin >= 0) {
+            gpio_set_level(mp->dc_pin, 1); // Switch to Data mode
+        }
     }
 
-    // 3. Transmit 4-byte magic header "TDHD" unless in raw mode
-    if (!mp->raw) {
+    // 3. Transmit magic header if configured (e.g. "TDHD" for HDMI)
+    if (mp->driver.header != NULL && mp->driver.header_len > 0) {
         spi_transaction_t tx_hdr;
         memset(&tx_hdr, 0, sizeof(tx_hdr));
-        tx_hdr.flags = SPI_TRANS_USE_TXDATA;
-        tx_hdr.length = 4 * 8;
-        tx_hdr.tx_data[0] = 'T';
-        tx_hdr.tx_data[1] = 'D';
-        tx_hdr.tx_data[2] = 'H';
-        tx_hdr.tx_data[3] = 'D';
+        tx_hdr.length = mp->driver.header_len * 8;
+        tx_hdr.tx_buffer = mp->driver.header;
         spi_device_polling_transmit(mp->spi, &tx_hdr);
     }
 
@@ -250,7 +278,12 @@ static void mirror_sink_send_frame(const void *fb_data, size_t len, void *user_d
         remaining -= chunk;
     }
 
-    // 5. Deassert CS HIGH only after entire frame transfer is complete
+    // 5. Postfix commands (e.g. e-ink refresh trigger or latch)
+    if (mp->driver.postfix_seq != NULL && mp->driver.postfix_seq_len > 0) {
+        flow3r_bsp_display_exec_cmds(mp->spi, mp->cs_pin, mp->dc_pin, mp->driver.postfix_seq, mp->driver.postfix_seq_len);
+    }
+
+    // 6. Deassert CS HIGH only after entire frame transfer is complete
     if (mp->cs_pin >= 0) {
         gpio_set_level(mp->cs_pin, 1);
     }
@@ -389,11 +422,15 @@ void flow3r_bsp_display_spi_release(spi_device_handle_t handle) {
     }
 }
 
-esp_err_t flow3r_bsp_display_mirror_init_custom(int port, int sck, int mosi, int cs, int dc, int baudrate, bool raw) {
+esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, int dc, int baudrate, const flow3r_bsp_display_driver_t *driver) {
     flow3r_bsp_display_init();
     if (port < 1 || port > 6) {
         ESP_LOGE(TAG, "Invalid hexpansion port %d (must be 1..6)", port);
         return ESP_ERR_INVALID_ARG;
+    }
+
+    if (driver == NULL) {
+        driver = &flow3r_bsp_display_driver_raw;
     }
 
     // Since SPI2_HOST is shared and can only route to one port's pins at a time,
@@ -408,7 +445,8 @@ esp_err_t flow3r_bsp_display_mirror_init_custom(int port, int sck, int mosi, int
 
     mirror_port_state_t *mp = &mirror_ports[port];
 
-    esp_err_t ret = flow3r_bsp_display_mirror_init_pins(sck, mosi, cs, dc, baudrate, raw);
+    bool needs_dc = (dc >= 0) && (driver->init_seq_len > 0 || driver->prefix_seq_len > 0 || driver->postfix_seq_len > 0);
+    esp_err_t ret = flow3r_bsp_display_mirror_init_pins(sck, mosi, cs, dc, baudrate, needs_dc);
     if (ret != ESP_OK) {
         return ret;
     }
@@ -421,12 +459,15 @@ esp_err_t flow3r_bsp_display_mirror_init_custom(int port, int sck, int mosi, int
     mp->port = port;
     mp->cs_pin = cs;
     mp->dc_pin = dc;
-    mp->raw = raw;
+    mp->driver = *driver;
     mp->active = true;
 
-    // If driving a raw GC9A01 display, wake it up and initialize window
-    if (raw) {
-        flow3r_bsp_display_lcd_init_gc9a01(mp->spi, mp->cs_pin, mp->dc_pin);
+    // Run init sequence if present
+    if (mp->driver.init_seq != NULL && mp->driver.init_seq_len > 0) {
+        if (cs >= 0) gpio_set_level(cs, 0);
+        flow3r_bsp_display_exec_cmds(mp->spi, mp->cs_pin, mp->dc_pin, mp->driver.init_seq, mp->driver.init_seq_len);
+        if (dc >= 0) gpio_set_level(dc, 1);
+        if (cs >= 0) gpio_set_level(cs, 1);
     }
 
     // Register with generic dynamic display sink subsystem
@@ -436,9 +477,14 @@ esp_err_t flow3r_bsp_display_mirror_init_custom(int port, int sck, int mosi, int
     };
     mp->sink_handle = flow3r_bsp_display_register_sink(&sink);
 
-    ESP_LOGI(TAG, "Display mirror attached on port %d [SCK=%d, MOSI=%d, CS=%d, DC=%d] (sink handle: %d, raw: %d).",
-             port, sck, mosi, cs, dc, mp->sink_handle, (int)raw);
+    ESP_LOGI(TAG, "Display mirror attached on port %d [SCK=%d, MOSI=%d, CS=%d, DC=%d] (sink handle: %d).",
+             port, sck, mosi, cs, dc, mp->sink_handle);
     return ESP_OK;
+}
+
+esp_err_t flow3r_bsp_display_mirror_init_custom(int port, int sck, int mosi, int cs, int dc, int baudrate, bool raw) {
+    const flow3r_bsp_display_driver_t *driver = raw ? &flow3r_bsp_display_driver_gc9a01 : &flow3r_bsp_display_driver_hdmi;
+    return flow3r_bsp_display_mirror_attach(port, sck, mosi, cs, dc, baudrate, driver);
 }
 
 esp_err_t flow3r_bsp_display_mirror_init_port(int port, int baudrate, bool raw) {
@@ -473,6 +519,31 @@ void flow3r_bsp_display_mirror_deinit_port(int port) {
     if (mp->dc_pin >= 0) {
         gpio_reset_pin(mp->dc_pin);
         mp->dc_pin = -1;
+    }
+
+    if (mp->driver.is_allocated) {
+        if (mp->driver.init_seq) {
+            for (size_t i = 0; i < mp->driver.init_seq_len; i++) {
+                if (mp->driver.init_seq[i].data) free((void *)mp->driver.init_seq[i].data);
+            }
+            free((void *)mp->driver.init_seq);
+        }
+        if (mp->driver.prefix_seq) {
+            for (size_t i = 0; i < mp->driver.prefix_seq_len; i++) {
+                if (mp->driver.prefix_seq[i].data) free((void *)mp->driver.prefix_seq[i].data);
+            }
+            free((void *)mp->driver.prefix_seq);
+        }
+        if (mp->driver.postfix_seq) {
+            for (size_t i = 0; i < mp->driver.postfix_seq_len; i++) {
+                if (mp->driver.postfix_seq[i].data) free((void *)mp->driver.postfix_seq[i].data);
+            }
+            free((void *)mp->driver.postfix_seq);
+        }
+        if (mp->driver.header) {
+            free((void *)mp->driver.header);
+        }
+        memset(&mp->driver, 0, sizeof(mp->driver));
     }
 
     mp->active = false;

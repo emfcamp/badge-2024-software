@@ -17,6 +17,29 @@ typedef struct {
     int dc;
 } flow3r_bsp_port_pins_t;
 
+typedef struct {
+    uint8_t cmd;
+    const uint8_t *data;
+    size_t data_len;
+    uint16_t delay_ms;
+} flow3r_bsp_lcd_cmd_t;
+
+typedef struct {
+    const uint8_t *header;
+    size_t header_len;
+    const flow3r_bsp_lcd_cmd_t *init_seq;
+    size_t init_seq_len;
+    const flow3r_bsp_lcd_cmd_t *prefix_seq;
+    size_t prefix_seq_len;
+    const flow3r_bsp_lcd_cmd_t *postfix_seq;
+    size_t postfix_seq_len;
+    bool is_allocated;
+} flow3r_bsp_display_driver_t;
+
+extern const flow3r_bsp_display_driver_t flow3r_bsp_display_driver_raw;
+extern const flow3r_bsp_display_driver_t flow3r_bsp_display_driver_hdmi;
+extern const flow3r_bsp_display_driver_t flow3r_bsp_display_driver_gc9a01;
+
 /**
  * @brief Get high-speed SPI/LCD pin definitions for hexpansion port (1..6).
  */
@@ -36,6 +59,11 @@ esp_err_t flow3r_bsp_display_spi_acquire_pins(int port, int sck, int mosi, int b
  * @brief Release an SPI device previously acquired with flow3r_bsp_display_spi_acquire.
  */
 void flow3r_bsp_display_spi_release(spi_device_handle_t handle);
+
+/**
+ * @brief Attach the display mirror sink with a generic driver descriptor.
+ */
+esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, int dc, int baudrate, const flow3r_bsp_display_driver_t *driver);
 
 /**
  * @brief Initialize and attach the SPI display mirror sink for a given hexpansion port.
@@ -94,6 +122,11 @@ void flow3r_bsp_display_lcd_send_cmd(spi_device_handle_t spi, int cs_pin, int dc
  * @brief Send a data buffer to an SPI LCD panel with DC asserted HIGH.
  */
 void flow3r_bsp_display_lcd_send_data(spi_device_handle_t spi, int cs_pin, int dc_pin, const uint8_t *data, size_t len);
+
+/**
+ * @brief Execute an array of LCD commands with optional data and delays.
+ */
+void flow3r_bsp_display_exec_cmds(spi_device_handle_t spi, int cs_pin, int dc_pin, const flow3r_bsp_lcd_cmd_t *cmds, size_t count);
 
 /**
  * @brief Initialize a GC9A01 LCD controller on the given SPI interface.
