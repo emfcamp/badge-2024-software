@@ -106,7 +106,7 @@ static MP_DEFINE_CONST_FUN_OBJ_0(get_framebuffer_obj, get_framebuffer);
 // Mirror API (Multi-Port Support with Generic Driver Descriptors)
 // ----------------------------------------------------------------------------
 
-static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count_out) {
+static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count_out, bool allow_delay) {
     if (list_obj == mp_const_none) {
         *count_out = 0;
         return NULL;
@@ -118,24 +118,20 @@ static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count
     } else if (mp_obj_is_type(list_obj, &mp_type_tuple)) {
         mp_obj_tuple_get(list_obj, &len, &items);
     } else {
-        *count_out = 0;
-        return NULL;
+        mp_raise_TypeError(MP_ERROR_TEXT("command sequence must be list or tuple"));
     }
     if (len == 0 || items == NULL) {
         *count_out = 0;
         return NULL;
     }
-    flow3r_bsp_lcd_cmd_t *cmds = calloc(len, sizeof(flow3r_bsp_lcd_cmd_t));
-    if (!cmds) {
-        *count_out = 0;
-        return NULL;
-    }
+
+    // Pass 1: Validate all items and their types/ranges before allocating anything on C heap.
     for (size_t i = 0; i < len; i++) {
         if (mp_obj_is_int(items[i])) {
-            cmds[i].cmd = (uint8_t)mp_obj_get_int(items[i]);
-            cmds[i].data = NULL;
-            cmds[i].data_len = 0;
-            cmds[i].delay_ms = 0;
+            mp_int_t val = mp_obj_get_int(items[i]);
+            if (val < 0 || val > 255) {
+                mp_raise_ValueError(MP_ERROR_TEXT("command byte must be 0..255"));
+            }
         } else if (mp_obj_is_type(items[i], &mp_type_tuple) || mp_obj_is_type(items[i], &mp_type_list)) {
             size_t t_len = 0;
             mp_obj_t *t_items = NULL;
@@ -144,8 +140,76 @@ static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count
             } else {
                 mp_obj_list_get(items[i], &t_len, &t_items);
             }
-            if (t_len >= 1 && t_items) cmds[i].cmd = (uint8_t)mp_obj_get_int(t_items[0]);
-            if (t_len >= 2 && t_items && t_items[1] != mp_const_none) {
+            if (t_len == 0 || t_items == NULL) {
+                mp_raise_ValueError(MP_ERROR_TEXT("command tuple/list cannot be empty"));
+            }
+            if (!mp_obj_is_int(t_items[0])) {
+                mp_raise_TypeError(MP_ERROR_TEXT("command must be an integer (0..255)"));
+            }
+            mp_int_t cmd_val = mp_obj_get_int(t_items[0]);
+            if (cmd_val < 0 || cmd_val > 255) {
+                mp_raise_ValueError(MP_ERROR_TEXT("command byte must be 0..255"));
+            }
+            if (t_len >= 2 && t_items[1] != mp_const_none) {
+                mp_buffer_info_t bufinfo;
+                if (!mp_get_buffer(t_items[1], &bufinfo, MP_BUFFER_READ)) {
+                    if (mp_obj_is_type(t_items[1], &mp_type_list)) {
+                        size_t d_len = 0;
+                        mp_obj_t *d_items;
+                        mp_obj_list_get(t_items[1], &d_len, &d_items);
+                        for (size_t j = 0; j < d_len; j++) {
+                            if (!mp_obj_is_int(d_items[j])) {
+                                mp_raise_TypeError(MP_ERROR_TEXT("data byte must be an integer"));
+                            }
+                            mp_int_t d_val = mp_obj_get_int(d_items[j]);
+                            if (d_val < 0 || d_val > 255) {
+                                mp_raise_ValueError(MP_ERROR_TEXT("data byte must be 0..255"));
+                            }
+                        }
+                    } else {
+                        mp_raise_TypeError(MP_ERROR_TEXT("command data must be bytes or list of ints"));
+                    }
+                }
+            }
+            if (t_len >= 3) {
+                if (!mp_obj_is_int(t_items[2])) {
+                    mp_raise_TypeError(MP_ERROR_TEXT("delay must be an integer"));
+                }
+                mp_int_t d_ms = mp_obj_get_int(t_items[2]);
+                if (d_ms < 0) {
+                    mp_raise_ValueError(MP_ERROR_TEXT("delay must be non-negative"));
+                }
+                if (!allow_delay && d_ms > 0) {
+                    mp_raise_ValueError(MP_ERROR_TEXT("delay_ms > 0 is not allowed in frame prefix/postfix"));
+                }
+            }
+        } else {
+            mp_raise_TypeError(MP_ERROR_TEXT("invalid command sequence element"));
+        }
+    }
+
+    // Pass 2: Allocate structures and copy data now that input is guaranteed valid.
+    flow3r_bsp_lcd_cmd_t *cmds = calloc(len, sizeof(flow3r_bsp_lcd_cmd_t));
+    if (!cmds) {
+        *count_out = 0;
+        mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate command sequence"));
+    }
+    for (size_t i = 0; i < len; i++) {
+        if (mp_obj_is_int(items[i])) {
+            cmds[i].cmd = (uint8_t)mp_obj_get_int(items[i]);
+            cmds[i].data = NULL;
+            cmds[i].data_len = 0;
+            cmds[i].delay_ms = 0;
+        } else {
+            size_t t_len = 0;
+            mp_obj_t *t_items = NULL;
+            if (mp_obj_is_type(items[i], &mp_type_tuple)) {
+                mp_obj_tuple_get(items[i], &t_len, &t_items);
+            } else {
+                mp_obj_list_get(items[i], &t_len, &t_items);
+            }
+            cmds[i].cmd = (uint8_t)mp_obj_get_int(t_items[0]);
+            if (t_len >= 2 && t_items[1] != mp_const_none) {
                 mp_buffer_info_t bufinfo;
                 if (mp_get_buffer(t_items[1], &bufinfo, MP_BUFFER_READ)) {
                     if (bufinfo.len > 0) {
@@ -172,13 +236,72 @@ static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count
                     }
                 }
             }
-            if (t_len >= 3 && t_items) {
+            if (t_len >= 3) {
                 cmds[i].delay_ms = (uint16_t)mp_obj_get_int(t_items[2]);
             }
         }
     }
     *count_out = len;
     return cmds;
+}
+
+static void parse_driver_dict(mp_obj_t driver_obj, flow3r_bsp_display_driver_t *custom_driver, int *baudrate_out) {
+    if (driver_obj == mp_const_none) {
+        return;
+    }
+    if (!mp_obj_is_type(driver_obj, &mp_type_dict)) {
+        mp_raise_TypeError(MP_ERROR_TEXT("driver must be a dict"));
+    }
+
+    mp_obj_dict_t *dict = MP_OBJ_TO_PTR(driver_obj);
+    custom_driver->is_allocated = true;
+
+    // init / init_sequence
+    mp_map_elem_t *elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_init), MP_MAP_LOOKUP);
+    if (!elem) elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_init_sequence), MP_MAP_LOOKUP);
+    if (elem && elem->value != mp_const_none) {
+        custom_driver->init_seq = parse_cmd_sequence(elem->value, &custom_driver->init_seq_len, true);
+    }
+
+    // prefix / frame_prefix
+    elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_prefix), MP_MAP_LOOKUP);
+    if (!elem) elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_frame_prefix), MP_MAP_LOOKUP);
+    if (elem && elem->value != mp_const_none) {
+        custom_driver->prefix_seq = parse_cmd_sequence(elem->value, &custom_driver->prefix_seq_len, false);
+    }
+
+    // postfix / frame_postfix
+    elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_postfix), MP_MAP_LOOKUP);
+    if (!elem) elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_frame_postfix), MP_MAP_LOOKUP);
+    if (elem && elem->value != mp_const_none) {
+        custom_driver->postfix_seq = parse_cmd_sequence(elem->value, &custom_driver->postfix_seq_len, false);
+    }
+
+    // header
+    elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_header), MP_MAP_LOOKUP);
+    if (elem && elem->value != mp_const_none) {
+        mp_buffer_info_t hbuf;
+        if (!mp_get_buffer(elem->value, &hbuf, MP_BUFFER_READ)) {
+            mp_raise_TypeError(MP_ERROR_TEXT("header must be a bytes-like object"));
+        }
+        if (hbuf.len > 0) {
+            uint8_t *hcopy = malloc(hbuf.len);
+            if (!hcopy) {
+                mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate header copy"));
+            }
+            memcpy(hcopy, hbuf.buf, hbuf.len);
+            custom_driver->header = hcopy;
+            custom_driver->header_len = hbuf.len;
+        }
+    }
+
+    // baudrate
+    elem = mp_map_lookup(&dict->map, MP_OBJ_NEW_QSTR(MP_QSTR_baudrate), MP_MAP_LOOKUP);
+    if (elem && elem->value != mp_const_none) {
+        if (*baudrate_out <= 0) {
+            *baudrate_out = mp_obj_get_int(elem->value);
+        }
+    }
 }
 
 static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
@@ -218,35 +341,8 @@ static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
     flow3r_bsp_display_driver_t custom_driver;
     memset(&custom_driver, 0, sizeof(custom_driver));
 
-    if (driver_obj != mp_const_none && mp_obj_is_type(driver_obj, &mp_type_dict)) {
-        mp_obj_dict_t *dict = MP_OBJ_TO_PTR(driver_obj);
-        custom_driver.is_allocated = true;
-        for (size_t i = 0; i < dict->map.alloc; i++) {
-            if (mp_map_slot_is_filled(&dict->map, i)) {
-                const char *key = mp_obj_str_get_str(dict->map.table[i].key);
-                mp_obj_t val = dict->map.table[i].value;
-
-                if (strcmp(key, "init") == 0 || strcmp(key, "init_sequence") == 0) {
-                    custom_driver.init_seq = parse_cmd_sequence(val, &custom_driver.init_seq_len);
-                } else if (strcmp(key, "prefix") == 0 || strcmp(key, "frame_prefix") == 0) {
-                    custom_driver.prefix_seq = parse_cmd_sequence(val, &custom_driver.prefix_seq_len);
-                } else if (strcmp(key, "postfix") == 0 || strcmp(key, "frame_postfix") == 0) {
-                    custom_driver.postfix_seq = parse_cmd_sequence(val, &custom_driver.postfix_seq_len);
-                } else if (strcmp(key, "header") == 0) {
-                    mp_buffer_info_t hbuf;
-                    if (mp_get_buffer(val, &hbuf, MP_BUFFER_READ) && hbuf.len > 0) {
-                        uint8_t *hcopy = malloc(hbuf.len);
-                        if (hcopy) {
-                            memcpy(hcopy, hbuf.buf, hbuf.len);
-                            custom_driver.header = hcopy;
-                            custom_driver.header_len = hbuf.len;
-                        }
-                    }
-                } else if (strcmp(key, "baudrate") == 0 && baudrate <= 0) {
-                    baudrate = mp_obj_get_int(val);
-                }
-            }
-        }
+    if (driver_obj != mp_const_none) {
+        parse_driver_dict(driver_obj, &custom_driver, &baudrate);
         driver_to_use = &custom_driver;
     }
 
@@ -257,7 +353,11 @@ static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
     esp_err_t err = flow3r_bsp_display_mirror_attach(port, sck, mosi, cs, dc, baudrate, driver_to_use);
     if (err != ESP_OK) {
         flow3r_bsp_display_driver_free(&custom_driver);
-        mp_raise_OSError(err);
+        if (err == ESP_ERR_INVALID_STATE) {
+            mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("SPI bus is in use by another port/device; detach it first"));
+        } else {
+            mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("SPI error: %s"), esp_err_to_name(err));
+        }
     }
     return mp_const_none;
 }
@@ -293,10 +393,10 @@ static mp_obj_t display_get_port_pins(mp_obj_t port_in) {
         mp_raise_ValueError(MP_ERROR_TEXT("invalid hexpansion port (must be 1..6)"));
     }
     mp_obj_dict_t *d = mp_obj_new_dict(4);
-    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), mp_obj_new_str("sck", 3), mp_obj_new_int(p->sck));
-    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), mp_obj_new_str("mosi", 4), mp_obj_new_int(p->mosi));
-    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), mp_obj_new_str("cs", 2), mp_obj_new_int(p->cs));
-    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), mp_obj_new_str("dc", 2), mp_obj_new_int(p->dc));
+    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), MP_OBJ_NEW_QSTR(MP_QSTR_sck), mp_obj_new_int(p->sck));
+    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), MP_OBJ_NEW_QSTR(MP_QSTR_mosi), mp_obj_new_int(p->mosi));
+    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), MP_OBJ_NEW_QSTR(MP_QSTR_cs), mp_obj_new_int(p->cs));
+    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), MP_OBJ_NEW_QSTR(MP_QSTR_dc), mp_obj_new_int(p->dc));
     return MP_OBJ_FROM_PTR(d);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(display_get_port_pins_obj, display_get_port_pins);
@@ -318,10 +418,13 @@ typedef struct _mp_display_screen_obj_t {
     uint8_t *fb;
     size_t fb_size;
     Ctx *ctx;
+    mp_obj_t ctx_obj;
     spi_device_handle_t spi;
 } mp_display_screen_obj_t;
 
 extern const mp_obj_type_t display_screen_type;
+
+#define FB_DMA_ALIGN 64
 
 static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
     int port = 1;
@@ -347,16 +450,15 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     for (size_t i = 0; i < n_kw; i++) {
         qstr key = mp_obj_str_get_qstr(all_args[n_args + 2 * i]);
         mp_obj_t val = all_args[n_args + 2 * i + 1];
-        const char *key_str = qstr_str(key);
-        if (strcmp(key_str, "port") == 0) port = mp_obj_get_int(val);
-        else if (strcmp(key_str, "width") == 0) width = mp_obj_get_int(val);
-        else if (strcmp(key_str, "height") == 0) height = mp_obj_get_int(val);
-        else if (strcmp(key_str, "baudrate") == 0) baudrate = mp_obj_get_int(val);
-        else if (strcmp(key_str, "driver") == 0) driver_obj = val;
-        else if (strcmp(key_str, "sck") == 0) sck = mp_obj_get_int(val);
-        else if (strcmp(key_str, "mosi") == 0) mosi = mp_obj_get_int(val);
-        else if (strcmp(key_str, "cs") == 0) cs = mp_obj_get_int(val);
-        else if (strcmp(key_str, "dc") == 0) dc = mp_obj_get_int(val);
+        if (key == MP_QSTR_port) port = mp_obj_get_int(val);
+        else if (key == MP_QSTR_width) width = mp_obj_get_int(val);
+        else if (key == MP_QSTR_height) height = mp_obj_get_int(val);
+        else if (key == MP_QSTR_baudrate) baudrate = mp_obj_get_int(val);
+        else if (key == MP_QSTR_driver) driver_obj = val;
+        else if (key == MP_QSTR_sck) sck = mp_obj_get_int(val);
+        else if (key == MP_QSTR_mosi) mosi = mp_obj_get_int(val);
+        else if (key == MP_QSTR_cs) cs = mp_obj_get_int(val);
+        else if (key == MP_QSTR_dc) dc = mp_obj_get_int(val);
     }
 
     if (port < 1 || port > 6) {
@@ -369,35 +471,8 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     flow3r_bsp_display_driver_t custom_driver;
     memset(&custom_driver, 0, sizeof(custom_driver));
 
-    if (driver_obj != mp_const_none && mp_obj_is_type(driver_obj, &mp_type_dict)) {
-        mp_obj_dict_t *dict = MP_OBJ_TO_PTR(driver_obj);
-        custom_driver.is_allocated = true;
-        for (size_t i = 0; i < dict->map.alloc; i++) {
-            if (mp_map_slot_is_filled(&dict->map, i)) {
-                const char *key = mp_obj_str_get_str(dict->map.table[i].key);
-                mp_obj_t val = dict->map.table[i].value;
-
-                if (strcmp(key, "init") == 0 || strcmp(key, "init_sequence") == 0) {
-                    custom_driver.init_seq = parse_cmd_sequence(val, &custom_driver.init_seq_len);
-                } else if (strcmp(key, "prefix") == 0 || strcmp(key, "frame_prefix") == 0) {
-                    custom_driver.prefix_seq = parse_cmd_sequence(val, &custom_driver.prefix_seq_len);
-                } else if (strcmp(key, "postfix") == 0 || strcmp(key, "frame_postfix") == 0) {
-                    custom_driver.postfix_seq = parse_cmd_sequence(val, &custom_driver.postfix_seq_len);
-                } else if (strcmp(key, "header") == 0) {
-                    mp_buffer_info_t hbuf;
-                    if (mp_get_buffer(val, &hbuf, MP_BUFFER_READ) && hbuf.len > 0) {
-                        uint8_t *hcopy = malloc(hbuf.len);
-                        if (hcopy) {
-                            memcpy(hcopy, hbuf.buf, hbuf.len);
-                            custom_driver.header = hcopy;
-                            custom_driver.header_len = hbuf.len;
-                        }
-                    }
-                } else if (strcmp(key, "baudrate") == 0 && baudrate <= 0) {
-                    baudrate = mp_obj_get_int(val);
-                }
-            }
-        }
+    if (driver_obj != mp_const_none) {
+        parse_driver_dict(driver_obj, &custom_driver, &baudrate);
     }
 
     if (baudrate <= 0) baudrate = 40000000;
@@ -413,8 +488,13 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     if (cs < 0) cs = p->cs;
     if (dc < 0) dc = p->dc;
 
-    mp_display_screen_obj_t *self = m_new_obj(mp_display_screen_obj_t);
-    self->base.type = &display_screen_type;
+    if (!flow3r_bsp_display_pin_ok(sck, true) || !flow3r_bsp_display_pin_ok(mosi, true) ||
+        !flow3r_bsp_display_pin_ok(cs, true) || !flow3r_bsp_display_pin_ok(dc, true)) {
+        flow3r_bsp_display_driver_free(&custom_driver);
+        mp_raise_ValueError(MP_ERROR_TEXT("invalid or reserved GPIO pin"));
+    }
+
+    mp_display_screen_obj_t *self = mp_obj_malloc_with_finaliser(mp_display_screen_obj_t, &display_screen_type);
     self->port = port;
     self->width = width;
     self->height = height;
@@ -424,12 +504,15 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     self->spi = NULL;
     self->cs_pin = cs;
     self->dc_pin = dc;
+    self->ctx_obj = MP_OBJ_NULL;
 
-    // Allocate framebuffer in PSRAM
-    self->fb_size = width * height * 2;
-    self->fb = (uint8_t *)heap_caps_malloc(self->fb_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    // Allocate 64-byte aligned framebuffer in PSRAM for DMA
+    self->fb_size = (size_t)width * (size_t)height * 2u;
+    self->fb_size = (self->fb_size + (FB_DMA_ALIGN - 1)) & ~(size_t)(FB_DMA_ALIGN - 1);
+
+    self->fb = (uint8_t *)heap_caps_aligned_alloc(FB_DMA_ALIGN, self->fb_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!self->fb) {
-        self->fb = (uint8_t *)malloc(self->fb_size);
+        self->fb = (uint8_t *)heap_caps_aligned_alloc(FB_DMA_ALIGN, self->fb_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     }
     if (!self->fb) {
         flow3r_bsp_display_driver_free(&self->driver);
@@ -437,10 +520,11 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     }
     memset(self->fb, 0, self->fb_size);
 
-    // Create Ctx instance
+    // Create Ctx instance (stride is unpadded width * 2)
     self->ctx = ctx_new_for_framebuffer(self->fb, width, height, width * 2, CTX_FORMAT_RGB565_BYTESWAPPED);
     if (!self->ctx) {
-        free(self->fb);
+        heap_caps_free(self->fb);
+        self->fb = NULL;
         flow3r_bsp_display_driver_free(&self->driver);
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to create ctx for screen"));
     }
@@ -474,10 +558,18 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     flow3r_bsp_display_init();
     esp_err_t ret = flow3r_bsp_display_spi_acquire_pins(port, sck, mosi, baudrate, &self->spi);
     if (ret != ESP_OK) {
+        if (self->cs_pin >= 0) gpio_reset_pin(self->cs_pin);
+        if (self->dc_pin >= 0) gpio_reset_pin(self->dc_pin);
         ctx_destroy(self->ctx);
-        free(self->fb);
+        self->ctx = NULL;
+        heap_caps_free(self->fb);
+        self->fb = NULL;
         flow3r_bsp_display_driver_free(&self->driver);
-        mp_raise_OSError(ret);
+        if (ret == ESP_ERR_INVALID_STATE) {
+            mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("SPI bus is in use by another port/device; detach it first"));
+        } else {
+            mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("SPI error: %s"), esp_err_to_name(ret));
+        }
     }
 
     // Run init sequence if provided
@@ -500,13 +592,17 @@ static mp_obj_t mp_display_screen_get_ctx(mp_obj_t self_in) {
         mp_raise_ValueError(MP_ERROR_TEXT("screen is closed/deinitialized"));
     }
 
+    if (self->ctx_obj == MP_OBJ_NULL) {
+        self->ctx_obj = mp_ctx_from_ctx(self->ctx);
+    }
+
     int32_t offset_x = self->width / 2;
     int32_t offset_y = self->height / 2;
 
     ctx_save(self->ctx);
     ctx_identity(self->ctx);
     ctx_apply_transform(self->ctx, 1.0f, 0.0f, offset_x, 0.0f, 1.0f, offset_y, 0.0f, 0.0f, 1.0f);
-    return mp_ctx_from_ctx(self->ctx);
+    return self->ctx_obj;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mp_display_screen_get_ctx_obj, mp_display_screen_get_ctx);
 
@@ -516,11 +612,21 @@ static mp_obj_t mp_display_screen_end_frame(size_t n_args, const mp_obj_t *args)
         return mp_const_none;
     }
 
-    if (n_args > 1) {
+    if (n_args > 1 && args[1] != mp_const_none) {
+        if (!mp_obj_is_type(args[1], &mp_ctx_type)) {
+            mp_raise_TypeError(MP_ERROR_TEXT("expected a Ctx"));
+        }
         mp_ctx_obj_t *ctx_obj = MP_OBJ_TO_PTR(args[1]);
-        ctx_restore(ctx_obj->ctx);
+        if (ctx_obj->ctx != NULL) {
+            ctx_restore(ctx_obj->ctx);
+        }
     } else if (self->ctx) {
         ctx_restore(self->ctx);
+    }
+
+    esp_err_t bret = spi_device_acquire_bus(self->spi, portMAX_DELAY);
+    if (bret != ESP_OK) {
+        return mp_const_none;
     }
 
     // 1. Assert CS LOW
@@ -545,16 +651,20 @@ static mp_obj_t mp_display_screen_end_frame(size_t n_args, const mp_obj_t *args)
         spi_device_polling_transmit(self->spi, &tx_hdr);
     }
 
-    // 4. Transmit pixel data via DMA in chunks while holding CS LOW
+    // 4. Transmit pixel data via DMA while holding CS LOW
     const uint8_t *src = self->fb;
     size_t remaining = self->fb_size;
     while (remaining > 0) {
-        size_t chunk = (remaining > 4096) ? 4096 : remaining;
+        size_t chunk = (remaining > (115200 + 128)) ? (115200 + 128) : remaining;
         spi_transaction_t tx_data;
         memset(&tx_data, 0, sizeof(tx_data));
         tx_data.length = chunk * 8;
         tx_data.tx_buffer = src;
-        spi_device_polling_transmit(self->spi, &tx_data);
+        esp_err_t tret = spi_device_polling_transmit(self->spi, &tx_data);
+        if (tret != ESP_OK) {
+            ESP_LOGE(TAG, "Screen tx failed: %s", esp_err_to_name(tret));
+            break;
+        }
         src += chunk;
         remaining -= chunk;
     }
@@ -568,6 +678,8 @@ static mp_obj_t mp_display_screen_end_frame(size_t n_args, const mp_obj_t *args)
     if (self->cs_pin >= 0) {
         gpio_set_level(self->cs_pin, 1);
     }
+
+    spi_device_release_bus(self->spi);
 
     if (self->ctx) {
         ctx_set_textureclock(self->ctx, ctx_textureclock(self->ctx) + 1);
@@ -588,6 +700,10 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mp_display_screen_get_framebuffer_obj, mp_displ
 static mp_obj_t mp_display_screen_deinit(mp_obj_t self_in) {
     mp_display_screen_obj_t *self = MP_OBJ_TO_PTR(self_in);
     if (self->active) {
+        if (self->ctx_obj != MP_OBJ_NULL) {
+            ((mp_ctx_obj_t *)MP_OBJ_TO_PTR(self->ctx_obj))->ctx = NULL; // poison wrapper
+            self->ctx_obj = MP_OBJ_NULL;
+        }
         if (self->spi) {
             flow3r_bsp_display_spi_release(self->spi);
             self->spi = NULL;
@@ -606,7 +722,7 @@ static mp_obj_t mp_display_screen_deinit(mp_obj_t self_in) {
             self->ctx = NULL;
         }
         if (self->fb) {
-            free(self->fb);
+            heap_caps_free(self->fb);
             self->fb = NULL;
         }
         flow3r_bsp_display_driver_free(&self->driver);
@@ -617,23 +733,32 @@ static mp_obj_t mp_display_screen_deinit(mp_obj_t self_in) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mp_display_screen_deinit_obj, mp_display_screen_deinit);
 
+static mp_obj_t mp_display_screen_exit(size_t n_args, const mp_obj_t *args) {
+    return mp_display_screen_deinit(args[0]);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_display_screen_exit_obj, 1, 4, mp_display_screen_exit);
+
 static void mp_display_screen_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
     mp_display_screen_obj_t *self = MP_OBJ_TO_PTR(self_in);
     if (dest[0] == MP_OBJ_NULL) {
-        const char *attr_str = qstr_str(attr);
-        if (strcmp(attr_str, "width") == 0) {
+        // Load attribute
+        if (attr == MP_QSTR_width) {
             dest[0] = mp_obj_new_int(self->width);
-        } else if (strcmp(attr_str, "height") == 0) {
+        } else if (attr == MP_QSTR_height) {
             dest[0] = mp_obj_new_int(self->height);
-        } else if (strcmp(attr_str, "port") == 0) {
+        } else if (attr == MP_QSTR_port) {
             dest[0] = mp_obj_new_int(self->port);
-        } else if (strcmp(attr_str, "active") == 0) {
+        } else if (attr == MP_QSTR_active) {
             dest[0] = mp_obj_new_bool(self->active);
         } else {
             dest[1] = MP_OBJ_SENTINEL; // Look in locals dict
         }
     } else if (dest[1] != MP_OBJ_NULL) {
+        // Store attribute
         mp_raise_msg(&mp_type_AttributeError, MP_ERROR_TEXT("attributes are read-only"));
+    } else {
+        // Delete attribute
+        mp_raise_msg(&mp_type_AttributeError, MP_ERROR_TEXT("attributes cannot be deleted"));
     }
 }
 
@@ -643,6 +768,9 @@ static const mp_rom_map_elem_t display_screen_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_get_framebuffer), MP_ROM_PTR(&mp_display_screen_get_framebuffer_obj) },
     { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&mp_display_screen_deinit_obj) },
     { MP_ROM_QSTR(MP_QSTR_close), MP_ROM_PTR(&mp_display_screen_deinit_obj) },
+    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&mp_display_screen_deinit_obj) },
+    { MP_ROM_QSTR(MP_QSTR___enter__), MP_ROM_PTR(&mp_identity_obj) },
+    { MP_ROM_QSTR(MP_QSTR___exit__), MP_ROM_PTR(&mp_display_screen_exit_obj) },
 };
 static MP_DEFINE_CONST_DICT(display_screen_locals_dict, display_screen_locals_dict_table);
 

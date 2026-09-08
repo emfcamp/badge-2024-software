@@ -12,8 +12,12 @@
 static const char *TAG = "bsp-display-mirror";
 
 #define MIRROR_SPI_HOST         SPI2_HOST
-#define MAGIC_HEADER_LEN        4
+#define MIRROR_MAX_DEVICES      6
+#define MIRROR_MAX_XFER         (115200 + 128)
+#define MIRROR_CHUNK_BYTES      MIRROR_MAX_XFER
 
+// High-speed SPI pins for hexpansion ports 1..6 based on Tildagon v1.1 schematic
+// (Port HS lines connected directly to ESP32-S3 GPIOs).
 static const flow3r_bsp_port_pins_t PORT_PINS[7] = {
     { -1, -1, -1, -1 },         // 0: Invalid
     { 40, 39, 41, 42 },         // Port 1: SCK=40, MOSI=39, CS=41, DC=42
@@ -29,6 +33,24 @@ const flow3r_bsp_port_pins_t *flow3r_bsp_display_get_port_pins(int port) {
     return &PORT_PINS[port];
 }
 
+bool flow3r_bsp_display_pin_ok(int pin, bool need_output) {
+    if (pin < 0) return true; // Sentinel for unused/default pin
+    if (pin >= GPIO_NUM_MAX) return false;
+    if (need_output && !GPIO_IS_VALID_OUTPUT_GPIO(pin)) return false;
+    if (!GPIO_IS_VALID_GPIO(pin)) return false;
+    // Reserved on Tildagon ESP32-S3:
+    // Native GC9A01 LCD: 1, 2, 7, 8
+    // USB-JTAG: 19, 20
+    // SPI flash / PSRAM: 26..32
+    // Console UART: 43, 44
+    // Host I2C: 45, 46
+    static const int reserved[] = { 1, 2, 7, 8, 19, 20, 26, 27, 28, 29, 30, 31, 32, 43, 44, 45, 46 };
+    for (size_t i = 0; i < sizeof(reserved) / sizeof(reserved[0]); i++) {
+        if (pin == reserved[i]) return false;
+    }
+    return true;
+}
+
 typedef struct {
     bool active;
     int port;
@@ -39,12 +61,39 @@ typedef struct {
     spi_device_handle_t spi;
 } mirror_port_state_t;
 
-static mirror_port_state_t mirror_ports[7];
+static mirror_port_state_t mirror_ports[7] = {
+    { .cs_pin = -1, .dc_pin = -1, .sink_handle = -1 },
+    { .cs_pin = -1, .dc_pin = -1, .sink_handle = -1 },
+    { .cs_pin = -1, .dc_pin = -1, .sink_handle = -1 },
+    { .cs_pin = -1, .dc_pin = -1, .sink_handle = -1 },
+    { .cs_pin = -1, .dc_pin = -1, .sink_handle = -1 },
+    { .cs_pin = -1, .dc_pin = -1, .sink_handle = -1 },
+    { .cs_pin = -1, .dc_pin = -1, .sink_handle = -1 },
+};
+
 static bool spi2_bus_inited = false;
-static int spi2_active_port = -1;
 static int spi2_active_sck = -1;
 static int spi2_active_mosi = -1;
 static int spi2_user_count = 0;
+static spi_device_handle_t spi2_devices[MIRROR_MAX_DEVICES];
+
+static void spi2_track(spi_device_handle_t h) {
+    for (int i = 0; i < MIRROR_MAX_DEVICES; i++) {
+        if (spi2_devices[i] == NULL) {
+            spi2_devices[i] = h;
+            return;
+        }
+    }
+}
+
+static void spi2_untrack(spi_device_handle_t h) {
+    for (int i = 0; i < MIRROR_MAX_DEVICES; i++) {
+        if (spi2_devices[i] == h) {
+            spi2_devices[i] = NULL;
+            return;
+        }
+    }
+}
 
 
 
@@ -100,29 +149,46 @@ void flow3r_bsp_display_exec_cmds(spi_device_handle_t spi, int cs_pin, int dc_pi
 }
 
 void flow3r_bsp_display_driver_free(flow3r_bsp_display_driver_t *driver) {
-    if (driver == NULL || !driver->is_allocated) return;
-    if (driver->init_seq) {
-        for (size_t i = 0; i < driver->init_seq_len; i++) {
-            if (driver->init_seq[i].data) free((void *)driver->init_seq[i].data);
+    if (driver == NULL) return;
+    if (driver->is_allocated) {
+        if (driver->init_seq) {
+            for (size_t i = 0; i < driver->init_seq_len; i++) {
+                if (driver->init_seq[i].data) free((void *)driver->init_seq[i].data);
+            }
+            free((void *)driver->init_seq);
         }
-        free((void *)driver->init_seq);
-    }
-    if (driver->prefix_seq) {
-        for (size_t i = 0; i < driver->prefix_seq_len; i++) {
-            if (driver->prefix_seq[i].data) free((void *)driver->prefix_seq[i].data);
+        if (driver->prefix_seq) {
+            for (size_t i = 0; i < driver->prefix_seq_len; i++) {
+                if (driver->prefix_seq[i].data) free((void *)driver->prefix_seq[i].data);
+            }
+            free((void *)driver->prefix_seq);
         }
-        free((void *)driver->prefix_seq);
-    }
-    if (driver->postfix_seq) {
-        for (size_t i = 0; i < driver->postfix_seq_len; i++) {
-            if (driver->postfix_seq[i].data) free((void *)driver->postfix_seq[i].data);
+        if (driver->postfix_seq) {
+            for (size_t i = 0; i < driver->postfix_seq_len; i++) {
+                if (driver->postfix_seq[i].data) free((void *)driver->postfix_seq[i].data);
+            }
+            free((void *)driver->postfix_seq);
         }
-        free((void *)driver->postfix_seq);
-    }
-    if (driver->header) {
-        free((void *)driver->header);
+        if (driver->header) {
+            free((void *)driver->header);
+        }
     }
     memset(driver, 0, sizeof(*driver));
+}
+
+static esp_err_t mirror_tx_blob(spi_device_handle_t spi, const uint8_t *src, size_t len) {
+    while (len > 0) {
+        size_t chunk = (len > MIRROR_CHUNK_BYTES) ? MIRROR_CHUNK_BYTES : len;
+        spi_transaction_t t;
+        memset(&t, 0, sizeof(t));
+        t.length = chunk * 8;
+        t.tx_buffer = src;
+        esp_err_t ret = spi_device_polling_transmit(spi, &t);
+        if (ret != ESP_OK) return ret;
+        src += chunk;
+        len -= chunk;
+    }
+    return ESP_OK;
 }
 
 // ----------------------------------------------------------------------------
@@ -132,6 +198,11 @@ void flow3r_bsp_display_driver_free(flow3r_bsp_display_driver_t *driver) {
 static void mirror_sink_send_frame(const void *fb_data, size_t len, void *user_data) {
     mirror_port_state_t *mp = (mirror_port_state_t *)user_data;
     if (mp == NULL || !mp->active || mp->spi == NULL || fb_data == NULL || len == 0) {
+        return;
+    }
+
+    esp_err_t bret = spi_device_acquire_bus(mp->spi, portMAX_DELAY);
+    if (bret != ESP_OK) {
         return;
     }
 
@@ -157,19 +228,8 @@ static void mirror_sink_send_frame(const void *fb_data, size_t len, void *user_d
         spi_device_polling_transmit(mp->spi, &tx_hdr);
     }
 
-    // 4. Transmit pixel payload via SPI DMA in chunks while holding CS LOW
-    const uint8_t *src = (const uint8_t *)fb_data;
-    size_t remaining = len;
-    while (remaining > 0) {
-        size_t chunk = (remaining > 4096) ? 4096 : remaining;
-        spi_transaction_t tx_data;
-        memset(&tx_data, 0, sizeof(tx_data));
-        tx_data.length = chunk * 8;
-        tx_data.tx_buffer = src;
-        spi_device_polling_transmit(mp->spi, &tx_data);
-        src += chunk;
-        remaining -= chunk;
-    }
+    // 4. Transmit pixel payload via SPI DMA while holding CS LOW
+    mirror_tx_blob(mp->spi, (const uint8_t *)fb_data, len);
 
     // 5. Postfix commands (e.g. e-ink refresh trigger or latch)
     if (mp->driver.postfix_seq != NULL && mp->driver.postfix_seq_len > 0) {
@@ -180,6 +240,8 @@ static void mirror_sink_send_frame(const void *fb_data, size_t len, void *user_d
     if (mp->cs_pin >= 0) {
         gpio_set_level(mp->cs_pin, 1);
     }
+
+    spi_device_release_bus(mp->spi);
 }
 
 // ----------------------------------------------------------------------------
@@ -236,19 +298,25 @@ esp_err_t flow3r_bsp_display_spi_acquire_pins(int port, int sck, int mosi, int b
         if (mosi < 0) mosi = p->mosi;
     }
 
-    // If SPI2 is active with different pins, clean it up
+    if (!flow3r_bsp_display_pin_ok(sck, true) || !flow3r_bsp_display_pin_ok(mosi, true)) {
+        ESP_LOGE(TAG, "Invalid SCK=%d or MOSI=%d pin", sck, mosi);
+        return ESP_ERR_INVALID_ARG;
+    }
+
     if (spi2_bus_inited && (spi2_active_sck != sck || spi2_active_mosi != mosi)) {
-        ESP_LOGW(TAG, "Reallocating SPI2_HOST with new pins (SCK: %d->%d, MOSI: %d->%d)",
-                 spi2_active_sck, sck, spi2_active_mosi, mosi);
-        for (int i = 1; i <= 6; i++) {
-            if (mirror_ports[i].active && mirror_ports[i].spi != NULL) {
-                spi_bus_remove_device(mirror_ports[i].spi);
-                mirror_ports[i].spi = NULL;
-            }
+        if (spi2_user_count > 0) {
+            ESP_LOGE(TAG,
+                     "SPI2_HOST already routed to SCK=%d MOSI=%d with %d active "
+                     "device(s); detach them before switching to SCK=%d MOSI=%d",
+                     spi2_active_sck, spi2_active_mosi, spi2_user_count, sck, mosi);
+            return ESP_ERR_INVALID_STATE;
         }
-        spi_bus_free(MIRROR_SPI_HOST);
+        esp_err_t fret = spi_bus_free(MIRROR_SPI_HOST);
+        if (fret != ESP_OK) {
+            ESP_LOGE(TAG, "spi_bus_free failed: %s", esp_err_to_name(fret));
+            return fret;
+        }
         spi2_bus_inited = false;
-        spi2_user_count = 0;
     }
 
     if (!spi2_bus_inited) {
@@ -268,10 +336,8 @@ esp_err_t flow3r_bsp_display_spi_acquire_pins(int port, int sck, int mosi, int b
             return ret;
         }
         spi2_bus_inited = true;
-        spi2_active_port = port;
         spi2_active_sck = sck;
         spi2_active_mosi = mosi;
-        spi2_user_count = 0;
     }
 
     spi_device_interface_config_t devcfg = {
@@ -288,6 +354,7 @@ esp_err_t flow3r_bsp_display_spi_acquire_pins(int port, int sck, int mosi, int b
         return ret;
     }
 
+    spi2_track(*handle_out);
     spi2_user_count++;
     return ESP_OK;
 }
@@ -299,13 +366,17 @@ esp_err_t flow3r_bsp_display_spi_acquire(int port, int baudrate, spi_device_hand
 void flow3r_bsp_display_spi_release(spi_device_handle_t handle) {
     if (handle == NULL) return;
     spi_bus_remove_device(handle);
+    spi2_untrack(handle);
     if (spi2_user_count > 0) {
         spi2_user_count--;
     }
     if (spi2_user_count == 0 && spi2_bus_inited) {
-        spi_bus_free(MIRROR_SPI_HOST);
+        esp_err_t ret = spi_bus_free(MIRROR_SPI_HOST);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "spi_bus_free failed: %s", esp_err_to_name(ret));
+            return;
+        }
         spi2_bus_inited = false;
-        spi2_active_port = -1;
         spi2_active_sck = -1;
         spi2_active_mosi = -1;
     }
@@ -322,33 +393,39 @@ esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, 
     // deinit all active mirror ports before setting up the new port.
     flow3r_bsp_display_mirror_deinit_all();
 
-    mirror_port_state_t *mp = &mirror_ports[port];
-
-    if (driver != NULL) {
-        mp->driver = *driver;
-    } else {
-        memset(&mp->driver, 0, sizeof(mp->driver));
-    }
-
     const flow3r_bsp_port_pins_t *p = &PORT_PINS[port];
     if (sck < 0) sck = p->sck;
     if (mosi < 0) mosi = p->mosi;
     if (cs < 0) cs = p->cs;
     if (dc < 0) dc = p->dc;
 
+    if (!flow3r_bsp_display_pin_ok(sck, true) || !flow3r_bsp_display_pin_ok(mosi, true) ||
+        !flow3r_bsp_display_pin_ok(cs, true) || !flow3r_bsp_display_pin_ok(dc, true)) {
+        ESP_LOGE(TAG, "Invalid GPIO pins specified for port %d", port);
+        return ESP_ERR_INVALID_ARG;
+    }
+
     esp_err_t ret = mirror_init_pins(sck, mosi, cs, dc);
     if (ret != ESP_OK) {
-        return ret;
+        goto fail_pins;
     }
 
-    ret = flow3r_bsp_display_spi_acquire_pins(port, sck, mosi, baudrate, &mp->spi);
+    spi_device_handle_t spi = NULL;
+    ret = flow3r_bsp_display_spi_acquire_pins(port, sck, mosi, baudrate, &spi);
     if (ret != ESP_OK) {
-        return ret;
+        goto fail_pins;
     }
 
+    mirror_port_state_t *mp = &mirror_ports[port];
+    if (driver != NULL) {
+        mp->driver = *driver;
+    } else {
+        memset(&mp->driver, 0, sizeof(mp->driver));
+    }
     mp->port = port;
     mp->cs_pin = cs;
     mp->dc_pin = dc;
+    mp->spi = spi;
     mp->active = true;
 
     // Run init sequence if present
@@ -365,10 +442,20 @@ esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, 
         .user_data = mp,
     };
     mp->sink_handle = flow3r_bsp_display_register_sink(&sink);
+    if (mp->sink_handle <= 0) {
+        ESP_LOGE(TAG, "Sink registration failed for port %d", port);
+        flow3r_bsp_display_mirror_deinit_port(port);
+        return ESP_ERR_NO_MEM;
+    }
 
     ESP_LOGI(TAG, "Display mirror attached on port %d [SCK=%d, MOSI=%d, CS=%d, DC=%d] (sink handle: %d).",
              port, sck, mosi, cs, dc, mp->sink_handle);
     return ESP_OK;
+
+fail_pins:
+    if (cs >= 0) gpio_reset_pin(cs);
+    if (dc >= 0) gpio_reset_pin(dc);
+    return ret;
 }
 
 void flow3r_bsp_display_mirror_deinit_port(int port) {

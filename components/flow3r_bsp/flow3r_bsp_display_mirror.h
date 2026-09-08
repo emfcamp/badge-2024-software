@@ -47,6 +47,11 @@ void flow3r_bsp_display_driver_free(flow3r_bsp_display_driver_t *driver);
 const flow3r_bsp_port_pins_t *flow3r_bsp_display_get_port_pins(int port);
 
 /**
+ * @brief Validate whether a GPIO pin is valid and safe to use on Tildagon hexpansions.
+ */
+bool flow3r_bsp_display_pin_ok(int pin, bool need_output);
+
+/**
  * @brief Acquire an SPI device on SPI2_HOST for a hexpansion port.
  */
 esp_err_t flow3r_bsp_display_spi_acquire(int port, int baudrate, spi_device_handle_t *handle_out);
