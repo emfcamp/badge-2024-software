@@ -255,6 +255,8 @@ static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count
     }
     *count_out = len;
     return cmds;
+}
+
 // Register QSTRs so that makeqstrdefs includes them in qstrdefs.generated.h for frozen content
 static const qstr _display_qstrs[] = {
     MP_QSTR_port,
