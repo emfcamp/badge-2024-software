@@ -255,9 +255,22 @@ static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count
     }
     *count_out = len;
     return cmds;
-}
+// Register QSTRs so that makeqstrdefs includes them in qstrdefs.generated.h for frozen content
+static const qstr _display_qstrs[] = {
+    MP_QSTR_port,
+    MP_QSTR_prefix,
+    MP_QSTR_frame_prefix,
+    MP_QSTR_header,
+    MP_QSTR_init,
+    MP_QSTR_init_sequence,
+    MP_QSTR_postfix,
+    MP_QSTR_frame_postfix,
+    MP_QSTR_baudrate,
+    MP_QSTR_driver,
+};
 
 static void parse_driver_dict(mp_obj_t driver_obj, flow3r_bsp_display_driver_t *custom_driver, int *baudrate_out) {
+    (void)_display_qstrs;
     if (driver_obj == mp_const_none) {
         return;
     }
