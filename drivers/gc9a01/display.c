@@ -336,15 +336,15 @@ static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
     if (kw_args != NULL) {
         for (size_t i = 0; i < kw_args->alloc; i++) {
             if (mp_map_slot_is_filled(kw_args, i)) {
-                qstr k = mp_obj_str_get_qstr(kw_args->table[i].key);
+                const char *k = mp_obj_str_get_str(kw_args->table[i].key);
                 mp_obj_t v = kw_args->table[i].value;
-                if (k == MP_QSTR_port) port = mp_obj_get_int(v);
-                else if (k == MP_QSTR_baudrate) baudrate = mp_obj_get_int(v);
-                else if (k == MP_QSTR_driver) driver_obj = v;
-                else if (k == MP_QSTR_sck) sck = mp_obj_get_int(v);
-                else if (k == MP_QSTR_mosi) mosi = mp_obj_get_int(v);
-                else if (k == MP_QSTR_cs) cs = mp_obj_get_int(v);
-                else if (k == MP_QSTR_dc) dc = mp_obj_get_int(v);
+                if (strcmp(k, "port") == 0) port = mp_obj_get_int(v);
+                else if (strcmp(k, "baudrate") == 0) baudrate = mp_obj_get_int(v);
+                else if (strcmp(k, "driver") == 0) driver_obj = v;
+                else if (strcmp(k, "sck") == 0) sck = mp_obj_get_int(v);
+                else if (strcmp(k, "mosi") == 0) mosi = mp_obj_get_int(v);
+                else if (strcmp(k, "cs") == 0) cs = mp_obj_get_int(v);
+                else if (strcmp(k, "dc") == 0) dc = mp_obj_get_int(v);
             }
         }
     }
@@ -460,17 +460,17 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     if (n_args >= 9) dc = mp_obj_get_int(all_args[8]);
 
     for (size_t i = 0; i < n_kw; i++) {
-        qstr key = mp_obj_str_get_qstr(all_args[n_args + 2 * i]);
+        const char *k = mp_obj_str_get_str(all_args[n_args + 2 * i]);
         mp_obj_t val = all_args[n_args + 2 * i + 1];
-        if (key == MP_QSTR_port) port = mp_obj_get_int(val);
-        else if (key == MP_QSTR_width) width = mp_obj_get_int(val);
-        else if (key == MP_QSTR_height) height = mp_obj_get_int(val);
-        else if (key == MP_QSTR_baudrate) baudrate = mp_obj_get_int(val);
-        else if (key == MP_QSTR_driver) driver_obj = val;
-        else if (key == MP_QSTR_sck) sck = mp_obj_get_int(val);
-        else if (key == MP_QSTR_mosi) mosi = mp_obj_get_int(val);
-        else if (key == MP_QSTR_cs) cs = mp_obj_get_int(val);
-        else if (key == MP_QSTR_dc) dc = mp_obj_get_int(val);
+        if (strcmp(k, "port") == 0) port = mp_obj_get_int(val);
+        else if (strcmp(k, "width") == 0) width = mp_obj_get_int(val);
+        else if (strcmp(k, "height") == 0) height = mp_obj_get_int(val);
+        else if (strcmp(k, "baudrate") == 0) baudrate = mp_obj_get_int(val);
+        else if (strcmp(k, "driver") == 0) driver_obj = val;
+        else if (strcmp(k, "sck") == 0) sck = mp_obj_get_int(val);
+        else if (strcmp(k, "mosi") == 0) mosi = mp_obj_get_int(val);
+        else if (strcmp(k, "cs") == 0) cs = mp_obj_get_int(val);
+        else if (strcmp(k, "dc") == 0) dc = mp_obj_get_int(val);
     }
 
     if (port < 1 || port > 6) {
