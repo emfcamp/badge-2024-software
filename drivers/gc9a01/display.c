@@ -189,20 +189,10 @@ static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
     int cs = -1;
     int dc = -1;
     mp_obj_t driver_obj = mp_const_none;
-    bool raw_specified = false;
-    bool raw_val = false;
 
     if (n_args >= 1) port = mp_obj_get_int(pos_args[0]);
     if (n_args >= 2) baudrate = mp_obj_get_int(pos_args[1]);
-    if (n_args >= 3) {
-        // Can be raw bool or driver obj
-        if (mp_obj_is_bool(pos_args[2])) {
-            raw_specified = true;
-            raw_val = mp_obj_is_true(pos_args[2]);
-        } else {
-            driver_obj = pos_args[2];
-        }
-    }
+    if (n_args >= 3) driver_obj = pos_args[2];
     if (n_args >= 4) sck = mp_obj_get_int(pos_args[3]);
     if (n_args >= 5) mosi = mp_obj_get_int(pos_args[4]);
     if (n_args >= 6) cs = mp_obj_get_int(pos_args[5]);
@@ -216,10 +206,6 @@ static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
                 if (strcmp(k, "port") == 0) port = mp_obj_get_int(v);
                 else if (strcmp(k, "baudrate") == 0) baudrate = mp_obj_get_int(v);
                 else if (strcmp(k, "driver") == 0) driver_obj = v;
-                else if (strcmp(k, "raw") == 0) {
-                    raw_specified = true;
-                    raw_val = mp_obj_is_true(v);
-                }
                 else if (strcmp(k, "sck") == 0) sck = mp_obj_get_int(v);
                 else if (strcmp(k, "mosi") == 0) mosi = mp_obj_get_int(v);
                 else if (strcmp(k, "cs") == 0) cs = mp_obj_get_int(v);
@@ -232,64 +218,45 @@ static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
     flow3r_bsp_display_driver_t custom_driver;
     memset(&custom_driver, 0, sizeof(custom_driver));
 
-    if (driver_obj != mp_const_none) {
-        if (mp_obj_is_str(driver_obj)) {
-            const char *dname = mp_obj_str_get_str(driver_obj);
-            if (strcmp(dname, "gc9a01") == 0) {
-                driver_to_use = &flow3r_bsp_display_driver_gc9a01;
-            } else if (strcmp(dname, "hdmi") == 0) {
-                driver_to_use = &flow3r_bsp_display_driver_hdmi;
-            } else {
-                driver_to_use = &flow3r_bsp_display_driver_raw;
-            }
-        } else if (mp_obj_is_type(driver_obj, &mp_type_dict)) {
-            mp_obj_dict_t *dict = MP_OBJ_TO_PTR(driver_obj);
-            custom_driver.is_allocated = true;
-            for (size_t i = 0; i < dict->map.alloc; i++) {
-                if (mp_map_slot_is_filled(&dict->map, i)) {
-                    const char *key = mp_obj_str_get_str(dict->map.table[i].key);
-                    mp_obj_t val = dict->map.table[i].value;
+    if (driver_obj != mp_const_none && mp_obj_is_type(driver_obj, &mp_type_dict)) {
+        mp_obj_dict_t *dict = MP_OBJ_TO_PTR(driver_obj);
+        custom_driver.is_allocated = true;
+        for (size_t i = 0; i < dict->map.alloc; i++) {
+            if (mp_map_slot_is_filled(&dict->map, i)) {
+                const char *key = mp_obj_str_get_str(dict->map.table[i].key);
+                mp_obj_t val = dict->map.table[i].value;
 
-                    if (strcmp(key, "init") == 0 || strcmp(key, "init_sequence") == 0) {
-                        custom_driver.init_seq = parse_cmd_sequence(val, &custom_driver.init_seq_len);
-                    } else if (strcmp(key, "prefix") == 0 || strcmp(key, "frame_prefix") == 0) {
-                        custom_driver.prefix_seq = parse_cmd_sequence(val, &custom_driver.prefix_seq_len);
-                    } else if (strcmp(key, "postfix") == 0 || strcmp(key, "frame_postfix") == 0) {
-                        custom_driver.postfix_seq = parse_cmd_sequence(val, &custom_driver.postfix_seq_len);
-                    } else if (strcmp(key, "header") == 0) {
-                        mp_buffer_info_t hbuf;
-                        if (mp_get_buffer(val, &hbuf, MP_BUFFER_READ) && hbuf.len > 0) {
-                            uint8_t *hcopy = malloc(hbuf.len);
-                            if (hcopy) {
-                                memcpy(hcopy, hbuf.buf, hbuf.len);
-                                custom_driver.header = hcopy;
-                                custom_driver.header_len = hbuf.len;
-                            }
+                if (strcmp(key, "init") == 0 || strcmp(key, "init_sequence") == 0) {
+                    custom_driver.init_seq = parse_cmd_sequence(val, &custom_driver.init_seq_len);
+                } else if (strcmp(key, "prefix") == 0 || strcmp(key, "frame_prefix") == 0) {
+                    custom_driver.prefix_seq = parse_cmd_sequence(val, &custom_driver.prefix_seq_len);
+                } else if (strcmp(key, "postfix") == 0 || strcmp(key, "frame_postfix") == 0) {
+                    custom_driver.postfix_seq = parse_cmd_sequence(val, &custom_driver.postfix_seq_len);
+                } else if (strcmp(key, "header") == 0) {
+                    mp_buffer_info_t hbuf;
+                    if (mp_get_buffer(val, &hbuf, MP_BUFFER_READ) && hbuf.len > 0) {
+                        uint8_t *hcopy = malloc(hbuf.len);
+                        if (hcopy) {
+                            memcpy(hcopy, hbuf.buf, hbuf.len);
+                            custom_driver.header = hcopy;
+                            custom_driver.header_len = hbuf.len;
                         }
-                    } else if (strcmp(key, "baudrate") == 0 && baudrate <= 0) {
-                        baudrate = mp_obj_get_int(val);
                     }
+                } else if (strcmp(key, "baudrate") == 0 && baudrate <= 0) {
+                    baudrate = mp_obj_get_int(val);
                 }
             }
-            driver_to_use = &custom_driver;
         }
-    } else if (raw_specified) {
-        driver_to_use = raw_val ? &flow3r_bsp_display_driver_gc9a01 : &flow3r_bsp_display_driver_hdmi;
-    } else {
-        driver_to_use = &flow3r_bsp_display_driver_hdmi; // Safe default with HDMI sync header
+        driver_to_use = &custom_driver;
     }
 
-    // Default baudrates if not explicitly specified
     if (baudrate <= 0) {
-        if (driver_to_use == &flow3r_bsp_display_driver_gc9a01) {
-            baudrate = 40000000;
-        } else {
-            baudrate = 10000000;
-        }
+        baudrate = 40000000;
     }
 
     esp_err_t err = flow3r_bsp_display_mirror_attach(port, sck, mosi, cs, dc, baudrate, driver_to_use);
     if (err != ESP_OK) {
+        flow3r_bsp_display_driver_free(&custom_driver);
         mp_raise_OSError(err);
     }
     return mp_const_none;
@@ -346,8 +313,8 @@ typedef struct _mp_display_screen_obj_t {
     int baudrate;
     int cs_pin;
     int dc_pin;
-    bool raw;
     bool active;
+    flow3r_bsp_display_driver_t driver;
     uint8_t *fb;
     size_t fb_size;
     Ctx *ctx;
@@ -356,24 +323,22 @@ typedef struct _mp_display_screen_obj_t {
 
 extern const mp_obj_type_t display_screen_type;
 
-static uint8_t screen_tdhd_header[4] WORD_ALIGNED_ATTR = { 'T', 'D', 'H', 'D' };
-
 static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
     int port = 1;
     int width = 240;
     int height = 240;
-    int baudrate = 40000000;
-    bool raw = false;
+    int baudrate = 0;
     int sck = -1;
     int mosi = -1;
     int cs = -1;
     int dc = -1;
+    mp_obj_t driver_obj = mp_const_none;
 
     if (n_args >= 1) port = mp_obj_get_int(all_args[0]);
     if (n_args >= 2) width = mp_obj_get_int(all_args[1]);
     if (n_args >= 3) height = mp_obj_get_int(all_args[2]);
     if (n_args >= 4) baudrate = mp_obj_get_int(all_args[3]);
-    if (n_args >= 5) raw = mp_obj_is_true(all_args[4]);
+    if (n_args >= 5) driver_obj = all_args[4];
     if (n_args >= 6) sck = mp_obj_get_int(all_args[5]);
     if (n_args >= 7) mosi = mp_obj_get_int(all_args[6]);
     if (n_args >= 8) cs = mp_obj_get_int(all_args[7]);
@@ -387,7 +352,7 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
         else if (strcmp(key_str, "width") == 0) width = mp_obj_get_int(val);
         else if (strcmp(key_str, "height") == 0) height = mp_obj_get_int(val);
         else if (strcmp(key_str, "baudrate") == 0) baudrate = mp_obj_get_int(val);
-        else if (strcmp(key_str, "raw") == 0) raw = mp_obj_is_true(val);
+        else if (strcmp(key_str, "driver") == 0) driver_obj = val;
         else if (strcmp(key_str, "sck") == 0) sck = mp_obj_get_int(val);
         else if (strcmp(key_str, "mosi") == 0) mosi = mp_obj_get_int(val);
         else if (strcmp(key_str, "cs") == 0) cs = mp_obj_get_int(val);
@@ -400,10 +365,46 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     if (width <= 0 || height <= 0 || width > 1024 || height > 1024) {
         mp_raise_ValueError(MP_ERROR_TEXT("invalid screen dimensions"));
     }
+
+    flow3r_bsp_display_driver_t custom_driver;
+    memset(&custom_driver, 0, sizeof(custom_driver));
+
+    if (driver_obj != mp_const_none && mp_obj_is_type(driver_obj, &mp_type_dict)) {
+        mp_obj_dict_t *dict = MP_OBJ_TO_PTR(driver_obj);
+        custom_driver.is_allocated = true;
+        for (size_t i = 0; i < dict->map.alloc; i++) {
+            if (mp_map_slot_is_filled(&dict->map, i)) {
+                const char *key = mp_obj_str_get_str(dict->map.table[i].key);
+                mp_obj_t val = dict->map.table[i].value;
+
+                if (strcmp(key, "init") == 0 || strcmp(key, "init_sequence") == 0) {
+                    custom_driver.init_seq = parse_cmd_sequence(val, &custom_driver.init_seq_len);
+                } else if (strcmp(key, "prefix") == 0 || strcmp(key, "frame_prefix") == 0) {
+                    custom_driver.prefix_seq = parse_cmd_sequence(val, &custom_driver.prefix_seq_len);
+                } else if (strcmp(key, "postfix") == 0 || strcmp(key, "frame_postfix") == 0) {
+                    custom_driver.postfix_seq = parse_cmd_sequence(val, &custom_driver.postfix_seq_len);
+                } else if (strcmp(key, "header") == 0) {
+                    mp_buffer_info_t hbuf;
+                    if (mp_get_buffer(val, &hbuf, MP_BUFFER_READ) && hbuf.len > 0) {
+                        uint8_t *hcopy = malloc(hbuf.len);
+                        if (hcopy) {
+                            memcpy(hcopy, hbuf.buf, hbuf.len);
+                            custom_driver.header = hcopy;
+                            custom_driver.header_len = hbuf.len;
+                        }
+                    }
+                } else if (strcmp(key, "baudrate") == 0 && baudrate <= 0) {
+                    baudrate = mp_obj_get_int(val);
+                }
+            }
+        }
+    }
+
     if (baudrate <= 0) baudrate = 40000000;
 
     const flow3r_bsp_port_pins_t *p = flow3r_bsp_display_get_port_pins(port);
     if (!p) {
+        flow3r_bsp_display_driver_free(&custom_driver);
         mp_raise_ValueError(MP_ERROR_TEXT("invalid hexpansion port"));
     }
 
@@ -418,7 +419,7 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     self->width = width;
     self->height = height;
     self->baudrate = baudrate;
-    self->raw = raw;
+    self->driver = custom_driver;
     self->active = false;
     self->spi = NULL;
     self->cs_pin = cs;
@@ -431,6 +432,7 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
         self->fb = (uint8_t *)malloc(self->fb_size);
     }
     if (!self->fb) {
+        flow3r_bsp_display_driver_free(&self->driver);
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate screen framebuffer"));
     }
     memset(self->fb, 0, self->fb_size);
@@ -439,6 +441,7 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     self->ctx = ctx_new_for_framebuffer(self->fb, width, height, width * 2, CTX_FORMAT_RGB565_BYTESWAPPED);
     if (!self->ctx) {
         free(self->fb);
+        flow3r_bsp_display_driver_free(&self->driver);
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to create ctx for screen"));
     }
 
@@ -473,17 +476,21 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
     if (ret != ESP_OK) {
         ctx_destroy(self->ctx);
         free(self->fb);
+        flow3r_bsp_display_driver_free(&self->driver);
         mp_raise_OSError(ret);
     }
 
-    // If driving raw GC9A01 LCD panel, wake up and init address window
-    if (self->raw) {
-        flow3r_bsp_display_lcd_init_gc9a01(self->spi, self->cs_pin, self->dc_pin);
+    // Run init sequence if provided
+    if (self->driver.init_seq != NULL && self->driver.init_seq_len > 0) {
+        if (self->cs_pin >= 0) gpio_set_level(self->cs_pin, 0);
+        flow3r_bsp_display_exec_cmds(self->spi, self->cs_pin, self->dc_pin, self->driver.init_seq, self->driver.init_seq_len);
+        if (self->dc_pin >= 0) gpio_set_level(self->dc_pin, 1);
+        if (self->cs_pin >= 0) gpio_set_level(self->cs_pin, 1);
     }
 
     self->active = true;
-    ESP_LOGI(TAG, "Screen created on port %d (%dx%d @ %d Hz, raw=%d)",
-             port, width, height, baudrate, (int)raw);
+    ESP_LOGI(TAG, "Screen created on port %d (%dx%d @ %d Hz)",
+             port, width, height, baudrate);
     return MP_OBJ_FROM_PTR(self);
 }
 
@@ -521,23 +528,20 @@ static mp_obj_t mp_display_screen_end_frame(size_t n_args, const mp_obj_t *args)
         gpio_set_level(self->cs_pin, 0);
     }
 
-    // 2. If raw LCD, reset address window and send RAMWR while holding CS LOW
-    if (self->raw && self->dc_pin >= 0) {
-        static const uint8_t c_win[] = { 0x00, 0x00, 0x00, 0xef };
-        flow3r_bsp_display_lcd_send_cmd(self->spi, self->cs_pin, self->dc_pin, 0x2a);
-        flow3r_bsp_display_lcd_send_data(self->spi, self->cs_pin, self->dc_pin, c_win, sizeof(c_win));
-        flow3r_bsp_display_lcd_send_cmd(self->spi, self->cs_pin, self->dc_pin, 0x2b);
-        flow3r_bsp_display_lcd_send_data(self->spi, self->cs_pin, self->dc_pin, c_win, sizeof(c_win));
-        flow3r_bsp_display_lcd_send_cmd(self->spi, self->cs_pin, self->dc_pin, 0x2c);
-        gpio_set_level(self->dc_pin, 1); // Switch to Data mode (CS remains LOW!)
+    // 2. Prefix commands (e.g. window / RAMWR)
+    if (self->driver.prefix_seq != NULL && self->driver.prefix_seq_len > 0) {
+        flow3r_bsp_display_exec_cmds(self->spi, self->cs_pin, self->dc_pin, self->driver.prefix_seq, self->driver.prefix_seq_len);
+        if (self->dc_pin >= 0) {
+            gpio_set_level(self->dc_pin, 1);
+        }
     }
 
-    // 3. Transmit magic header if framed
-    if (!self->raw) {
+    // 3. Transmit header if configured
+    if (self->driver.header != NULL && self->driver.header_len > 0) {
         spi_transaction_t tx_hdr;
         memset(&tx_hdr, 0, sizeof(tx_hdr));
-        tx_hdr.length = 4 * 8;
-        tx_hdr.tx_buffer = screen_tdhd_header;
+        tx_hdr.length = self->driver.header_len * 8;
+        tx_hdr.tx_buffer = self->driver.header;
         spi_device_polling_transmit(self->spi, &tx_hdr);
     }
 
@@ -555,7 +559,12 @@ static mp_obj_t mp_display_screen_end_frame(size_t n_args, const mp_obj_t *args)
         remaining -= chunk;
     }
 
-    // 5. Deassert CS HIGH only after entire frame transfer is complete
+    // 5. Postfix commands (e.g. refresh trigger)
+    if (self->driver.postfix_seq != NULL && self->driver.postfix_seq_len > 0) {
+        flow3r_bsp_display_exec_cmds(self->spi, self->cs_pin, self->dc_pin, self->driver.postfix_seq, self->driver.postfix_seq_len);
+    }
+
+    // 6. Deassert CS HIGH only after entire frame transfer is complete
     if (self->cs_pin >= 0) {
         gpio_set_level(self->cs_pin, 1);
     }
@@ -600,6 +609,7 @@ static mp_obj_t mp_display_screen_deinit(mp_obj_t self_in) {
             free(self->fb);
             self->fb = NULL;
         }
+        flow3r_bsp_display_driver_free(&self->driver);
         self->active = false;
         ESP_LOGI(TAG, "Screen on port %d closed/deinitialized.", self->port);
     }

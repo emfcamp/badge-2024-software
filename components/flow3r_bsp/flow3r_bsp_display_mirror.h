@@ -36,9 +36,10 @@ typedef struct {
     bool is_allocated;
 } flow3r_bsp_display_driver_t;
 
-extern const flow3r_bsp_display_driver_t flow3r_bsp_display_driver_raw;
-extern const flow3r_bsp_display_driver_t flow3r_bsp_display_driver_hdmi;
-extern const flow3r_bsp_display_driver_t flow3r_bsp_display_driver_gc9a01;
+/**
+ * @brief Free dynamically allocated fields of a display driver.
+ */
+void flow3r_bsp_display_driver_free(flow3r_bsp_display_driver_t *driver);
 
 /**
  * @brief Get high-speed SPI/LCD pin definitions for hexpansion port (1..6).
@@ -61,37 +62,18 @@ esp_err_t flow3r_bsp_display_spi_acquire_pins(int port, int sck, int mosi, int b
 void flow3r_bsp_display_spi_release(spi_device_handle_t handle);
 
 /**
- * @brief Attach the display mirror sink with a generic driver descriptor.
+ * @brief Attach the display mirror sink.
+ * 
+ * @param port Hexpansion port (1..6)
+ * @param sck Custom SCK GPIO (-1 for default)
+ * @param mosi Custom MOSI GPIO (-1 for default)
+ * @param cs Custom CS GPIO (-1 for default)
+ * @param dc Custom DC GPIO (-1 for default)
+ * @param baudrate Clock frequency in Hz
+ * @param driver Driver descriptor (or NULL for raw data stream)
+ * @return esp_err_t ESP_OK on success
  */
 esp_err_t flow3r_bsp_display_mirror_attach(int port, int sck, int mosi, int cs, int dc, int baudrate, const flow3r_bsp_display_driver_t *driver);
-
-/**
- * @brief Initialize and attach the SPI display mirror sink for a given hexpansion port.
- * 
- * @param port Hexpansion port number (1 to 6)
- * @param baudrate Clock frequency in Hz (e.g. 40000000 for PCB)
- * @param raw If true, sends raw RGB565 without "TDHD" header (for GC9A01 LCD hexpansion)
- * @return esp_err_t ESP_OK on success
- */
-esp_err_t flow3r_bsp_display_mirror_init_port(int port, int baudrate, bool raw);
-
-/**
- * @brief Initialize and attach the SPI display mirror sink with custom pin numbers.
- */
-esp_err_t flow3r_bsp_display_mirror_init_custom(int port, int sck, int mosi, int cs, int dc, int baudrate, bool raw);
-
-/**
- * @brief Initialize and attach the SPI display mirror sink with custom pin numbers.
- * 
- * @param sck_pin GPIO number for SCK
- * @param mosi_pin GPIO number for MOSI
- * @param cs_pin GPIO number for CS (Chip Select)
- * @param dc_pin GPIO number for DC (Data/Command select, or -1 if unused)
- * @param baudrate Clock frequency in Hz
- * @param raw If true, sends raw RGB565 without "TDHD" header
- * @return esp_err_t ESP_OK on success
- */
-esp_err_t flow3r_bsp_display_mirror_init_pins(int sck_pin, int mosi_pin, int cs_pin, int dc_pin, int baudrate, bool raw);
 
 /**
  * @brief Detach mirror sink for a specific port (or all if port <= 0).
@@ -127,8 +109,3 @@ void flow3r_bsp_display_lcd_send_data(spi_device_handle_t spi, int cs_pin, int d
  * @brief Execute an array of LCD commands with optional data and delays.
  */
 void flow3r_bsp_display_exec_cmds(spi_device_handle_t spi, int cs_pin, int dc_pin, const flow3r_bsp_lcd_cmd_t *cmds, size_t count);
-
-/**
- * @brief Initialize a GC9A01 LCD controller on the given SPI interface.
- */
-void flow3r_bsp_display_lcd_init_gc9a01(spi_device_handle_t spi, int cs_pin, int dc_pin);
