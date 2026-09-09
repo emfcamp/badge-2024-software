@@ -45,7 +45,6 @@ static Ctx *tildagon_ctx = NULL;
 
 Ctx *tildagon_gfx_ctx(void)
 {
-  flow3r_bsp_display_init();
   if (tildagon_ctx == NULL)
   {
     tildagon_ctx = ctx_new_for_framebuffer (tildagon_fb, TILDAGON_DISPLAY_WIDTH, TILDAGON_DISPLAY_HEIGHT, TILDAGON_DISPLAY_WIDTH * 2, CTX_FORMAT_RGB565_BYTESWAPPED);
@@ -257,22 +256,7 @@ static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count
     return cmds;
 }
 
-// Register QSTRs so that makeqstrdefs includes them in qstrdefs.generated.h for frozen content
-static const qstr _display_qstrs[] = {
-    MP_QSTR_port,
-    MP_QSTR_prefix,
-    MP_QSTR_frame_prefix,
-    MP_QSTR_header,
-    MP_QSTR_init,
-    MP_QSTR_init_sequence,
-    MP_QSTR_postfix,
-    MP_QSTR_frame_postfix,
-    MP_QSTR_baudrate,
-    MP_QSTR_driver,
-};
-
 static void parse_driver_dict(mp_obj_t driver_obj, flow3r_bsp_display_driver_t *custom_driver, int *baudrate_out) {
-    (void)_display_qstrs;
     if (driver_obj == mp_const_none) {
         return;
     }
@@ -586,7 +570,6 @@ static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_a
         gpio_set_level(self->dc_pin, 1);
     }
 
-    flow3r_bsp_display_init();
     esp_err_t ret = flow3r_bsp_display_spi_acquire_pins(port, sck, mosi, baudrate, &self->spi);
     if (ret != ESP_OK) {
         if (self->cs_pin >= 0) gpio_reset_pin(self->cs_pin);

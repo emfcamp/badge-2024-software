@@ -336,7 +336,7 @@ esp_err_t flow3r_bsp_display_spi_acquire_pins(int port, int sck, int mosi, int b
             .sclk_io_num = sck,
             .quadwp_io_num = -1,
             .quadhd_io_num = -1,
-            .max_transfer_sz = 115200 + 128,
+            .max_transfer_sz = MIRROR_MAX_XFER,
             .flags = SPICOMMON_BUSFLAG_MASTER,
         };
 
