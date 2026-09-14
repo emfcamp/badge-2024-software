@@ -15,6 +15,7 @@ import wifi
 import shutil
 import machine
 from app_components import Menu, fourteen_pt, sixteen_pt, twelve_pt, ten_pt, seven_pt
+from app_components.dialog import TextDialog
 from app_components.tokens import set_color
 from app_components.utils import wrap_text
 from events.input import BUTTON_TYPES, ButtonDownEvent
@@ -29,12 +30,15 @@ from system.launcher.utils import (
     APP_DIR,
     APP_INSTALL_DIR,
     load_info,
+    load_manifest,
 )
 from system.notification.events import ShowNotificationEvent
 from app_components.background import Background as bg
 from firmware_apps.settings_app import BG_DIR, PAT_DIR
 from random import random, choice, randint
 from app_components.tokens import symbols
+
+import hashlib
 
 
 def get_first_category(manifest):
@@ -56,13 +60,173 @@ def dir_exists(filename):
         return False
 
 
-APP_STORE_LISTING_URL = "https://apps.badge.emfcamp.org/v1/apps"
+APP_STORE_API_BASE = "https://apps.badge.emfcamp.org/v1"
+
+
+def _quote(s):
+    safe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"
+    res = []
+    for c in str(s):
+        if c in safe:
+            res.append(c)
+        else:
+            for b in c.encode("utf-8"):
+                res.append("%%%02X" % b)
+    return "".join(res)
+
+
+def _build_app_url(path, params=None):
+    """Build an app store API URL with optional query parameters."""
+    url = f"{APP_STORE_API_BASE}{path}"
+    if params:
+        parts = []
+        for key, values in params.items():
+            if isinstance(values, (list, tuple)):
+                for v in values:
+                    parts.append(f"{_quote(key)}={_quote(v)}")
+            else:
+                parts.append(f"{_quote(key)}={_quote(values)}")
+        if parts:
+            url = f"{url}?{'&'.join(parts)}"
+    return url
+
+
+def compute_app_code(service, owner, title):
+    payload = service + owner + title
+    h = hashlib.md5(payload.encode())
+    digest = h.digest()
+    code = "".join(chr(ord("0") + (b % 5)) for b in digest[:8])
+    return code
+
+
+def _get_app_code_from_metadata(app_dir, folder_name):
+    info = load_info(app_dir, folder_name)
+    return info.get("app_code")
+
+
+def _find_app_codes(app_dir, folder_name, manifest):
+    stored = _get_app_code_from_metadata(app_dir, folder_name)
+    if stored:
+        return [stored]
+
+    manifest_app = manifest.get("app", {})
+    manifest_name = manifest_app.get("name", "")
+    manifest_author = manifest.get("metadata", {}).get("author", "")
+
+    candidates = []
+    parts = folder_name.split("_")
+
+    if manifest_author:
+        candidates.append((manifest_author, folder_name))
+        if manifest_name and manifest_name != folder_name:
+            candidates.append((manifest_author, manifest_name))
+        if len(parts) >= 2:
+            candidates.append((manifest_author, parts[-1]))
+
+    if len(parts) >= 2:
+        for split_idx in range(1, len(parts)):
+            owner_us = "_".join(parts[:split_idx])
+            title_us = "_".join(parts[split_idx:])
+            candidates.append((owner_us, title_us))
+            # Also try hyphenated variants: install_app replaces hyphens
+            # with underscores, so the folder loses the original separators.
+            title_hy = "-".join(parts[split_idx:])
+            if title_hy != title_us:
+                candidates.append((owner_us, title_hy))
+            owner_hy = "-".join(parts[:split_idx])
+            if owner_hy != owner_us:
+                candidates.append((owner_hy, title_us))
+            if owner_hy != owner_us and title_hy != title_us:
+                candidates.append((owner_hy, title_hy))
+    else:
+        candidates.append(("emfcamp", folder_name))
+        candidates.append(("badge", folder_name))
+
+    codes = []
+    seen = set()
+    for service in APP_STORE_SERVICES:
+        for owner, title in candidates:
+            code = compute_app_code(service, owner, title)
+            if code and code not in seen:
+                seen.add(code)
+                codes.append(code)
+
+    return codes
+
+
+def _store_app_code(app_dir, folder_name, code):
+    metadata_path = f"{app_dir}/{folder_name}/metadata.json"
+    try:
+        with open(metadata_path, "r") as f:
+            metadata = json.loads(f.read())
+    except Exception:
+        return
+    if metadata.get("app_code") != code:
+        metadata["app_code"] = code
+        try:
+            with open(metadata_path, "w") as f:
+                json.dump(metadata, f)
+        except Exception as e:
+            print(f"[AppStore] Failed to store app code: {e}")
+
+
+def _get_available_capabilities():
+    caps = {}
+
+    try:
+        from frontboards.utils import detect_frontboard
+
+        fb = detect_frontboard()
+        if (fb & 0xFF00) == 0x2600:
+            caps["frontboard"] = "2026 Frontboard"
+        elif (fb & 0xFF00) == 0x2400:
+            caps["frontboard"] = "2024 Frontboard"
+    except Exception:
+        pass
+
+    try:
+        from system.hexpansion.app import _hexpansion_manager
+
+        for port, header in _hexpansion_manager.hexpansion_headers.items():
+            if header is not None:
+                caps.setdefault("hexpansions", []).append(
+                    {"vid": hex(header.vid), "pid": hex(header.pid)}
+                )
+    except Exception:
+        pass
+
+    try:
+        from system.capabilities.utils import list_capabilities
+
+        for entry in list_capabilities():
+            for cap in entry.get("capabilities", []):
+                caps.setdefault("capabilities", []).append(cap)
+    except Exception:
+        pass
+
+    return caps
+
 
 CODE_INSTALL = "Use Code"
+SEARCH = "Search"
 AVAILABLE = "Browse Apps"
+CAPABILITIES = "By Capability"
 INSTALLED = "Uninstall"
 UPDATE = "Update Apps"
-REFRESH = "Refresh Apps"
+
+# TODO: These categories are coupled to the server-side category list.
+# If categories change on the server, this list must be updated.
+APP_STORE_CATEGORIES = [
+    "Badge",
+    "Music",
+    "Media",
+    "Apps",
+    "Games",
+    "Background",
+    "Pattern",
+]
+
+APP_STORE_SERVICES = ["github", "codeberg"]
 
 
 def list_apps(dir, callable):
@@ -71,7 +235,6 @@ def list_apps(dir, callable):
         try:
             contents = os.listdir(dir)
         except OSError:
-            # directory doesn't exist
             try:
                 os.mkdir(dir)
             except OSError:
@@ -113,19 +276,52 @@ class AppStoreApp(app.App):
         self.available_menu = None
         self.installed_menu = None
         self.update_menu = None
+        self.capabilities_menu = None
+        self.capability_apps_menu = None
         self.codeinstall = None
         self.app_details = None
         self.details_app = None
         self.available_menu_position = 0
         self.response = None
-        self.app_store_index = []
-        self.apps_with_updates = []
-        self.apps_available_dict = {}
-        self.app_categories = []
+        self._filtered_apps = []
+        self.app_categories = APP_STORE_CATEGORIES
         self.category_filter = None
+        self.available_capabilities = None
+        self.category_apps_response = None
+        self.capability_apps_response = None
         self.to_install_app = None
-        self.tarball = None
-        self.wait_one_cycle = False
+        self._lookup_code = None
+        self._capability_params = None
+        self._last_error = None
+        self._search_query = None
+        self._search_results = None
+        self.search_results_menu = None
+        self._app_details_return_state = None
+        self._update_code_map = {}
+        self._update_results = {}
+        self._update_all_list = []
+        self._update_install_queue = []
+        self._update_all_in_progress = False
+        self._update_detail_app = None
+        self._update_detail_widget = None
+        self._update_phase = 0
+        self._update_unmatched = []
+        self._update_updatable = False
+        self._update_installed_apps = None
+        self._capability_entries = []
+        self.overlays = []
+
+        eventbus.on(ButtonDownEvent, self._handle_error_back, self)
+
+    def _handle_error_back(self, event: ButtonDownEvent):
+        if self.state in (
+            "no_wifi",
+            "no_index",
+            "install_oom",
+        ):
+            if FRONTBOARD_BUTTON_TYPES["F"] in event.button:
+                self._last_error = None
+                self.update_state("main_menu")
 
     def cleanup_ui_widgets(self):
         widgets = [
@@ -134,8 +330,12 @@ class AppStoreApp(app.App):
             self.available_menu,
             self.installed_menu,
             self.update_menu,
+            self.capabilities_menu,
+            self.capability_apps_menu,
             self.codeinstall,
             self.app_details,
+            self._update_detail_widget,
+            self.search_results_menu,
         ]
 
         for widget in widgets:
@@ -147,76 +347,203 @@ class AppStoreApp(app.App):
             self.available_menu = None
             self.installed_menu = None
             self.update_menu = None
+            self.capabilities_menu = None
+            self.capability_apps_menu = None
             self.codeinstall = None
             self.app_details = None
+            self._update_detail_widget = None
+            self.search_results_menu = None
 
-    def get_index(self):
+    def _start_update_check(self):
         if not wifi.status():
             self.update_state("no_wifi")
             return
-        self.update_state("refreshing_index")
-
-    def handle_index(self):
-        if not self.response:
-            print(self.response)
-            self.update_state("no_index")
+        installed_apps = list_all_apps()
+        if not installed_apps:
+            self.update_state("main_menu")
+            eventbus.emit(ShowNotificationEvent("No apps installed"))
             return
+        self._update_installed_apps = installed_apps
+
+        self._update_code_map = {}
+        for ia in installed_apps:
+            folder = ia.get("folder", "")
+            app_dir = ia.get("app_dir", APP_INSTALL_DIR)
+            manifest = load_manifest(app_dir, folder)
+            if not manifest:
+                for d in [BG_DIR, PAT_DIR] + APP_DIR:
+                    manifest = load_manifest(d, folder)
+                    if manifest:
+                        app_dir = d
+                        break
+            codes = _find_app_codes(app_dir, folder, manifest)
+            if codes:
+                ia["app_dir"] = app_dir
+                for code in codes:
+                    self._update_code_map.setdefault(code, []).append(ia)
+            else:
+                print(f"[AppStore] Could not compute any codes for {folder}")
+
+        if not self._update_code_map:
+            self.update_state("main_menu")
+            eventbus.emit(ShowNotificationEvent("No update codes available"))
+            return
+
+        self._update_results = {}
+        self._update_phase = 0
+        self._update_unmatched = []
+        self.update_state("checking_updates")
+
+    def _install_next_from_queue(self):
+        """Install the next app in the update queue, if any."""
+        if self._update_install_queue:
+            self.to_install_app = self._update_install_queue.pop(0)
+            self.update_state("installing_app")
+
+    def get_category_apps(self, category):
+        """Fetch apps filtered by category from the API."""
+        if not wifi.status():
+            self.update_state("no_wifi")
+            return
+        self.category_filter = category
+        self.update_state("refreshing_category_apps")
+
+    def get_capability_apps(self, params):
+        """Fetch apps filtered by capability params from the API.
+
+        Args:
+            params: Dict of query parameters to pass to the API.
+        """
+        if not wifi.status():
+            self.update_state("no_wifi")
+            return
+        self._capability_params = params
+        self.update_state("refreshing_capability_apps")
+
+    def handle_category_apps(self):
+        """Process category-filtered API response."""
+        if not self.category_apps_response:
+            print("No category apps response")
+            self.update_state("available_categories_menu")
+            return
+
+        status = getattr(self.category_apps_response, "status_code", 0)
+        if status != 200:
+            print(f"Category apps returned status {status}")
+            self.update_state("no_index")
+            self._last_error = f"HTTP {status}"
+            return
+
         try:
-            self.app_store_index = self.response.json()["items"]
+            self._filtered_apps = self.category_apps_response.json()["items"]
         except Exception:
-            print(self.response)
-            self.update_state("no_index")
+            print(self.category_apps_response)
+            self.update_state("available_categories_menu")
             return
 
-        # build list of categories from index
-        self.app_categories = []
+        if not self._filtered_apps:
+            eventbus.emit(
+                ShowNotificationEvent(f"No apps found in {self.category_filter}")
+            )
+            self.update_state("available_categories_menu")
+            return
 
-        for item in self.app_store_index:
-            app_name = item.get("manifest", {}).get("app", {}).get("name", "<unknown>")
-            app_category = get_first_category(item["manifest"]["app"])
-            if app_category is None:
-                print(f"[AppStore] WARNING: app '{app_name}' has no category field!")
-                continue
-            if app_category not in self.app_categories:
-                self.app_categories.append(app_category)
+        self.update_state("available_menu")
 
-        self.update_state("main_menu")
+    def handle_capability_apps(self):
+        """Process capability-filtered API response."""
+        if not self.capability_apps_response:
+            print("No capability apps response")
+            self.update_state("capabilities_menu")
+            return
+
+        status = getattr(self.capability_apps_response, "status_code", 0)
+        if status != 200:
+            print(f"Capability apps returned status {status}")
+            self.update_state("no_index")
+            self._last_error = f"HTTP {status}"
+            return
+
+        try:
+            self._filtered_apps = self.capability_apps_response.json()["items"]
+        except Exception:
+            print(self.capability_apps_response)
+            self.update_state("capabilities_menu")
+            return
+
+        if not self._filtered_apps:
+            eventbus.emit(ShowNotificationEvent("No apps found for this capability"))
+            self.update_state("capabilities_menu")
+            return
+
+        self.update_state("capability_apps_menu")
 
     def install_app(self, app):
+        """Install a single app. Returns True on success, False on failure.
+
+        On failure this sets the appropriate error state and notifies the
+        user; on success the caller is responsible for state transitions
+        and notifications (single install vs "Update All" differ).
+        """
         try:
             install_app(app)
-            self.update_state("main_menu")
-            eventbus.emit(InstallNotificationEvent())
-            eventbus.emit(ShowNotificationEvent("Installed the app!"))
-            eventbus.emit(EmotePositiveEvent())
         except MemoryError:
             self.update_state("install_oom")
+            return False
         except Exception as e:
             print(e)
             eventbus.emit(ShowNotificationEvent("Couldn't install app"))
             eventbus.emit(EmoteNegativeEvent())
             self.update_state("main_menu")
+            return False
+        return True
 
     def update_state(self, state):
         print(f"State Transition: '{self.state}' -> '{state}'")
         self.state = state
 
     def handle_code_input(self, code):
-        print(f"Installing {code}")
+        print(f"Looking up app by code: {code}")
+        if not wifi.status():
+            self.update_state("no_wifi")
+            return
+        self._lookup_code = code
+        self.update_state("looking_up_code")
+
+    def handle_code_lookup_response(self):
+        """Process the response from looking up an app by code."""
+        code = self._lookup_code
+        if not self.response:
+            print(f"No response for code lookup: {code}")
+            eventbus.emit(ShowNotificationEvent(f"App {code} not found"))
+            self.update_state("main_menu")
+            return
+
+        status = getattr(self.response, "status_code", 0)
+        if status == 404:
+            print(f"App {code} not found (404)")
+            eventbus.emit(ShowNotificationEvent(f"App {code} not found"))
+            self.update_state("main_menu")
+            return
+        elif status != 200:
+            print(f"App lookup failed with status {status}")
+            eventbus.emit(ShowNotificationEvent(f"Server error ({status})"))
+            self.update_state("main_menu")
+            return
+
         try:
-            app = [app for app in self.app_store_index if app["code"] == code][0]
+            app = self.response.json()
             self.to_install_app = app
             self.update_state("installing_app")
-        except IndexError:
-            # TODO notify user of invalid code
+        except Exception:
+            print(f"Failed to parse response for code {code}")
+            eventbus.emit(ShowNotificationEvent(f"App {code} not found"))
             self.update_state("main_menu")
 
     def prepare_available_categories_menu(self):
         def on_select(_, i):
-            self.category_filter = self.app_categories[i]
-            self.available_menu_position = 0
-            self.update_state("available_menu")
             self.cleanup_ui_widgets()
+            self.get_category_apps(self.app_categories[i])
 
         def exit_available_categories_menu():
             self.cleanup_ui_widgets()
@@ -231,17 +558,90 @@ class AppStoreApp(app.App):
             item_font_size=ten_pt,
         )
 
-    def prepare_available_menu(self):
-        def filtered_index():
-            return [
-                app
-                for app in self.app_store_index
-                if get_first_category(app["manifest"]["app"]) == self.category_filter
-            ]
+    def _build_capabilities_menu(self):
+        caps = self.available_capabilities
+        self._capability_entries = []
+
+        fb = caps.get("frontboard")
+        if fb:
+            short = fb.replace(" Frontboard", "")
+            self._capability_entries.append(
+                (f"FB: {short}", f"Frontboard: {fb}", {"frontboard": fb})
+            )
+
+        for h in caps.get("hexpansions", []):
+            short = f"{h['vid']}:{h['pid']}"
+            self._capability_entries.append(
+                (
+                    f"HX: {short}",
+                    f"Hexpansion {short}",
+                    {"vid": h["vid"], "pid": h["pid"]},
+                )
+            )
+
+        seen_caps = set()
+        for c in caps.get("capabilities", []):
+            if c in seen_caps:
+                continue
+            seen_caps.add(c)
+            short = c.rstrip("/").rsplit("/", 1)[-1]
+            self._capability_entries.append(
+                (short, f"Capability: {c}", {"capability": [c]})
+            )
+
+        if not self._capability_entries:
+            eventbus.emit(ShowNotificationEvent("No capabilities detected"))
+            self.update_state("main_menu")
+            return
 
         def on_select(_, i):
-            self.details_app = filtered_index()[i]
+            self.cleanup_ui_widgets()
+            self.get_capability_apps(self._capability_entries[i][2])
+
+        def exit_capabilities_menu():
+            self.cleanup_ui_widgets()
+            self.update_state("main_menu")
+
+        self.capabilities_menu = Menu(
+            self,
+            menu_items=[entry[0] for entry in self._capability_entries],
+            info_items=[entry[1] for entry in self._capability_entries],
+            select_handler=on_select,
+            back_handler=exit_capabilities_menu,
+            focused_item_font_size=fourteen_pt,
+            item_font_size=ten_pt,
+        )
+
+    def prepare_capability_apps_menu(self):
+        """Build menu of apps matching the selected capability."""
+
+        def on_select(_, i):
+            self.to_install_app = self._filtered_apps[i]
+            self.update_state("installing_app")
+            self.cleanup_ui_widgets()
+
+        def exit_capability_apps_menu():
+            self.cleanup_ui_widgets()
+            self.update_state("capabilities_menu")
+
+        self.capability_apps_menu = Menu(
+            self,
+            menu_items=[app["manifest"]["app"]["name"] for app in self._filtered_apps],
+            info_items=[
+                app["manifest"]["metadata"]["description"]
+                for app in self._filtered_apps
+            ],
+            select_handler=on_select,
+            back_handler=exit_capability_apps_menu,
+            focused_item_font_size=fourteen_pt,
+            item_font_size=ten_pt,
+        )
+
+    def prepare_available_menu(self):
+        def on_select(_, i):
+            self.details_app = self._filtered_apps[i]
             self.available_menu_position = i
+            self._app_details_return_state = "available_menu"
             self.cleanup_ui_widgets()
             self.update_state("app_details")
 
@@ -252,10 +652,41 @@ class AppStoreApp(app.App):
 
         self.available_menu = Menu(
             self,
-            menu_items=[app["manifest"]["app"]["name"] for app in filtered_index()],
+            menu_items=[app["manifest"]["app"]["name"] for app in self._filtered_apps],
             position=self.available_menu_position,
+            info_items=[
+                app["manifest"]["metadata"]["description"]
+                for app in self._filtered_apps
+            ],
             select_handler=on_select,
             back_handler=exit_available_menu,
+            focused_item_font_size=fourteen_pt,
+            item_font_size=ten_pt,
+        )
+
+    def prepare_search_results_menu(self):
+        """Build menu showing search results."""
+
+        def on_select(_, i):
+            self.details_app = self._search_results[i]
+            self._app_details_return_state = "search_results"
+            self.cleanup_ui_widgets()
+            self.update_state("app_details")
+
+        def exit_search_results():
+            self._search_results = None
+            self.cleanup_ui_widgets()
+            self.update_state("main_menu")
+
+        self.search_results_menu = Menu(
+            self,
+            menu_items=[app["manifest"]["app"]["name"] for app in self._search_results],
+            info_items=[
+                app["manifest"]["metadata"]["description"]
+                for app in self._search_results
+            ],
+            select_handler=on_select,
+            back_handler=exit_search_results,
             focused_item_font_size=fourteen_pt,
             item_font_size=ten_pt,
         )
@@ -269,14 +700,42 @@ class AppStoreApp(app.App):
             self.update_state("installing_app")
 
         def on_back():
+            return_state = self._app_details_return_state or "available_menu"
             self.details_app = None
+            self._app_details_return_state = None
             self.cleanup_ui_widgets()
-            self.update_state("available_menu")
+            self.update_state(return_state)
 
         self.app_details = AppDetails(
             self,
             self.details_app,
             install_handler=on_install,
+            back_handler=on_back,
+        )
+
+    def _prepare_update_detail(self):
+        """Prepare the update detail view showing version comparison."""
+        ia, store_entry = self._update_detail_app
+
+        def on_update():
+            self._update_detail_app = None
+            self.cleanup_ui_widgets()
+            if store_entry:
+                self.to_install_app = store_entry
+                self.update_state("installing_app")
+            else:
+                self.update_state("update_menu")
+
+        def on_back():
+            self._update_detail_app = None
+            self.cleanup_ui_widgets()
+            self.update_state("update_menu")
+
+        self._update_detail_widget = UpdateDetailPanel(
+            self,
+            ia,
+            store_entry,
+            update_handler=on_update,
             back_handler=on_back,
         )
 
@@ -294,18 +753,18 @@ class AppStoreApp(app.App):
                 self.update_state("code_install_input")
             elif value == AVAILABLE:
                 self.update_state("available_categories_menu")
+            elif value == SEARCH:
+                self.update_state("search_input")
+            elif value == CAPABILITIES:
+                self.update_state("loading_capabilities")
             elif value == INSTALLED:
                 self.update_state("installed_menu")
             elif value == UPDATE:
-                self.update_state("update_menu")
-            elif value == REFRESH:
-                self.get_index()
+                self._start_update_check()
 
-        menu_items = [AVAILABLE, CODE_INSTALL, UPDATE]
+        menu_items = [AVAILABLE, SEARCH, CAPABILITIES, CODE_INSTALL, UPDATE]
         if len(list_all_apps()) > 0:
-            menu_items.append(
-                INSTALLED
-            )  # Only show uninstall option if there are installed apps (else a zero-length menu crashes)
+            menu_items.append(INSTALLED)
 
         self.menu = Menu(
             self,
@@ -317,49 +776,74 @@ class AppStoreApp(app.App):
     def prepare_update_menu(self):
         def on_cancel():
             self.cleanup_ui_widgets()
+            self._update_all_list = []
+            self._update_phase = 0
+            self._update_unmatched = []
             self.update_state("main_menu")
 
-        def on_select(_, i):
-            app_name = self.apps_with_updates[i]["folder"]
-            self.to_install_app = self.apps_available_dict[app_name]
-            self.update_state("installing_app")
+        def on_select(value, idx):
             self.cleanup_ui_widgets()
-
-        def compare_version(v1, v2):
-            # compare format v0.0.0
-            return v1.split(".") > v2.split(".")
-
-        installed_apps = list_all_apps()
-        self.apps_available_dict = {}
-        for a in self.app_store_index:
-            folder_name = a["id"]["owner"] + "_" + a["id"]["title"]
-            folder_name = folder_name.replace("-", "_")
-            self.apps_available_dict[folder_name] = a
-        self.apps_with_updates = []
-        for ia in installed_apps:
-            if ia["folder"] in self.apps_available_dict:
-                app_dict = self.apps_available_dict[ia["folder"]]
-                latest_version = app_dict["manifest"]["metadata"]["version"]
-                print("App: " + ia["name"])
-                print(f"Latest version: {latest_version}")
-                print("Installed version: " + ia["version"])
-
-                if compare_version(latest_version, ia["version"]):
-                    self.apps_with_updates.append(ia)
+            if idx == 0 and self._update_updatable:
+                self._update_install_queue = [
+                    se
+                    for (ia, se) in self._update_all_list
+                    if se and se["manifest"]["metadata"]["version"] != ia["version"]
+                ]
+                self._update_all_in_progress = True
+                self._install_next_from_queue()
             else:
-                print("No app in app store matching: ", ia)
-        if len(self.apps_with_updates):
-            self.update_menu = Menu(
-                self,
-                menu_items=[app["name"] for app in self.apps_with_updates],
-                select_handler=on_select,
-                back_handler=on_cancel,
-                focused_item_font_size=fourteen_pt,
-                item_font_size=ten_pt,
-            )
-        else:
-            self.update_state("main_menu")
-            eventbus.emit(ShowNotificationEvent("All apps up to date!"))
+                offset = 1 if self._update_updatable else 0
+                real_idx = idx - offset
+                ia, store_entry = self._update_all_list[real_idx]
+                self._update_detail_app = (ia, store_entry)
+                self.update_state("update_detail")
+
+        menu_items = []
+        info_items = []
+        self._update_updatable = False
+
+        updatable = []
+        current = []
+        for ia, store_entry in self._update_all_list:
+            if store_entry:
+                latest = store_entry["manifest"]["metadata"]["version"]
+                if latest != ia["version"]:
+                    updatable.append((ia, store_entry))
+                else:
+                    current.append((ia, store_entry))
+            else:
+                current.append((ia, None))
+
+        self._update_all_list = updatable + current
+
+        if updatable:
+            self._update_updatable = True
+            menu_items.append("\u21bb Update All")
+            n = len(updatable)
+            info_items.append(f"{n} app{'s' if n > 1 else ''} to update")
+
+        for ia, store_entry in self._update_all_list:
+            if store_entry:
+                latest = store_entry["manifest"]["metadata"]["version"]
+                if latest != ia["version"]:
+                    menu_items.append(f"{ia['name']}  {ia['version']} \u2192 {latest}")
+                    info_items.append("Update available")
+                else:
+                    menu_items.append(f"{ia['name']}  {ia['version']}")
+                    info_items.append("Up to date")
+            else:
+                menu_items.append(f"{ia['name']}  {ia['version']}")
+                info_items.append("Not in store")
+
+        self.update_menu = Menu(
+            self,
+            menu_items=menu_items,
+            info_items=info_items,
+            select_handler=on_select,
+            back_handler=on_cancel,
+            focused_item_font_size=fourteen_pt,
+            item_font_size=ten_pt,
+        )
 
     def prepare_installed_menu(self):
         def on_cancel():
@@ -423,24 +907,52 @@ class AppStoreApp(app.App):
     async def main_loop(self, delta, render_update):
         bg.update(delta)
         if self.state == "init":
-            if not wifi.status():
-                self.update_state("wifi_init")
-                return
-            print("calling get index")
-            self.get_index()
-        elif self.state == "wifi_init":
+            print("App Store ready for on-demand loading")
+            self.update_state("main_menu")
+        elif self.state == "category_apps_received":
+            self.handle_category_apps()
+        elif self.state == "capability_apps_received":
+            self.handle_capability_apps()
+        elif self.state == "code_lookup_received":
+            self.handle_code_lookup_response()
+        elif self.state == "search_input":
+            dialog = TextDialog("Search apps by name", self)
+            result = await dialog.run(render_update)
+            if result and result.strip():
+                self._search_query = result.strip()
+                self.update_state("searching")
+            else:
+                self.update_state("main_menu")
+        elif self.state == "searching":
+            gc.collect()
             try:
-                wifi.connect()
-            except Exception:
-                pass
-            self.update_state("wifi_connecting")
-        elif self.state == "wifi_connecting":
-            if wifi.status():
-                self.update_state("init")
-        elif self.state == "index_received":
-            self.handle_index()
+                url = _build_app_url("/apps", {"q": self._search_query})
+                print(f"Searching apps: {url}")
+                self.response = await async_helpers.unblock(get, render_update, url)
+                status = getattr(self.response, "status_code", 0)
+                if status == 200:
+                    self._search_results = self.response.json().get("items", [])
+                    if self._search_results:
+                        self.update_state("search_results")
+                    else:
+                        eventbus.emit(
+                            ShowNotificationEvent(
+                                f"No results for '{self._search_query}'"
+                            )
+                        )
+                        self.update_state("main_menu")
+                else:
+                    print(f"Search returned HTTP {status}")
+                    self.update_state("no_index")
+                    self._last_error = f"HTTP {status}"
+            except Exception as e:
+                print(f"Search error: {e}")
+                self._last_error = str(e)[:40]
+                self.update_state("no_index")
         elif self.state == "main_menu" and not self.menu:
             self.prepare_main_menu()
+        elif self.state == "search_results" and not self.search_results_menu:
+            self.prepare_search_results_menu()
         elif (
             self.state == "available_categories_menu"
             and not self.available_categories_menu
@@ -450,36 +962,210 @@ class AppStoreApp(app.App):
             self.prepare_available_menu()
         elif self.state == "app_details" and not self.app_details:
             self.prepare_app_details()
+        elif self.state == "loading_capabilities":
+            gc.collect()
+            try:
+                self.available_capabilities = await async_helpers.unblock(
+                    _get_available_capabilities, render_update
+                )
+            except Exception as e:
+                print(f"Capabilities detection error: {e}")
+                self.available_capabilities = {}
+            self.update_state("capabilities_menu")
+        elif self.state == "capabilities_menu" and not self.capabilities_menu:
+            self._build_capabilities_menu()
+        elif self.state == "capability_apps_menu" and not self.capability_apps_menu:
+            self.prepare_capability_apps_menu()
         elif self.state == "installed_menu" and not self.installed_menu:
             self.prepare_installed_menu()
         elif self.state == "update_menu" and not self.update_menu:
             self.prepare_update_menu()
-        elif self.state == "refreshing_index":
+        elif self.state == "update_detail" and not self._update_detail_widget:
+            self._prepare_update_detail()
+        elif self.state == "checking_updates":
+            gc.collect()
+            if self._update_phase == 0:
+                codes = list(self._update_code_map.keys())
+                if codes:
+                    try:
+                        url = _build_app_url("/apps", {"codes": ",".join(codes)})
+                        print(f"Fetching updates for {len(codes)} codes: {url}")
+                        self.response = await async_helpers.unblock(
+                            get, render_update, url
+                        )
+                        status = getattr(self.response, "status_code", 0)
+                        if status == 200:
+                            items = self.response.json().get("items", [])
+                            for item in items:
+                                code = item.get("code")
+                                if code and code in self._update_code_map:
+                                    store_name = (
+                                        item.get("manifest", {})
+                                        .get("app", {})
+                                        .get("name", "")
+                                    )
+                                    for ia in self._update_code_map[code]:
+                                        # If this code matches the stored
+                                        # app_code from metadata.json it is
+                                        # authoritative; skip name verification.
+                                        stored_code = _get_app_code_from_metadata(
+                                            ia.get("app_dir", APP_INSTALL_DIR),
+                                            ia["folder"],
+                                        )
+                                        if not stored_code or stored_code != code:
+                                            # Guessed code — verify the names
+                                            # match before persisting.
+                                            if store_name and store_name != ia.get(
+                                                "name"
+                                            ):
+                                                continue
+                                        self._update_results[ia["folder"]] = item
+                                        _store_app_code(
+                                            ia.get("app_dir", APP_INSTALL_DIR),
+                                            ia["folder"],
+                                            code,
+                                        )
+                        else:
+                            print(f"[AppStore] Batch code lookup: HTTP {status}")
+                    except Exception as e:
+                        print(f"[AppStore] Batch code lookup error: {e}")
+                self._update_unmatched = [
+                    ia
+                    for ia in self._update_installed_apps
+                    if ia["folder"] not in self._update_results
+                ]
+                self._update_phase = 1
+            elif self._update_phase == 1:
+                if self._update_unmatched:
+                    ia = self._update_unmatched.pop(0)
+                    name = ia.get("name", "")
+                    folder = ia.get("folder", "")
+                    app_dir = ia.get("app_dir", APP_INSTALL_DIR)
+                    manifest = load_manifest(app_dir, folder)
+                    if not manifest:
+                        for d in [BG_DIR, PAT_DIR] + APP_DIR:
+                            manifest = load_manifest(d, folder)
+                            if manifest:
+                                app_dir = d
+                                break
+                    try:
+                        url = _build_app_url("/apps", {"q": name})
+                        print(f"Searching for unmatched app '{name}': {url}")
+                        self.response = await async_helpers.unblock(
+                            get, render_update, url
+                        )
+                        status = getattr(self.response, "status_code", 0)
+                        if status == 200:
+                            items = self.response.json().get("items", [])
+                            for item in items:
+                                item_name = (
+                                    item.get("manifest", {})
+                                    .get("app", {})
+                                    .get("name", "")
+                                )
+                                if item_name == name:
+                                    self._update_results[folder] = item
+                                    code = item.get("code")
+                                    if code:
+                                        ia["app_dir"] = app_dir
+                                        _store_app_code(app_dir, folder, code)
+                                    break
+                        else:
+                            print(f"[AppStore] Name search '{name}': HTTP {status}")
+                    except Exception as e:
+                        print(f"[AppStore] Name search error for '{name}': {e}")
+                else:
+                    self._update_phase = 2
+            else:
+                self._update_all_list = []
+                for ia in self._update_installed_apps:
+                    folder = ia.get("folder", "")
+                    store_entry = self._update_results.get(folder)
+                    self._update_all_list.append((ia, store_entry))
+                self.update_state("update_menu")
+        elif self.state == "refreshing_category_apps":
+            gc.collect()
             try:
-                self.response = await async_helpers.unblock(
-                    get, render_update, APP_STORE_LISTING_URL
+                url = _build_app_url("/apps", {"category": [self.category_filter]})
+                print(f"Fetching category apps from: {url}")
+                self.category_apps_response = await async_helpers.unblock(
+                    get, render_update, url
                 )
-            except Exception:
+            except Exception as e:
+                print(f"Category fetch network error: {e}")
+                self._last_error = str(e)[:40]
                 self.update_state("no_index")
             else:
-                self.update_state("index_received")
+                self.update_state("category_apps_received")
+        elif self.state == "refreshing_capability_apps":
+            gc.collect()
+            try:
+                url = _build_app_url("/apps", self._capability_params)
+                print(f"Fetching capability apps from: {url}")
+                self.capability_apps_response = await async_helpers.unblock(
+                    get, render_update, url
+                )
+            except Exception as e:
+                print(f"Capability fetch network error: {e}")
+                self._last_error = str(e)[:40]
+                self.update_state("no_index")
+            else:
+                self.update_state("capability_apps_received")
+        elif self.state == "looking_up_code":
+            gc.collect()
+            try:
+                url = _build_app_url(f"/apps/{self._lookup_code}")
+                print(f"Looking up app by code: {url}")
+                self.response = await async_helpers.unblock(get, render_update, url)
+            except Exception as e:
+                print(f"Code lookup network error: {e}")
+                eventbus.emit(ShowNotificationEvent(f"Network error:\n{str(e)[:40]}"))
+                self._last_error = str(e)[:40]
+                self.update_state("no_index")
+            else:
+                self.update_state("code_lookup_received")
         elif self.state == "installing_app":
-            # We wait one cycle after background_update is called to ensure the
-            # installation screen is drawn
-            await async_helpers.unblock(
+            # Wait one cycle so the installation screen is drawn
+            success = await async_helpers.unblock(
                 self.install_app, render_update, self.to_install_app
             )
             self.to_install_app = None
+            if not success:
+                self._update_install_queue = []
+                self._update_all_in_progress = False
+            elif self._update_install_queue:
+                self._install_next_from_queue()
+            elif self._update_all_in_progress:
+                self._update_all_in_progress = False
+                self._update_all_list = []
+                self._update_results = {}
+                self._update_phase = 0
+                self._update_unmatched = []
+                eventbus.emit(InstallNotificationEvent())
+                eventbus.emit(ShowNotificationEvent("All updates installed!"))
+                eventbus.emit(EmotePositiveEvent())
+                self.update_state("main_menu")
+            else:
+                eventbus.emit(InstallNotificationEvent())
+                eventbus.emit(ShowNotificationEvent("Installed the app!"))
+                eventbus.emit(EmotePositiveEvent())
+                self.update_state("main_menu")
         if self.menu:
             self.menu.update(delta)
         if self.available_categories_menu:
             self.available_categories_menu.update(delta)
         if self.available_menu:
             self.available_menu.update(delta)
+        if self.capabilities_menu:
+            self.capabilities_menu.update(delta)
+        if self.capability_apps_menu:
+            self.capability_apps_menu.update(delta)
         if self.installed_menu:
             self.installed_menu.update(delta)
         if self.update_menu:
             self.update_menu.update(delta)
+        if self.search_results_menu:
+            self.search_results_menu.update(delta)
 
     def draw(self, ctx):
         ctx.save()
@@ -494,32 +1180,74 @@ class AppStoreApp(app.App):
             self.state == "available_categories_menu" and self.available_categories_menu
         ):
             self.available_categories_menu.draw(ctx)
+        elif (
+            self.state == "available_categories_menu"
+            and not self.available_categories_menu
+        ):
+            self.error_screen(ctx, "Loading...")
         elif self.state == "available_menu" and self.available_menu:
             self.available_menu.draw(ctx)
         elif self.state == "available_menu" and not self.available_menu:
             pass
+        elif self.state == "search_results" and self.search_results_menu:
+            self.search_results_menu.draw(ctx)
+        elif self.state == "search_results" and not self.search_results_menu:
+            self.error_screen(ctx, "Loading...")
         elif self.state == "app_details" and self.app_details:
             self.app_details.draw(ctx)
         elif self.state == "app_details" and not self.app_details:
             pass
+        elif self.state == "loading_capabilities":
+            self.error_screen(ctx, "Detecting\ncapabilities...")
+        elif self.state == "capabilities_menu" and self.capabilities_menu:
+            self.capabilities_menu.draw(ctx)
+        elif self.state == "capabilities_menu" and not self.capabilities_menu:
+            self.error_screen(ctx, "Loading...")
+        elif self.state == "capability_apps_menu" and self.capability_apps_menu:
+            self.capability_apps_menu.draw(ctx)
+        elif self.state == "capability_apps_menu" and not self.capability_apps_menu:
+            self.error_screen(ctx, "Loading...")
         elif self.state == "installed_menu" and self.installed_menu:
             self.installed_menu.draw(ctx)
+        elif self.state == "installed_menu" and not self.installed_menu:
+            self.error_screen(ctx, "Loading...")
         elif self.state == "update_menu" and self.update_menu:
             self.update_menu.draw(ctx)
+        elif self.state == "update_menu" and not self.update_menu:
+            self.error_screen(ctx, "Loading...")
+        elif self.state == "update_detail" and self._update_detail_widget:
+            self._update_detail_widget.draw(ctx)
+        elif self.state == "update_detail" and not self._update_detail_widget:
+            self.error_screen(ctx, "Loading...")
         elif self.state == "no_wifi":
             self.error_screen(ctx, "No Wi-Fi\nconnection")
-        elif self.state == "no_wifi":
-            self.error_screen(ctx, "Couldn't\nconnect to\napp store")
-        elif self.state == "checking_wifi":
-            self.error_screen(ctx, "Checking\nWi-Fi connection")
-        elif self.state in ("wifi_init", "wifi_connecting"):
-            self.error_screen(ctx, "Connecting\nWi-Fi...\n")
-        elif self.state == "refreshing_index":
-            self.error_screen(ctx, "Refreshing\napp store\nindex")
-        elif self.state == "index_received":
-            self.error_screen(ctx, "App store\nindex\nreceived")
+        elif self.state == "checking_updates":
+            if self._update_phase == 0:
+                self.error_screen(ctx, "Checking\nfor updates...")
+            else:
+                remaining = len(self._update_unmatched)
+                self.error_screen(ctx, f"Searching...\n{remaining} unmatched")
+        elif self.state == "refreshing_category_apps":
+            self.error_screen(ctx, f"Loading\n{self.category_filter}\napps...")
+        elif self.state == "refreshing_capability_apps":
+            self.error_screen(ctx, "Loading\ncapability\napps...")
+        elif self.state == "looking_up_code":
+            self.error_screen(ctx, "Looking up\napp code...")
+        elif self.state == "searching":
+            self.error_screen(ctx, f"Searching...\n{self._search_query}")
+        elif self.state == "category_apps_received":
+            self.error_screen(ctx, "Category\nreceived")
+        elif self.state == "capability_apps_received":
+            self.error_screen(ctx, "Capability\nreceived")
+        elif self.state == "code_lookup_received":
+            self.error_screen(ctx, "Code\nreceived")
+        elif self.state == "search_input":
+            pass
         elif self.state == "no_index":
-            self.error_screen(ctx, "Index\nerror")
+            if self._last_error:
+                self.error_screen(ctx, f"Error\n{self._last_error}")
+            else:
+                self.error_screen(ctx, "Index\nerror\n(press F for menu)")
         elif self.state == "install_oom":
             self.error_screen(ctx, "Out of memory\n(app too big?)")
         elif self.state == "code_install_input" and self.codeinstall:
@@ -535,7 +1263,7 @@ class AppStoreApp(app.App):
             self.error_screen(ctx, "Loading...")
         else:
             self.error_screen(ctx, "Unknown error")
-            print("Unkown error " + self.state)
+            print("Unknown error " + self.state)
         ctx.restore()
 
         self.draw_overlays(ctx)
@@ -570,7 +1298,6 @@ class AppDetails:
         self.description = metadata.get("description") or "No description provided."
         self.version = metadata.get("version", "")
 
-        # rows of (text, font_size, colour, gap_after), built in draw()
         self._rows = None
         self._total_height = None
         self._max_scroll = None
@@ -666,10 +1393,8 @@ class AppDetails:
         for text, size, colour, gap in self._rows:
             row_height = size * 1.1
             center = y + row_height / 2
-            # rows straddling the bottom clip against the screen edge
             if -84 <= center and center - row_height / 2 <= self._draw_bottom:
                 if colour is None:
-                    # install row, highlighted once scrolled to the end
                     set_color(ctx, "active_menu_item" if at_end else "label")
                     ctx.font_size = size
                     ctx.move_to(0, center).text(text)
@@ -685,8 +1410,100 @@ class AppDetails:
         ctx.restore()
 
 
+class UpdateDetailPanel:
+    """Simple detail panel showing installed vs latest version for an app."""
+
+    def __init__(
+        self,
+        app: app.App,
+        installed_app: dict,
+        store_entry: dict,
+        update_handler: Callable[[], Any],
+        back_handler: Callable[[], Any],
+    ):
+        self.app = app
+        self.update_handler = update_handler
+        self.back_handler = back_handler
+        self._cleaned_up = False
+
+        self.name = installed_app.get("name", "Unknown")
+        self.installed_version = installed_app.get("version", "0.0.0")
+
+        if store_entry:
+            manifest = store_entry.get("manifest", {})
+            metadata = manifest.get("metadata", {})
+            self.latest_version = metadata.get("version", "?")
+            self.author = (
+                metadata.get("author")
+                or metadata.get("maintainer")
+                or store_entry.get("id", {}).get("owner", "?")
+            )
+            self.description = metadata.get("description") or ""
+            self._has_update = self.latest_version != self.installed_version
+        else:
+            self.latest_version = "?"
+            self.author = "?"
+            self.description = ""
+            self._has_update = False
+
+        eventbus.on(ButtonDownEvent, self._handle_buttondown, app)
+
+    def _handle_buttondown(self, event: ButtonDownEvent):
+        if BUTTON_TYPES["CONFIRM"] in event.button:
+            if self._has_update:
+                self._cleanup()
+                self.update_handler()
+        elif BUTTON_TYPES["CANCEL"] in event.button:
+            self._cleanup()
+            self.back_handler()
+
+    def _cleanup(self):
+        if not self._cleaned_up:
+            eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
+            self._cleaned_up = True
+
+    def draw(self, ctx):
+        ctx.save()
+        ctx.text_align = ctx.CENTER
+        ctx.text_baseline = ctx.MIDDLE
+
+        ctx.font_size = twelve_pt
+        set_color(ctx, "label")
+        ctx.move_to(0, -50).text(self.name)
+
+        if self.author != "?":
+            ctx.font_size = seven_pt
+            set_color(ctx, "button_background")
+            ctx.move_to(0, -32).text(f"by {self.author}")
+
+        ctx.font_size = ten_pt
+        set_color(ctx, "label")
+        ctx.move_to(0, -5).text(f"Installed: {self.installed_version}")
+
+        ctx.font_size = ten_pt
+        if self.latest_version == "?":
+            set_color(ctx, "button_background")
+            ctx.move_to(0, 16).text("Not found in store")
+        elif self._has_update:
+            set_color(ctx, "active_menu_item")
+            ctx.move_to(0, 16).text(f"Latest: {self.latest_version}")
+
+            ctx.font_size = seven_pt
+            set_color(ctx, "label")
+            ctx.move_to(0, 38).text("CONFIRM to update")
+        else:
+            set_color(ctx, "button_background")
+            ctx.move_to(0, 16).text(f"Latest: {self.latest_version}")
+            ctx.font_size = seven_pt
+            set_color(ctx, "label")
+            ctx.move_to(0, 38).text("Up to date")
+
+        ctx.restore()
+
+
 class CodeInstall:
     def __init__(self, install_handler: Callable[[str], Any], app: app.App):
+        self.app = app
         self.install_handler = install_handler
         self.state = "input"
         self.id: str = ""
@@ -701,7 +1518,6 @@ class CodeInstall:
 
         self.reset_interloper()
 
-        # 1 out of 10 times, we will draw some lads
         self.include_interloper = random() > 0.9
 
         eventbus.on(ButtonDownEvent, self._handle_buttondown, app)
@@ -748,7 +1564,6 @@ class CodeInstall:
             self.id += kbd_button.name
 
         if original_id == self.id:
-            # We did not handle this button event, so bail now
             return
 
         self.active_button = int(self.id[-1])
@@ -759,7 +1574,7 @@ class CodeInstall:
             self.install_handler(self.id)
 
     def _cleanup(self):
-        eventbus.remove(ButtonDownEvent, self._handle_buttondown, self)
+        eventbus.remove(ButtonDownEvent, self._handle_buttondown, self.app)
 
     def draw(self, ctx):
         if self.include_interloper:
@@ -837,7 +1652,6 @@ def install_app(app):
 
         print(f"Getting {app['tarballUrl']}")
         tarball = get(app["tarballUrl"])
-        # tarballGenerator = self.download_file(app["tarballUrl"])
 
         # TODO: Investigate using deflate.DeflateIO instead. Can't do it now
         # because it's not available in the simulator.
@@ -925,6 +1739,18 @@ def install_app(app):
             "hidden": False,
             "version": app["manifest"]["metadata"]["version"],
         }
+        # Store the app code if available
+        app_code = app.get("code")
+        if app_code:
+            internal_manifest["app_code"] = app_code
+            # Also store service/owner/title for future reference
+            app_id = app.get("id", {})
+            if app_id.get("service"):
+                internal_manifest["app_service"] = app_id["service"]
+            if app_id.get("owner"):
+                internal_manifest["app_owner"] = app_id["owner"]
+            if app_id.get("title"):
+                internal_manifest["app_title"] = app_id["title"]
         json_path = f"{TARGET_DIR}/{app_module_name}/metadata.json"
         print(f"Json path: {json_path}")
         with open(json_path, "w+") as internal_manifest_file_handler:
