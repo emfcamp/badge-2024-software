@@ -34,7 +34,7 @@ class I2C:
     def __init__(self, *args, **kwargs):
         pass
 
-    def scan(self):
+    def scan(self, *args, **kwargs):
         return []
 
     def writeto(self, *args, **kwargs):

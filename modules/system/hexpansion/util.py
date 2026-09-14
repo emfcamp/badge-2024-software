@@ -10,7 +10,7 @@ handle_insertion_lock = asyncio.Lock()
 
 
 def detect_eeprom_addr(i2c):
-    devices = i2c.scan()
+    devices = i2c.scan(range(0x50, 0x58))
     if 0x57 in devices and 0x50 not in devices:
         return (0x57, 2)
     if (
@@ -44,7 +44,7 @@ def read_hexpansion_header(
 
     @return: A HexpansionHeader object if successful, otherwise None.
     """
-    devices = i2c.scan()
+    devices = i2c.scan(eeprom_addr)
     if eeprom_addr not in devices:
         print(f"No device found at {hex(eeprom_addr)}")
         return None
