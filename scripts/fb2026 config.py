@@ -239,7 +239,7 @@ CY8CMBRX_ATH_EN | CY8CMBRX_GUARD_EN, #0x4F DEVICE_CFG2
 
 def cy8cmbr3116_init():
     top = I2C(0)
-    top.scan(0x37)  # is this needed at all, we don't use the result - perhaps it wakes up the device?
+    top.scan(0x37)  # Wake up the device
     device_crc = top.readfrom_mem(0x37, 0x7E, 2)
     # could look for a calibration file and alter the config to apply it
     config_crc = cy8cmbr_crc(cy8cmbr3116_config)
