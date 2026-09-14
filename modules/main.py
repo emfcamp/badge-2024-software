@@ -11,6 +11,7 @@ from system.espnow import espnow_service
 from system.launcher.app import Launcher
 from system.power.handler import PowerEventHandler
 from system.power.app import PowerManager
+from system.ntpsync.app import NTPSync
 from settings import get
 
 from frontboards.utils import detect_frontboard
@@ -56,6 +57,9 @@ scheduler.start_app(NotificationService(), always_on_top=True)
 
 # Start power management app
 scheduler.start_app(PowerManager())
+
+# Start NTP time-sync service (sets the RTC from NTP once WiFi connects)
+scheduler.start_app(NTPSync())
 
 # Start ESP-NOW background service
 scheduler.start_app(espnow_service)
