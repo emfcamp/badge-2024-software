@@ -1,0 +1,673 @@
+diff --git a/docs/library/esp32.rst b/docs/library/esp32.rst
+index 0f063774113..63d95aa0e1a 100644
+--- a/docs/library/esp32.rst
++++ b/docs/library/esp32.rst
+@@ -381,14 +381,44 @@ So, in the example above, the resolution is resolution is (1/10Mhz) = 100ns.
+ Since the ``start`` level is 0 and toggles with each number, the bitstream is
+ ``0101`` with durations of [100ns, 2000ns, 100ns, 4000ns].
+ 
++The example below uses RMTRX to receive a signal coming from an EV1527 keyfob::
++
++    rx = esp32.RMTRX(pin=Pin(14), \
++                     num_symbols=64, \
++                     min_ns=3100, \
++                     max_ns=5000*1000, \
++                     resolution_hz=1000*1000, \
++                     soft_min_ns=150*1000, \
++                     soft_max_ns=1500*1000, \
++                     soft_min_len=49, \
++                     soft_max_len=49)
++
++    rx.active(1)
++    while True:
++        data = rx.get_data()
++        if data is not None:
++            print(data)
++            binary = map(lambda hi, lo: abs(hi) > abs(lo) and "1" or "0", data[0:48:2], data[1:48:2])
++            binary = "".join(binary)
++            print("Code is", int(binary, 2))
++            break
++    rx.active(0)
++
++Assuming Pin 14 is connected to a 315/433MHz OOK receiver like a SYN480R, the code
++above can discriminate a signal that is likely coming from an EV1527 keyfob.
++The output would be something like::
++
++    [397, -995, 1058, -312, 1059, -312, 379, -995, 379, ... ] # 49 items
++    Code is 6455248
++
++This type of keyfob transmits a pulse train, delimited by long preambles
++(detected by *max_ns*) and composed of 49 level transitions (filtered by
++*soft_min_len* and *soft_max_len*), the length of each pulse being between 300µs and 1100µs
++(loosely filtered by *min_ns*, *soft_min_ns* and *soft_max_ns*).
++
+ For more details see Espressif's `ESP-IDF RMT documentation.
+ <https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/peripherals/rmt.html>`_.
+ 
+-.. Warning::
+-   The current MicroPython RMT implementation lacks some features, most notably
+-   receiving pulses. RMT should be considered a
+-   *beta feature* and the interface may change in the future.
+-
+ 
+ .. class:: RMT(channel, *, pin=None, resolution_hz=10000000, clock_div=None, idle_level=False, num_symbols=48|64, tx_carrier=None)
+ 
+@@ -523,6 +553,81 @@ For more details see Espressif's `ESP-IDF RMT documentation.
+               a specific RMT channel number for the bitstream, but the channel number is now assigned
+               dynamically.
+ 
++.. class:: RMTRX(pin=None, num_symbols=64, min_ns, max_ns, resolution_hz, soft_min_len=0, soft_max_len=0x7fffffff, soft_min_ns=0, soft_max_ns=0x7fffffff)
++
++    This class provides access to one of the eight RMT channels.
++
++    *pin* is required and configures which Pin is bound to the RMT channel.
++
++    *num_symbols* specifies the RMT buffer allocated for this channel (minimum 64),
++    from a small pool of 512 symbols that are shared by all channels. This buffer does not limit the
++    size of the pulse train that you can receive, but bigger buffers reduce the
++    CPU load and the potential of glitches/imprecise pulse lengths.
++
++    *min_ns* is required and specifies the minimum pulse width considered valid.
++    Pulses shorter than *min_ns* nanoseconds are filtered out and ignored.
++    filtered out.
++    The hardware register that holds *min_ns* is 8-bit, so the maximum valid value is 3187 (255 * 12.5ns).
++    If supplied value is too big for the hardware, it will fail when calling ``active(True)``.
++
++    *max_ns* is required and specifies the maximum pulse width considered valid.
++    A pulse longer than *max_ns* signals the end of a received RMT transaction.
++    The maximum value is such that (*resolution_hz* * *max_ns*) / 1,000,000,000
++    does not exceed 65535 for ESP32/ESP32-S2, or 32767 for ESP32-S3/C3/C6/H2.
++    If supplied value is too big for the hardware, it will fail when calling ``active(True)``.
++
++    *resolution_hz* is required and defines the unit of the received samples.
++    For example, 1,000,000 means the unit is microsecond. The pulse widths can
++    assume values up to *RMTRX.PULSE_MAX*, so this value should be selected
++    accordingly to the expected incoming signal.
++
++    The following optional parameters are software filters that may help to overcome the
++    limitations of the hardware filters, and are still much faster than filtering at
++    Python level. All values have maximum values of 0x7fffffff:
++
++    *soft_min_ns* is the minimum pulse width considered valid, in nanoseconds.
++    Since *min_ns* ceiling is quite low, *soft_min_ns* allows for a more accurate
++    prefiltering of valid pulse widths.  If a pulse longer than *min_ns* and shorter
++    than *soft_min_ns* is detected, the RMT transaction is cancelled and restarted.
++
++    *soft_max_ns* is the maximum pulse width considered valid, in nanoseconds.
++    If a pulse longer than *soft_max_ns* (but shorter than *max_ns*) is detected,
++    the RMT transaction is cancelled and restarted. It is useful to filter out
++    spurious pulses that are too long to be valid, but too short to signal
++    closure.
++
++    *soft_min_len* is the minimum pulse train length considered valid. A pulse train shorter than this is
++    silently ignored and the RMT transaction restarts.
++
++    *soft_max_len* is the maximum pulse train length considered valid. A pulse train longer
++    than this is silently ignored and the RMT transaction restarts. If specified,
++    this value should be smaller than twice the parameter *num_symbols* i.e. the
++    transaction must fit in the RMT hardware buffer allocated for this task.
++
++.. method:: RMTRX.active([bool])
++
++    Starts or stops RMT data reception. If no parameter is supplied, returns the current
++    state.
++
++    When RMT reception is active, caller should call ``RMTRX.get_data()`` periodically.
++    For a more sophisticated querying, register for select.POLLIN on the RMTRX object.
++
++.. method:: RMTRX.get_data()
++
++    Get available pulse train data, otherwise gets None.
++
++    Pulse train is supplied as a list of pulse widths, positive values meaning high level and negative values meaning low level.
++    Value unit is defined by *resolution_hz*.
++
++    While a pulse train is available and stays uncollected, newer ones are discarded. Make sure to poll as frequently
++    as necessary, or register for select.POLLIN.
++
++.. method:: RMTRX.deinit()
++
++    Release all RMT resources and invalidate the object. All subsequent method
++    calls will raise OSError. Useful to free RMT resources without having to wait
++    for the object to be garbage-collected.
++
+ Constants
+ ---------
+ 
+@@ -530,6 +635,10 @@ Constants
+ 
+    Maximum integer that can be set for a pulse duration.
+ 
++.. data:: RMTRX.PULSE_MAX
++
++   Maximum integer that can be received for a pulse duration. Always equal to *RMT.PULSE_MAX*.
++
+ Ultra-Low-Power co-processor
+ ----------------------------
+ 
+diff --git a/ports/esp32/esp32_common.cmake b/ports/esp32/esp32_common.cmake
+index ea60c395a76..ec754fd94b5 100644
+--- a/ports/esp32/esp32_common.cmake
++++ b/ports/esp32/esp32_common.cmake
+@@ -137,6 +137,7 @@ list(APPEND MICROPY_SOURCE_PORT
+     esp32_partition.c
+     esp32_pcnt.c
+     esp32_rmt.c
++    esp32_rmtrx.c
+     esp32_ulp.c
+     esp32_ldo.c
+     modesp32.c
+diff --git a/ports/esp32/esp32_rmtrx.c b/ports/esp32/esp32_rmtrx.c
+new file mode 100644
+index 00000000000..ba7fb42e9ca
+--- /dev/null
++++ b/ports/esp32/esp32_rmtrx.c
+@@ -0,0 +1,321 @@
++#include "py/mphal.h"
++#include "py/runtime.h"
++#include "py/stream.h"
++#include "modmachine.h"
++#include "modesp32.h"
++
++#if SOC_RMT_SUPPORTED
++#include "esp_task.h"
++#include "driver/rmt_rx.h"
++
++// This exposes the ESP32's RMT module to MicroPython. RMT is provided by the Espressif ESP-IDF:
++//
++//    https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/peripherals/rmt.html
++//
++// With some examples provided:
++//
++//    https://github.com/espressif/arduino-esp32/tree/master/libraries/ESP32/examples/RMT
++//
++// RMT allows accurate (down to 12.5ns resolution) transmit - and receive - of pulse signals.
++// Originally designed to generate infrared remote control signals, the module is very
++// flexible and quite easy-to-use.
++//
++// This code exposes the RMT RX feature.
++
++// Forward declaration
++extern const mp_obj_type_t esp32_rmtrx_type;
++
++// Python object impl structure
++typedef struct _esp32_rmtrx_obj_t {
++    mp_obj_base_t base;
++    rmt_channel_handle_t channel;
++    gpio_num_t pin;
++    unsigned int resolution_hz;
++
++    size_t num_symbols;
++    rmt_symbol_word_t *symbols;
++
++    bool rx_active;
++    rmt_receive_config_t rx_config;
++    // double buffering of received data
++    size_t recv_count;
++    int *recv_data;
++
++    // soft filtering values
++    unsigned int soft_min_len;
++    unsigned int soft_max_len;
++    unsigned int soft_min_ns;
++    unsigned int soft_max_ns;
++    unsigned int soft_min_value;
++    unsigned int soft_max_value;
++} esp32_rmtrx_obj_t;
++
++#define SOFT_MAX_LIMIT 0x7fffffff
++
++// Interrupt handler
++static bool IRAM_ATTR rmt_recv_done(rmt_channel_handle_t channel, const rmt_rx_done_event_data_t *edata, void *udata) {
++    esp32_rmtrx_obj_t *self = udata;
++
++    if (self->recv_count) {
++        // user hasn't read the last reception yet
++        goto out;
++    }
++
++    const rmt_symbol_word_t *data = edata->received_symbols;
++    size_t len = edata->num_symbols;
++    int odd = (data[len - 1].duration1 == 0) ? 1 : 0;
++    int list_len = len * 2 - odd;
++
++    if (list_len < self->soft_min_len || list_len > self->soft_max_len) {
++        goto out;
++    }
++
++    for (size_t i = 0; i < len; i++) {
++        int n0 = (uint16_t)data[i].duration0;
++        if (n0 < self->soft_min_value || n0 > self->soft_max_value) {
++            goto out;
++        }
++        self->recv_data[i * 2 + 0] = n0 * (data[i].level0 ? +1 : -1);
++
++        if (odd && i == (len - 1)) {
++            continue;
++        }
++
++        int n1 = (uint16_t)data[i].duration1;
++        if (n1 < self->soft_min_value || n1 > self->soft_max_value) {
++            goto out;
++        }
++        self->recv_data[i * 2 + 1] = n1 * (data[i].level1 ? +1 : -1);
++    }
++
++    // commit the reception
++    self->recv_count = list_len;
++
++out:
++    if (self->rx_active) {
++        rmt_receive(self->channel, self->symbols, self->num_symbols * sizeof(rmt_symbol_word_t), &self->rx_config);
++    }
++
++    return false;
++}
++
++static mp_obj_t esp32_rmtrx_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
++    static const mp_arg_t allowed_args[] = {
++        { MP_QSTR_pin,           MP_ARG_REQUIRED | MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = mp_const_none} },
++        { MP_QSTR_num_symbols,                     MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = SOC_RMT_MEM_WORDS_PER_CHANNEL} },
++        { MP_QSTR_min_ns,        MP_ARG_REQUIRED | MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
++        { MP_QSTR_max_ns,        MP_ARG_REQUIRED | MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
++        { MP_QSTR_resolution_hz, MP_ARG_REQUIRED | MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
++        { MP_QSTR_soft_min_len,                    MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
++        { MP_QSTR_soft_max_len,                    MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = SOFT_MAX_LIMIT} },
++        { MP_QSTR_soft_min_ns,                     MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
++        { MP_QSTR_soft_max_ns,                     MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = SOFT_MAX_LIMIT} },
++    };
++    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
++    mp_arg_parse_all_kw_array(n_args, n_kw, all_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
++
++    gpio_num_t pin_id = machine_pin_get_id(args[0].u_obj);
++    int num_symbols = args[1].u_int;
++    if ((num_symbols < SOC_RMT_MEM_WORDS_PER_CHANNEL) || ((num_symbols % 2) == 1)) {
++        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("num_symbols must be even and at least %d"), SOC_RMT_MEM_WORDS_PER_CHANNEL);
++    }
++
++    // RMT new driver does not have a way to specify a group clock divisor, see
++    // https://github.com/espressif/esp-idf/issues/14760#issuecomment-2430770601 and
++    // https://github.com/espressif/esp-idf/issues/11262
++    // since signal_range_min_ns must fit in an 8-bit register, the value is limited
++    // to 3190ns (80MHz clock * 3190 / 1000000000 [conversion to ns] == 255).
++
++    int min_ns = args[2].u_int;
++    if (min_ns <= 0) {
++        mp_raise_ValueError(MP_ERROR_TEXT("min_ns must be positive"));
++    }
++    int max_ns = args[3].u_int;
++    if (max_ns <= min_ns) {
++        mp_raise_ValueError(MP_ERROR_TEXT("max_ns must be bigger than min_ns"));
++    }
++    int resolution_hz = args[4].u_int;
++    if (resolution_hz <= 0) {
++        mp_raise_ValueError(MP_ERROR_TEXT("resolution_hz must be positive"));
++    }
++    unsigned int unit_width_in_ns = 1000000000 / resolution_hz;
++
++    int soft_min_len = args[5].u_int;
++    int soft_max_len = args[6].u_int;
++    int soft_min_ns = args[7].u_int;
++    int soft_max_ns = args[8].u_int;
++
++    if (soft_min_len < 0) {
++        mp_raise_ValueError(MP_ERROR_TEXT("soft_min_len must be positive"));
++    }
++    if (soft_min_len > soft_max_len) {
++        mp_raise_ValueError(MP_ERROR_TEXT("soft_min_len must be less or equal than soft_max_len"));
++    }
++    if (soft_min_ns < 0) {
++        mp_raise_ValueError(MP_ERROR_TEXT("soft_min_ns must be positive"));
++    }
++    if (soft_min_ns > soft_max_ns) {
++        mp_raise_ValueError(MP_ERROR_TEXT("soft_min_ns must be less or equal than soft_max_ns"));
++    }
++
++    esp32_rmtrx_obj_t *self = mp_obj_malloc_with_finaliser(esp32_rmtrx_obj_t, &esp32_rmtrx_type);
++
++    self->channel = NULL;
++    self->num_symbols = num_symbols;
++    self->symbols = m_realloc(NULL, num_symbols * sizeof(rmt_symbol_word_t));
++    self->recv_data = m_realloc(NULL, num_symbols * 2 * sizeof(int));
++    self->recv_count = 0;
++    self->resolution_hz = resolution_hz;
++    self->soft_min_len = soft_min_len;
++    self->soft_max_len = soft_max_len;
++    self->soft_min_ns = soft_min_ns;
++    self->soft_min_value = soft_min_ns / unit_width_in_ns;
++    self->soft_max_ns = soft_max_ns;
++    self->soft_max_value = soft_max_ns / unit_width_in_ns;
++
++    self->rx_config.signal_range_min_ns = min_ns;
++    self->rx_config.signal_range_max_ns = max_ns;
++
++    self->pin = pin_id;
++
++    rmt_rx_channel_config_t rx_ch_conf = {
++        .gpio_num = self->pin = pin_id,
++        .clk_src = RMT_CLK_SRC_DEFAULT,
++        .resolution_hz = resolution_hz,
++        .mem_block_symbols = num_symbols,
++    };
++
++    check_esp_err(rmt_new_rx_channel(&rx_ch_conf, &self->channel));
++    rmt_rx_event_callbacks_t cbs = {
++        .on_recv_done = rmt_recv_done,
++    };
++    check_esp_err(rmt_rx_register_event_callbacks(self->channel, &cbs, self));
++    check_esp_err(rmt_enable(self->channel));
++
++    return MP_OBJ_FROM_PTR(self);
++}
++
++static void esp32_rmtrx_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
++    esp32_rmtrx_obj_t *self = MP_OBJ_TO_PTR(self_in);
++    mp_printf(print, "RMT RX pin=%u num_symbols=%u resolution_hz=%u min_ns=%u max_ns=%u "
++        "soft_min_len=%u soft_max_len=%u soft_min_ns=%u soft_max_ns=%u",
++        self->pin, self->num_symbols, self->resolution_hz,
++        self->rx_config.signal_range_min_ns, self->rx_config.signal_range_max_ns,
++        self->soft_min_len, self->soft_max_len, self->soft_min_ns, self->soft_max_ns);
++}
++
++static mp_obj_t esp32_rmtrx_deinit(mp_obj_t self_in) {
++    esp32_rmtrx_obj_t *self = MP_OBJ_TO_PTR(self_in);
++
++    if (self->pin != -1) {
++        self->pin = -1;
++
++        rmt_disable(self->channel);
++        rmt_del_channel(self->channel);
++
++        m_free(self->symbols);
++        self->num_symbols = 0;
++        m_free(self->recv_data);
++        self->recv_data = 0;
++        self->recv_count = 0;
++        self->rx_active = false;
++    }
++
++    return mp_const_none;
++}
++static MP_DEFINE_CONST_FUN_OBJ_1(esp32_rmtrx_deinit_obj, esp32_rmtrx_deinit);
++
++static mp_obj_t esp32_rmtrx_active(size_t n_args, const mp_obj_t *args) {
++    esp32_rmtrx_obj_t *self = MP_OBJ_TO_PTR(args[0]);
++
++    if (n_args == 1) {
++        return self->rx_active ? mp_const_true : mp_const_false;
++    }
++
++    if (self->pin == -1) {
++        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("already deinitialized"));
++    }
++
++    if (mp_obj_is_true(args[1])) {
++        if (!self->rx_active) {
++            self->rx_active = true;
++            self->recv_count = 0;
++            check_esp_err(rmt_receive(self->channel, self->symbols, self->num_symbols * sizeof(rmt_symbol_word_t), &self->rx_config));
++        }
++        return mp_const_true;
++    }
++
++    if (self->rx_active) {
++        self->rx_active = false;
++        self->recv_count = 0;
++    }
++    return mp_const_false;
++}
++static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp32_rmtrx_active_obj, 1, 2, esp32_rmtrx_active);
++
++static mp_obj_t esp32_rmtrx_get_data(mp_obj_t self_in) {
++    esp32_rmtrx_obj_t *self = MP_OBJ_TO_PTR(self_in);
++
++    if (self->pin == -1) {
++        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("already deinitialized"));
++    }
++
++    if (!self->recv_count) {
++        return mp_const_none;
++    }
++
++    mp_obj_t list = mp_obj_new_list(self->recv_count, NULL);
++    mp_obj_list_t *list_in = MP_OBJ_TO_PTR(list);
++
++    for (size_t i = 0; i < self->recv_count; i++) {
++        list_in->items[i] = MP_OBJ_NEW_SMALL_INT(self->recv_data[i]);
++    }
++
++    self->recv_count = 0;
++
++    return list;
++}
++static MP_DEFINE_CONST_FUN_OBJ_1(esp32_rmtrx_get_data_obj, esp32_rmtrx_get_data);
++
++static mp_uint_t esp32_rmtrx_stream_ioctl(
++    mp_obj_t self_in, mp_uint_t request, uintptr_t arg, int *errcode) {
++    if (request != MP_STREAM_POLL) {
++        *errcode = MP_EINVAL;
++        return MP_STREAM_ERROR;
++    }
++    esp32_rmtrx_obj_t *self = MP_OBJ_TO_PTR(self_in);
++    mp_uint_t ret = 0;
++    if ((arg & MP_STREAM_POLL_RD) && self->recv_count) {
++        ret |= MP_STREAM_POLL_RD;
++    }
++    return ret;
++}
++
++
++static const mp_rom_map_elem_t esp32_rmtrx_locals_dict_table[] = {
++    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&esp32_rmtrx_deinit_obj) },
++    { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&esp32_rmtrx_deinit_obj) },
++    { MP_ROM_QSTR(MP_QSTR_active), MP_ROM_PTR(&esp32_rmtrx_active_obj) },
++    { MP_ROM_QSTR(MP_QSTR_get_data), MP_ROM_PTR(&esp32_rmtrx_get_data_obj) },
++
++    // Constants
++    // PULSE_MAX = maximum value of rmt_symbol_word_t.duration0 and .duration1
++    { MP_ROM_QSTR(MP_QSTR_PULSE_MAX), MP_ROM_INT(32767) },
++};
++static MP_DEFINE_CONST_DICT(esp32_rmtrx_locals_dict, esp32_rmtrx_locals_dict_table);
++
++static const mp_stream_p_t esp32_rmtrx_stream_p = {
++    .ioctl = esp32_rmtrx_stream_ioctl,
++};
++
++MP_DEFINE_CONST_OBJ_TYPE(
++    esp32_rmtrx_type,
++    MP_QSTR_RMTRX,
++    MP_TYPE_FLAG_NONE,
++    make_new, esp32_rmtrx_make_new,
++    print, esp32_rmtrx_print,
++    locals_dict, &esp32_rmtrx_locals_dict,
++    protocol, &esp32_rmtrx_stream_p
++    );
++
++#endif // SOC_RMT_SUPPORTED
+diff --git a/ports/esp32/modesp32.c b/ports/esp32/modesp32.c
+index a2ad9267cb2..49e122b1a87 100644
+--- a/ports/esp32/modesp32.c
++++ b/ports/esp32/modesp32.c
+@@ -351,6 +351,7 @@ static const mp_rom_map_elem_t esp32_module_globals_table[] = {
+     #endif
+     #if SOC_RMT_SUPPORTED
+     { MP_ROM_QSTR(MP_QSTR_RMT), MP_ROM_PTR(&esp32_rmt_type) },
++    { MP_ROM_QSTR(MP_QSTR_RMTRX), MP_ROM_PTR(&esp32_rmtrx_type) },
+     #endif
+     #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
+     { MP_ROM_QSTR(MP_QSTR_ULP), MP_ROM_PTR(&esp32_ulp_type) },
+diff --git a/ports/esp32/modesp32.h b/ports/esp32/modesp32.h
+index 6b6a6578a75..fc57a0e4ce0 100644
+--- a/ports/esp32/modesp32.h
++++ b/ports/esp32/modesp32.h
+@@ -81,6 +81,7 @@ extern bool esp32_rmt_bitstream_enabled;
+ extern const mp_obj_type_t esp32_nvs_type;
+ extern const mp_obj_type_t esp32_partition_type;
+ extern const mp_obj_type_t esp32_rmt_type;
++extern const mp_obj_type_t esp32_rmtrx_type;
+ extern const mp_obj_type_t esp32_ulp_type;
+ extern const mp_obj_type_t esp32_ldo_type;
+
+diff --git a/tests/ports/esp32/esp32_rmt.py b/tests/ports/esp32/esp32_rmt.py
+new file mode 100644
+index 00000000000..02285f18403
+--- /dev/null
++++ b/tests/ports/esp32/esp32_rmt.py
+@@ -0,0 +1,125 @@
++import time, sys
++from machine import Pin
++from esp32 import RMT, RMTRX
++
++from target_wiring import rmt_loopback_kwargs
++
++pin_send = Pin(rmt_loopback_kwargs["send"], Pin.OUT)
++pin_recv = Pin(rmt_loopback_kwargs["recv"])
++
++# Check the loopback channel is there
++
++pin_send.value(1)
++time.sleep_ms(1)
++if not pin_recv.value():
++    print("Loopback not ok")
++pin_send.value(0)
++time.sleep_ms(1)
++if pin_recv.value():
++    print("Loopback not ok")
++print("Loopback ok")
++
++pin_send.value(1)
++time.sleep_ms(1)
++
++# Bitbang a sequence to RMTRX
++# Start and finish with long silence. Last 2 samples are noise.
++sequence = [
++    -10000,
++    300,
++    -1000,
++    300,
++    -300,
++    300,
++    -1000,
++    300,
++    -600,
++    600,
++    -300,
++    1000,
++    -300,
++    300,
++    -300,
++    600,
++    -600,
++    1000,
++    -300,
++    300,
++    -600,
++    600,
++    -600,
++    2000,
++    -10000,
++    500,
++    -500,
++]
++rmtrx = RMTRX(
++    pin=pin_recv, min_ns=3100, max_ns=5000 * 1000, resolution_hz=1000 * 1000, soft_min_len=10
++)
++rmtrx.active(1)
++
++for sample in sequence:
++    pin_send.value(sample > 0 and 1 or 0)
++    time.sleep_us(abs(sample))
++
++time.sleep_ms(100)
++data = rmtrx.get_data()
++if not data:
++    print("RMTRX did not receive anything")
++elif len(data) != (len(sequence) - 4):
++    print("RMTRX got sequence of wrong length exp=%d recv=%d" % (len(sequence) - 2, len(data)))
++    print(data)
++else:
++    for i in range(1, len(data) - 3):
++        exp_sample = sequence[i + 1]
++        recv_sample = data[i]
++        if recv_sample * exp_sample < 0:
++            print("RMTRX: sample %d of wrong level exp=%d recv=%d" % (i, exp_sample, recv_sample))
++            print(data)
++            break
++        if abs(recv_sample - exp_sample) > 50:
++            print("RMTRX: sample %d of wrong length exp=%d recv=%d" % (i, exp_sample, recv_sample))
++            print(data)
++            break
++    else:
++        print("RMTRX got bitbang sequence")
++
++# Send the same sequence using RMT TX
++rmttx = RMT(pin=pin_send, resolution_hz=1000 * 1000, idle_level=0)
++rmttx.write_pulses([abs(sample) for sample in sequence], 0)
++rmttx.wait_done(timeout=1000)  # ms
++
++time.sleep_ms(100)
++data = rmtrx.get_data()
++if not data:
++    print("RMTRX did not receive anything from RMTTX")
++elif len(data) != (len(sequence) - 4):
++    print(
++        "RMTRX got sequence from RMTTX of wrong length exp=%d recv=%d"
++        % (len(sequence) - 2, len(data))
++    )
++    print(data)
++else:
++    for i in range(1, len(data) - 3):
++        exp_sample = sequence[i + 1]
++        recv_sample = data[i]
++        if recv_sample * exp_sample < 0:
++            print(
++                "RMTRX: sample RMTTX %d of wrong level exp=%d recv=%d"
++                % (i, exp_sample, recv_sample)
++            )
++            print(data)
++            break
++        if abs(recv_sample - exp_sample) > 1:
++            print(
++                "RMTRX: sample RMTTX %d of wrong length exp=%d recv=%d"
++                % (i, exp_sample, recv_sample)
++            )
++            print(data)
++            break
++    else:
++        print("RMTRX got RMTTX sequence")
++
++rmttx.deinit()
++rmtrx.deinit()
++print("RMT stopped")
+diff --git a/tests/ports/esp32/esp32_rmt.py.exp b/tests/ports/esp32/esp32_rmt.py.exp
+new file mode 100644
+index 00000000000..0daa9d2872f
+--- /dev/null
++++ b/tests/ports/esp32/esp32_rmt.py.exp
+@@ -0,0 +1,4 @@
++Loopback ok
++RMTRX got bitbang sequence
++RMTRX got RMTTX sequence
++RMT stopped
+diff --git a/tests/run-tests.py b/tests/run-tests.py
+index 6dfba2c540a..26fa1a863a1 100755
+--- a/tests/run-tests.py
++++ b/tests/run-tests.py
+@@ -334,6 +334,7 @@ def open(self, path, mode):
+     "extmod_hardware/machine_uart_irq_break.py",
+     "extmod_hardware/machine_uart_irq_rx.py",
+     "extmod_hardware/machine_uart_irq_rxidle.py",
++    "ports/esp32/esp32_rmt.py",
+ )
+ 
+ 
+diff --git a/tests/target_wiring/esp32.py b/tests/target_wiring/esp32.py
+index 2767cd5acb2..c22efdc971a 100644
+--- a/tests/target_wiring/esp32.py
++++ b/tests/target_wiring/esp32.py
+@@ -10,3 +10,5 @@
+ encoder_loopback_id = 0
+ encoder_loopback_out_pins = (4, 12)
+ encoder_loopback_in_pins = (5, 13)
++
++rmt_loopback_kwargs = {"send": 4, "recv": 5}

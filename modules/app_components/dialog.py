@@ -308,6 +308,9 @@ class TextDialog:
             elif kbd_button.name in SYMBOL_ALPHABET:
                 key = -2
                 final = kbd_button.name
+            elif KEYBOARD_BUTTONS["ENTER"] in event.button:
+                key = -2
+                final = SPECIAL_KEY_DONE
 
         # The following are generics not caught by either frontboard corner buttons
         # or keyboard events. They are, therefore, secondary confirm/cancel/etc buttons
