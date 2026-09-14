@@ -225,6 +225,8 @@ class TwentyTwentySix(FrontBoard):
             "button_text": self.colors["black"],
             "active_button_background": self.colors["yellow"],
             "active_button_text": self.colors["black"],
+            "definition_label": self.colors["orange"],
+            "active_definition_label": self.colors["yellow"],
             "notification": self.colors["pink"],
             "notification_text": self.colors["black"],
         }

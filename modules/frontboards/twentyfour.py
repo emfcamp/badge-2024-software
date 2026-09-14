@@ -110,6 +110,8 @@ class TwentyTwentyFour(FrontBoard):
         "button_text": colors["black"],
         "active_button_background": colors["yellow"],
         "active_button_text": colors["black"],
+        "definition_label": colors["yellow"],
+        "active_definition_label": colors["orange"],
         "notification": colors["pale_green"],
         "notification_text": colors["black"],
     }
