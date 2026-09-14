@@ -24,7 +24,18 @@ cy8cmbrx_status_t cy8cmbrx_run( void )
     /* read touch and prox current and latched status  */
     uint8_t raw_buf[6] = { 0U };
     /* check we have the device present */
-    if( tildagon_i2c_reg_read(TILDAGON_TOP_I2C_PORT, CY8CMBRX_ADDRESS, CY8CMBRX_BUTTON_STAT_ADR, raw_buf, 6) == ESP_OK )
+    esp_err_t err = 0xFF;
+    while( err != ESP_OK )
+    {
+        err = tildagon_i2c_reg_read(TILDAGON_TOP_I2C_PORT, CY8CMBRX_ADDRESS, CY8CMBRX_BUTTON_STAT_ADR, raw_buf, 6); 
+        static uint8_t count = 0U;
+        count++;
+        if ( count > 3 )
+        {
+            break;
+        }
+    }
+    if( err == ESP_OK )
     {
         uint16_t button_state = ((uint16_t)raw_buf[1] << 8) +  raw_buf[0];
         uint16_t button_latch = ((uint16_t)raw_buf[3] << 8) +  raw_buf[2];
@@ -70,10 +81,10 @@ cy8cmbrx_status_t cy8cmbrx_run( void )
             }
         }
         prox_prev_status = prox_state;
+        /* reset latch status */
+        uint8_t cmd = CY8CMBRX_CMD_RESET_LATCH;
+        write_bytes( cy8_mux_port, CY8CMBRX_CTRL_CMD_ADR, &cmd, 1 );
     }
-    /* reset latch status */
-    uint8_t cmd = CY8CMBRX_CMD_RESET_LATCH;
-    write_bytes( cy8_mux_port, CY8CMBRX_CTRL_CMD_ADR, &cmd, 1 );
     return result; 
 }
 
