@@ -47,9 +47,10 @@ void tildagon_frontboard_init( uint16_t board_id )
     aw9523b_pin_set_mode( &ext_pin[3], reset, AW9523B_PIN_MODE_GPIO );
     aw9523b_pin_set_output( &ext_pin[3], reset, true );
     
-    if ( qmc6309_init() == ESP_OK )
+    int compass_job_handle = qmc6309_init();
+    if ( compass_job_handle >= 0 )
     {
-        tildagon_imu_register_compass( qmc6309_update, qmc6309_read );
+        tildagon_imu_register_compass( compass_job_handle, qmc6309_read );
     }
     cy8cmbrx_init( tildagon_get_mux_obj( TILDAGON_TOP_I2C_PORT ) );
 }

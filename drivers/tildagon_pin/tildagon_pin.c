@@ -366,12 +366,9 @@ static mp_obj_t tildagon_pin_toggle(mp_obj_t self_in) {
     tildagon_pin_obj_t *self = MP_OBJ_TO_PTR(self_in);
     aw9523b_device_t *dev = PIN_OBJ_PTR_DEVICE(self);
     aw9523b_pin_t pin = PIN_OBJ_PTR_PORTPIN(self);
-    if (aw9523b_pin_get_input(dev, pin)) {
-        aw9523b_pin_set_output(dev, pin, 0);
-    } else {
-        aw9523b_pin_set_output(dev, pin, 1);   
-    }
-    
+
+    aw9523b_pin_toggle(dev, pin);
+
     return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(tildagon_pin_toggle_obj, tildagon_pin_toggle);
