@@ -13,6 +13,9 @@ include(${CMAKE_CURRENT_LIST_DIR}/tildagon_usb/tildagon_usb.cmake)
 # Add TCA9548A I2C MUX and micropython machine.I2C bindings
 include(${CMAKE_CURRENT_LIST_DIR}/tildagon_i2c/tildagon_i2c.cmake)
 
+# Add generic background I2C polling manager (used by the IMU, and future hexpansion sensors)
+include(${CMAKE_CURRENT_LIST_DIR}/tildagon_i2c_manager/tildagon_i2c_manager.cmake)
+
 # Add PMIC and usb PD and micropython power bindings
 include(${CMAKE_CURRENT_LIST_DIR}/tildagon_power/tildagon_power.cmake)
 
