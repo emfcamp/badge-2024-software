@@ -26,6 +26,9 @@ typedef struct aw9523b_device
   uint16_t i2c_addr;
   uint8_t last_input_values[2];
   uint8_t irq_enables[2];
+  uint8_t output_values[2];    // shadow of Output Port regs 0x02/0x03, avoids read-modify-write
+  uint8_t direction_values[2]; // shadow of Configuration regs 0x04/0x05, avoids read-modify-write
+  uint8_t mode_values[2];      // shadow of GPIO/LED Mode regs 0x12/0x13, avoids read-modify-write
   aw9523b_irq_handler_t irq_handlers[2][8];
 } aw9523b_device_t;
 
@@ -42,6 +45,7 @@ void aw9523b_irq_configure(aw9523b_device_t *dev, aw9523b_pin_t pin, uint8_t mod
 bool aw9523b_pin_get_input(aw9523b_device_t *dev, aw9523b_pin_t pin);
 bool aw9523b_pin_get_output(aw9523b_device_t *dev, aw9523b_pin_t pin);
 void aw9523b_pin_set_output(aw9523b_device_t *dev, aw9523b_pin_t pin, aw9523b_pin_state_t state);
+void aw9523b_pin_toggle(aw9523b_device_t *dev, aw9523b_pin_t pin);
 bool aw9523b_pin_get_direction(aw9523b_device_t *dev, aw9523b_pin_t pin);
 void aw9523b_pin_set_direction(aw9523b_device_t *dev, aw9523b_pin_t pin, aw9523b_pin_state_t state);
 aw9523b_pin_mode_t aw9523b_pin_get_mode(aw9523b_device_t *dev, aw9523b_pin_t pin);
