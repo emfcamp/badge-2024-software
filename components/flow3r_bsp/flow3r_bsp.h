@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 // Initialize badge display. An error will be reported if the initialization
 // failed.
@@ -36,6 +37,33 @@ void flow3r_bsp_display_send_rect(const void *data,
 // Set display backlight, as integer percent value (from 0 to 100, clamped).
 // No-op if display hasn't been successfully initialized.
 void flow3r_bsp_display_set_backlight(uint8_t percent);
+
+// ----------------------------------------------------------------------------
+// Generic Display Sink / Framebuffer Tap Interface (Unlimited Dynamic Sinks)
+// ----------------------------------------------------------------------------
+
+typedef void (*flow3r_bsp_display_sink_fn)(const void *fb_data, size_t len, void *user_data);
+
+typedef struct {
+    flow3r_bsp_display_sink_fn send_frame;
+    void *user_data;
+} flow3r_bsp_display_sink_t;
+
+// Register an auxiliary display sink
+// Returns a positive handle (>0) on success, or -1 on failure.
+int flow3r_bsp_display_register_sink(const flow3r_bsp_display_sink_t *sink);
+
+// Unregister an auxiliary display sink by its handle.
+void flow3r_bsp_display_unregister_sink(int handle);
+
+// Unregister all currently active display sinks.
+void flow3r_bsp_display_unregister_all_sinks(void);
+
+// Dispatch a rendered framebuffer to all registered sinks.
+void flow3r_bsp_display_dispatch_sinks(const void *fb_data, size_t len);
+
+// Retrieve total number of currently registered active sinks.
+size_t flow3r_bsp_display_get_sink_count(void);
 
 // Badge hardware generation name, human-readable.
 extern const char *flow3r_bsp_hw_name;

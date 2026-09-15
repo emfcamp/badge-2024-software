@@ -2,7 +2,17 @@
 #include "st3m_gfx.h"
 #include "flow3r_bsp.h"
 #include "mp_uctx.h"
+#include "flow3r_bsp_display_mirror.h"
 #include <math.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include "esp_log.h"
+#include "esp_heap_caps.h"
+#include "driver/spi_master.h"
+#include "driver/gpio.h"
+
+static const char *TAG = "display";
 
 bool gfx_inited = false;
 
@@ -20,7 +30,6 @@ static mp_obj_t gfx_init() {
     return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(gfx_init_obj, gfx_init);
-
 
 static mp_obj_t get_fps() {
     return mp_obj_new_float(st3m_gfx_fps());
@@ -64,6 +73,9 @@ static MP_DEFINE_CONST_FUN_OBJ_0(get_ctx_obj, get_ctx);
 void tildagon_blit_fb (void)
 {
   flow3r_bsp_display_send_fb(tildagon_fb, 16);
+  
+  // Dispatch to all registered auxiliary display sinks (HDMI mirror, secondary screens, virtual sinks)
+  flow3r_bsp_display_dispatch_sinks(tildagon_fb, sizeof(tildagon_fb));
 }
 
 void tildagon_end_frame(Ctx *ctx)
@@ -83,6 +95,716 @@ static mp_obj_t end_frame(mp_obj_t ctx) {
     return ctx;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(end_frame_obj, end_frame);
+
+static mp_obj_t get_framebuffer() {
+    return mp_obj_new_bytes(tildagon_fb, sizeof(tildagon_fb));
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(get_framebuffer_obj, get_framebuffer);
+
+// ----------------------------------------------------------------------------
+// Mirror API (Multi-Port Support with Generic Driver Descriptors)
+// ----------------------------------------------------------------------------
+
+static flow3r_bsp_lcd_cmd_t *parse_cmd_sequence(mp_obj_t list_obj, size_t *count_out, bool allow_delay) {
+    if (list_obj == mp_const_none) {
+        *count_out = 0;
+        return NULL;
+    }
+    size_t len = 0;
+    mp_obj_t *items = NULL;
+    if (mp_obj_is_type(list_obj, &mp_type_list)) {
+        mp_obj_list_get(list_obj, &len, &items);
+    } else if (mp_obj_is_type(list_obj, &mp_type_tuple)) {
+        mp_obj_tuple_get(list_obj, &len, &items);
+    } else {
+        mp_raise_TypeError(MP_ERROR_TEXT("command sequence must be list or tuple"));
+    }
+    if (len == 0 || items == NULL) {
+        *count_out = 0;
+        return NULL;
+    }
+
+    // Pass 1: Validate all items and their types/ranges before allocating anything on C heap.
+    for (size_t i = 0; i < len; i++) {
+        if (mp_obj_is_int(items[i])) {
+            mp_int_t val = mp_obj_get_int(items[i]);
+            if (val < 0 || val > 255) {
+                mp_raise_ValueError(MP_ERROR_TEXT("command byte must be 0..255"));
+            }
+        } else if (mp_obj_is_type(items[i], &mp_type_tuple) || mp_obj_is_type(items[i], &mp_type_list)) {
+            size_t t_len = 0;
+            mp_obj_t *t_items = NULL;
+            if (mp_obj_is_type(items[i], &mp_type_tuple)) {
+                mp_obj_tuple_get(items[i], &t_len, &t_items);
+            } else {
+                mp_obj_list_get(items[i], &t_len, &t_items);
+            }
+            if (t_len == 0 || t_items == NULL) {
+                mp_raise_ValueError(MP_ERROR_TEXT("command tuple/list cannot be empty"));
+            }
+            if (!mp_obj_is_int(t_items[0])) {
+                mp_raise_TypeError(MP_ERROR_TEXT("command must be an integer (0..255)"));
+            }
+            mp_int_t cmd_val = mp_obj_get_int(t_items[0]);
+            if (cmd_val < 0 || cmd_val > 255) {
+                mp_raise_ValueError(MP_ERROR_TEXT("command byte must be 0..255"));
+            }
+            if (t_len >= 2 && t_items[1] != mp_const_none) {
+                mp_buffer_info_t bufinfo;
+                if (!mp_get_buffer(t_items[1], &bufinfo, MP_BUFFER_READ)) {
+                    if (mp_obj_is_type(t_items[1], &mp_type_list)) {
+                        size_t d_len = 0;
+                        mp_obj_t *d_items;
+                        mp_obj_list_get(t_items[1], &d_len, &d_items);
+                        for (size_t j = 0; j < d_len; j++) {
+                            if (!mp_obj_is_int(d_items[j])) {
+                                mp_raise_TypeError(MP_ERROR_TEXT("data byte must be an integer"));
+                            }
+                            mp_int_t d_val = mp_obj_get_int(d_items[j]);
+                            if (d_val < 0 || d_val > 255) {
+                                mp_raise_ValueError(MP_ERROR_TEXT("data byte must be 0..255"));
+                            }
+                        }
+                    } else {
+                        mp_raise_TypeError(MP_ERROR_TEXT("command data must be bytes or list of ints"));
+                    }
+                }
+            }
+            if (t_len >= 3) {
+                if (!mp_obj_is_int(t_items[2])) {
+                    mp_raise_TypeError(MP_ERROR_TEXT("delay must be an integer"));
+                }
+                mp_int_t d_ms = mp_obj_get_int(t_items[2]);
+                if (d_ms < 0) {
+                    mp_raise_ValueError(MP_ERROR_TEXT("delay must be non-negative"));
+                }
+                if (!allow_delay && d_ms > 0) {
+                    mp_raise_ValueError(MP_ERROR_TEXT("delay_ms > 0 is not allowed in frame prefix/postfix"));
+                }
+            }
+        } else {
+            mp_raise_TypeError(MP_ERROR_TEXT("invalid command sequence element"));
+        }
+    }
+
+    // Pass 2: Allocate structures and copy data now that input is guaranteed valid.
+    flow3r_bsp_lcd_cmd_t *cmds = calloc(len, sizeof(flow3r_bsp_lcd_cmd_t));
+    if (!cmds) {
+        *count_out = 0;
+        mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate command sequence"));
+    }
+    for (size_t i = 0; i < len; i++) {
+        if (mp_obj_is_int(items[i])) {
+            cmds[i].cmd = (uint8_t)mp_obj_get_int(items[i]);
+            cmds[i].data = NULL;
+            cmds[i].data_len = 0;
+            cmds[i].delay_ms = 0;
+        } else {
+            size_t t_len = 0;
+            mp_obj_t *t_items = NULL;
+            if (mp_obj_is_type(items[i], &mp_type_tuple)) {
+                mp_obj_tuple_get(items[i], &t_len, &t_items);
+            } else {
+                mp_obj_list_get(items[i], &t_len, &t_items);
+            }
+            cmds[i].cmd = (uint8_t)mp_obj_get_int(t_items[0]);
+            if (t_len >= 2 && t_items[1] != mp_const_none) {
+                mp_buffer_info_t bufinfo;
+                if (mp_get_buffer(t_items[1], &bufinfo, MP_BUFFER_READ)) {
+                    if (bufinfo.len > 0) {
+                        uint8_t *copy = malloc(bufinfo.len);
+                        if (!copy) {
+                            for (size_t k = 0; k < i; k++) {
+                                if (cmds[k].data) free((void *)cmds[k].data);
+                            }
+                            free(cmds);
+                            *count_out = 0;
+                            mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate command sequence data"));
+                        }
+                        memcpy(copy, bufinfo.buf, bufinfo.len);
+                        cmds[i].data = copy;
+                        cmds[i].data_len = bufinfo.len;
+                    }
+                } else if (mp_obj_is_type(t_items[1], &mp_type_list)) {
+                    size_t d_len = 0;
+                    mp_obj_t *d_items;
+                    mp_obj_list_get(t_items[1], &d_len, &d_items);
+                    if (d_len > 0) {
+                        uint8_t *copy = malloc(d_len);
+                        if (!copy) {
+                            for (size_t k = 0; k < i; k++) {
+                                if (cmds[k].data) free((void *)cmds[k].data);
+                            }
+                            free(cmds);
+                            *count_out = 0;
+                            mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate command sequence data"));
+                        }
+                        for (size_t j = 0; j < d_len; j++) {
+                            copy[j] = (uint8_t)mp_obj_get_int(d_items[j]);
+                        }
+                        cmds[i].data = copy;
+                        cmds[i].data_len = d_len;
+                    }
+                }
+            }
+            if (t_len >= 3) {
+                cmds[i].delay_ms = (uint16_t)mp_obj_get_int(t_items[2]);
+            }
+        }
+    }
+    *count_out = len;
+    return cmds;
+}
+
+static void parse_driver_dict(mp_obj_t driver_obj, flow3r_bsp_display_driver_t *custom_driver, int *baudrate_out) {
+    if (driver_obj == mp_const_none) {
+        return;
+    }
+    if (!mp_obj_is_type(driver_obj, &mp_type_dict)) {
+        mp_raise_TypeError(MP_ERROR_TEXT("driver must be a dict"));
+    }
+
+    mp_obj_dict_t *dict = MP_OBJ_TO_PTR(driver_obj);
+    custom_driver->is_allocated = true;
+
+    for (size_t i = 0; i < dict->map.alloc; i++) {
+        if (mp_map_slot_is_filled(&dict->map, i)) {
+            const char *key = mp_obj_str_get_str(dict->map.table[i].key);
+            mp_obj_t val = dict->map.table[i].value;
+
+            if (strcmp(key, "init") == 0 || strcmp(key, "init_sequence") == 0) {
+                if (val != mp_const_none) {
+                    custom_driver->init_seq = parse_cmd_sequence(val, &custom_driver->init_seq_len, true);
+                }
+            } else if (strcmp(key, "prefix") == 0 || strcmp(key, "frame_prefix") == 0) {
+                if (val != mp_const_none) {
+                    custom_driver->prefix_seq = parse_cmd_sequence(val, &custom_driver->prefix_seq_len, false);
+                }
+            } else if (strcmp(key, "postfix") == 0 || strcmp(key, "frame_postfix") == 0) {
+                if (val != mp_const_none) {
+                    custom_driver->postfix_seq = parse_cmd_sequence(val, &custom_driver->postfix_seq_len, false);
+                }
+            } else if (strcmp(key, "header") == 0) {
+                if (val != mp_const_none) {
+                    mp_buffer_info_t hbuf;
+                    if (!mp_get_buffer(val, &hbuf, MP_BUFFER_READ)) {
+                        mp_raise_TypeError(MP_ERROR_TEXT("header must be a bytes-like object"));
+                    }
+                    if (hbuf.len > 0) {
+                        uint8_t *hcopy = malloc(hbuf.len);
+                        if (!hcopy) {
+                            mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate header copy"));
+                        }
+                        memcpy(hcopy, hbuf.buf, hbuf.len);
+                        custom_driver->header = hcopy;
+                        custom_driver->header_len = hbuf.len;
+                    }
+                }
+            } else if (strcmp(key, "baudrate") == 0) {
+                if (val != mp_const_none && *baudrate_out <= 0) {
+                    *baudrate_out = mp_obj_get_int(val);
+                }
+            }
+        }
+    }
+}
+
+static mp_obj_t attach_mirror(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    int port = 1;
+    int baudrate = 0;
+    int sck = -1;
+    int mosi = -1;
+    int cs = -1;
+    int dc = -1;
+    mp_obj_t driver_obj = mp_const_none;
+
+    if (n_args >= 1) port = mp_obj_get_int(pos_args[0]);
+    if (n_args >= 2) baudrate = mp_obj_get_int(pos_args[1]);
+    if (n_args >= 3) driver_obj = pos_args[2];
+    if (n_args >= 4) sck = mp_obj_get_int(pos_args[3]);
+    if (n_args >= 5) mosi = mp_obj_get_int(pos_args[4]);
+    if (n_args >= 6) cs = mp_obj_get_int(pos_args[5]);
+    if (n_args >= 7) dc = mp_obj_get_int(pos_args[6]);
+
+    if (kw_args != NULL) {
+        for (size_t i = 0; i < kw_args->alloc; i++) {
+            if (mp_map_slot_is_filled(kw_args, i)) {
+                const char *k = mp_obj_str_get_str(kw_args->table[i].key);
+                mp_obj_t v = kw_args->table[i].value;
+                if (strcmp(k, "port") == 0) port = mp_obj_get_int(v);
+                else if (strcmp(k, "baudrate") == 0) baudrate = mp_obj_get_int(v);
+                else if (strcmp(k, "driver") == 0) driver_obj = v;
+                else if (strcmp(k, "sck") == 0) sck = mp_obj_get_int(v);
+                else if (strcmp(k, "mosi") == 0) mosi = mp_obj_get_int(v);
+                else if (strcmp(k, "cs") == 0) cs = mp_obj_get_int(v);
+                else if (strcmp(k, "dc") == 0) dc = mp_obj_get_int(v);
+            }
+        }
+    }
+
+    const flow3r_bsp_display_driver_t *driver_to_use = NULL;
+    flow3r_bsp_display_driver_t custom_driver;
+    memset(&custom_driver, 0, sizeof(custom_driver));
+
+    if (driver_obj != mp_const_none) {
+        parse_driver_dict(driver_obj, &custom_driver, &baudrate);
+        driver_to_use = &custom_driver;
+    }
+
+    if (baudrate <= 0) {
+        baudrate = 40000000;
+    }
+
+    esp_err_t err = flow3r_bsp_display_mirror_attach(port, sck, mosi, cs, dc, baudrate, driver_to_use);
+    if (err != ESP_OK) {
+        flow3r_bsp_display_driver_free(&custom_driver);
+        if (err == ESP_ERR_INVALID_STATE) {
+            mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("SPI bus is in use by another port/device; detach it first"));
+        } else {
+            mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("SPI error: %s"), esp_err_to_name(err));
+        }
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(attach_mirror_obj, 0, attach_mirror);
+
+static mp_obj_t detach_mirror(size_t n_args, const mp_obj_t *args) {
+    int port = 0;
+    if (n_args >= 1) {
+        port = mp_obj_get_int(args[0]);
+    }
+    if (port <= 0) {
+        flow3r_bsp_display_mirror_deinit_all();
+    } else {
+        flow3r_bsp_display_mirror_deinit_port(port);
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(detach_mirror_obj, 0, 1, detach_mirror);
+
+static mp_obj_t is_mirror_active(size_t n_args, const mp_obj_t *args) {
+    int port = 0;
+    if (n_args >= 1) {
+        port = mp_obj_get_int(args[0]);
+    }
+    return mp_obj_new_bool(flow3r_bsp_display_mirror_is_active(port));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(is_mirror_active_obj, 0, 1, is_mirror_active);
+
+static mp_obj_t display_get_port_pins(mp_obj_t port_in) {
+    int port = mp_obj_get_int(port_in);
+    const flow3r_bsp_port_pins_t *p = flow3r_bsp_display_get_port_pins(port);
+    if (!p) {
+        mp_raise_ValueError(MP_ERROR_TEXT("invalid hexpansion port (must be 1..6)"));
+    }
+    mp_obj_dict_t *d = mp_obj_new_dict(4);
+    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), MP_OBJ_NEW_QSTR(MP_QSTR_sck), mp_obj_new_int(p->sck));
+    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), MP_OBJ_NEW_QSTR(MP_QSTR_mosi), mp_obj_new_int(p->mosi));
+    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), MP_OBJ_NEW_QSTR(MP_QSTR_cs), mp_obj_new_int(p->cs));
+    mp_obj_dict_store(MP_OBJ_FROM_PTR(d), MP_OBJ_NEW_QSTR(MP_QSTR_dc), mp_obj_new_int(p->dc));
+    return MP_OBJ_FROM_PTR(d);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(display_get_port_pins_obj, display_get_port_pins);
+
+// ----------------------------------------------------------------------------
+// Secondary Display Object (display.Screen / display.SecondaryDisplay)
+// ----------------------------------------------------------------------------
+
+typedef struct _mp_display_screen_obj_t {
+    mp_obj_base_t base;
+    uint8_t port;
+    uint16_t width;
+    uint16_t height;
+    int baudrate;
+    int cs_pin;
+    int dc_pin;
+    bool active;
+    flow3r_bsp_display_driver_t driver;
+    uint8_t *fb;
+    size_t fb_size;
+    Ctx *ctx;
+    mp_obj_t ctx_obj;
+    spi_device_handle_t spi;
+} mp_display_screen_obj_t;
+
+extern const mp_obj_type_t display_screen_type;
+
+static mp_obj_t mp_display_screen_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
+    int port = 1;
+    int width = 240;
+    int height = 240;
+    int baudrate = 0;
+    int sck = -1;
+    int mosi = -1;
+    int cs = -1;
+    int dc = -1;
+    mp_obj_t driver_obj = mp_const_none;
+
+    if (n_args >= 1) port = mp_obj_get_int(all_args[0]);
+    if (n_args >= 2) width = mp_obj_get_int(all_args[1]);
+    if (n_args >= 3) height = mp_obj_get_int(all_args[2]);
+    if (n_args >= 4) baudrate = mp_obj_get_int(all_args[3]);
+    if (n_args >= 5) driver_obj = all_args[4];
+    if (n_args >= 6) sck = mp_obj_get_int(all_args[5]);
+    if (n_args >= 7) mosi = mp_obj_get_int(all_args[6]);
+    if (n_args >= 8) cs = mp_obj_get_int(all_args[7]);
+    if (n_args >= 9) dc = mp_obj_get_int(all_args[8]);
+
+    for (size_t i = 0; i < n_kw; i++) {
+        const char *k = mp_obj_str_get_str(all_args[n_args + 2 * i]);
+        mp_obj_t val = all_args[n_args + 2 * i + 1];
+        if (strcmp(k, "port") == 0) port = mp_obj_get_int(val);
+        else if (strcmp(k, "width") == 0) width = mp_obj_get_int(val);
+        else if (strcmp(k, "height") == 0) height = mp_obj_get_int(val);
+        else if (strcmp(k, "baudrate") == 0) baudrate = mp_obj_get_int(val);
+        else if (strcmp(k, "driver") == 0) driver_obj = val;
+        else if (strcmp(k, "sck") == 0) sck = mp_obj_get_int(val);
+        else if (strcmp(k, "mosi") == 0) mosi = mp_obj_get_int(val);
+        else if (strcmp(k, "cs") == 0) cs = mp_obj_get_int(val);
+        else if (strcmp(k, "dc") == 0) dc = mp_obj_get_int(val);
+    }
+
+    if (port < 1 || port > 6) {
+        mp_raise_ValueError(MP_ERROR_TEXT("invalid hexpansion port (must be 1..6)"));
+    }
+    if (width <= 0 || height <= 0 || width > 1024 || height > 1024) {
+        mp_raise_ValueError(MP_ERROR_TEXT("invalid screen dimensions"));
+    }
+
+    flow3r_bsp_display_driver_t custom_driver;
+    memset(&custom_driver, 0, sizeof(custom_driver));
+
+    if (driver_obj != mp_const_none) {
+        parse_driver_dict(driver_obj, &custom_driver, &baudrate);
+    }
+
+    if (baudrate <= 0) baudrate = 40000000;
+
+    const flow3r_bsp_port_pins_t *p = flow3r_bsp_display_get_port_pins(port);
+    if (!p) {
+        flow3r_bsp_display_driver_free(&custom_driver);
+        mp_raise_ValueError(MP_ERROR_TEXT("invalid hexpansion port"));
+    }
+
+    if (sck < 0) sck = p->sck;
+    if (mosi < 0) mosi = p->mosi;
+    if (cs < 0) cs = p->cs;
+    if (dc < 0) dc = p->dc;
+
+    if (!flow3r_bsp_display_pin_ok(sck, true) || !flow3r_bsp_display_pin_ok(mosi, true) ||
+        !flow3r_bsp_display_pin_ok(cs, true) || !flow3r_bsp_display_pin_ok(dc, true)) {
+        flow3r_bsp_display_driver_free(&custom_driver);
+        mp_raise_ValueError(MP_ERROR_TEXT("invalid or reserved GPIO pin"));
+    }
+
+    esp_err_t claim_err = flow3r_bsp_display_port_claim(port);
+    if (claim_err != ESP_OK) {
+        flow3r_bsp_display_driver_free(&custom_driver);
+        if (claim_err == ESP_ERR_INVALID_STATE) {
+            mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("SPI bus is in use by another port/device; detach it first"));
+        } else {
+            mp_raise_ValueError(MP_ERROR_TEXT("invalid hexpansion port"));
+        }
+    }
+
+    mp_display_screen_obj_t *self = mp_obj_malloc_with_finaliser(mp_display_screen_obj_t, &display_screen_type);
+    self->ctx = NULL;
+    self->fb = NULL;
+    self->fb_size = 0;
+    self->active = false;
+    self->spi = NULL;
+    self->cs_pin = cs;
+    self->dc_pin = dc;
+    self->ctx_obj = MP_OBJ_NULL;
+    self->port = port;
+    self->width = width;
+    self->height = height;
+    self->baudrate = baudrate;
+    self->driver = custom_driver;
+
+    self->fb_size = (size_t)width * (size_t)height * 2u;
+    self->fb = (uint8_t *)heap_caps_malloc(self->fb_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!self->fb) {
+        self->fb = (uint8_t *)heap_caps_malloc(self->fb_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+    }
+    if (!self->fb) {
+        flow3r_bsp_display_port_release(port);
+        flow3r_bsp_display_driver_free(&self->driver);
+        mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to allocate screen framebuffer"));
+    }
+    memset(self->fb, 0, self->fb_size);
+
+    // Create Ctx instance (stride is unpadded width * 2)
+    self->ctx = ctx_new_for_framebuffer(self->fb, width, height, width * 2, CTX_FORMAT_RGB565_BYTESWAPPED);
+    if (!self->ctx) {
+        heap_caps_free(self->fb);
+        self->fb = NULL;
+        flow3r_bsp_display_port_release(port);
+        flow3r_bsp_display_driver_free(&self->driver);
+        mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("failed to create ctx for screen"));
+    }
+
+    // Configure CS pin (idle HIGH)
+    if (self->cs_pin >= 0) {
+        gpio_config_t cs_cfg = {
+            .pin_bit_mask = (1ULL << self->cs_pin),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&cs_cfg);
+        gpio_set_level(self->cs_pin, 1);
+    }
+
+    // Configure DC pin (idle HIGH)
+    if (self->dc_pin >= 0) {
+        gpio_config_t dc_cfg = {
+            .pin_bit_mask = (1ULL << self->dc_pin),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_ENABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&dc_cfg);
+        gpio_set_level(self->dc_pin, 1);
+    }
+
+    esp_err_t ret = flow3r_bsp_display_spi_acquire_pins(port, sck, mosi, baudrate, &self->spi);
+    if (ret != ESP_OK) {
+        if (self->cs_pin >= 0) gpio_reset_pin(self->cs_pin);
+        if (self->dc_pin >= 0) gpio_reset_pin(self->dc_pin);
+        ctx_destroy(self->ctx);
+        self->ctx = NULL;
+        heap_caps_free(self->fb);
+        self->fb = NULL;
+        flow3r_bsp_display_port_release(self->port);
+        flow3r_bsp_display_driver_free(&self->driver);
+        if (ret == ESP_ERR_INVALID_STATE) {
+            mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("SPI bus is in use by another port/device; detach it first"));
+        } else {
+            mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("SPI error: %s"), esp_err_to_name(ret));
+        }
+    }
+
+    // Run init sequence if provided
+    if (self->driver.init_seq != NULL && self->driver.init_seq_len > 0) {
+        if (self->cs_pin >= 0) gpio_set_level(self->cs_pin, 0);
+        flow3r_bsp_display_exec_cmds(self->spi, self->cs_pin, self->dc_pin, self->driver.init_seq, self->driver.init_seq_len);
+        if (self->dc_pin >= 0) gpio_set_level(self->dc_pin, 1);
+        if (self->cs_pin >= 0) gpio_set_level(self->cs_pin, 1);
+    }
+
+    self->active = true;
+    ESP_LOGI(TAG, "Screen created on port %d (%dx%d @ %d Hz)",
+             port, width, height, baudrate);
+    return MP_OBJ_FROM_PTR(self);
+}
+
+static mp_obj_t mp_display_screen_get_ctx(mp_obj_t self_in) {
+    mp_display_screen_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    if (!self->active || !self->ctx) {
+        mp_raise_ValueError(MP_ERROR_TEXT("screen is closed/deinitialized"));
+    }
+
+    if (self->ctx_obj == MP_OBJ_NULL) {
+        self->ctx_obj = mp_ctx_from_ctx(self->ctx);
+    }
+
+    int32_t offset_x = self->width / 2;
+    int32_t offset_y = self->height / 2;
+
+    ctx_save(self->ctx);
+    ctx_identity(self->ctx);
+    ctx_apply_transform(self->ctx, 1.0f, 0.0f, offset_x, 0.0f, 1.0f, offset_y, 0.0f, 0.0f, 1.0f);
+    return self->ctx_obj;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_display_screen_get_ctx_obj, mp_display_screen_get_ctx);
+
+static mp_obj_t mp_display_screen_end_frame(size_t n_args, const mp_obj_t *args) {
+    mp_display_screen_obj_t *self = MP_OBJ_TO_PTR(args[0]);
+    if (!self->active || !self->spi || !self->fb) {
+        return mp_const_none;
+    }
+
+    if (n_args > 1 && args[1] != mp_const_none) {
+        if (!mp_obj_is_type(args[1], &mp_ctx_type)) {
+            mp_raise_TypeError(MP_ERROR_TEXT("expected a Ctx"));
+        }
+        mp_ctx_obj_t *ctx_obj = MP_OBJ_TO_PTR(args[1]);
+        if (ctx_obj->ctx != NULL) {
+            ctx_restore(ctx_obj->ctx);
+        }
+    } else if (self->ctx) {
+        ctx_restore(self->ctx);
+    }
+
+    esp_err_t bret = spi_device_acquire_bus(self->spi, portMAX_DELAY);
+    if (bret != ESP_OK) {
+        return mp_const_none;
+    }
+
+    // 1. Assert CS LOW
+    if (self->cs_pin >= 0) {
+        gpio_set_level(self->cs_pin, 0);
+    }
+
+    // 2. Prefix commands (e.g. window / RAMWR)
+    if (self->driver.prefix_seq != NULL && self->driver.prefix_seq_len > 0) {
+        flow3r_bsp_display_exec_cmds(self->spi, self->cs_pin, self->dc_pin, self->driver.prefix_seq, self->driver.prefix_seq_len);
+        if (self->dc_pin >= 0) {
+            gpio_set_level(self->dc_pin, 1);
+        }
+    }
+
+    // 3. Transmit header if configured
+    if (self->driver.header != NULL && self->driver.header_len > 0) {
+        spi_transaction_t tx_hdr;
+        memset(&tx_hdr, 0, sizeof(tx_hdr));
+        tx_hdr.length = self->driver.header_len * 8;
+        tx_hdr.tx_buffer = self->driver.header;
+        esp_err_t hret = spi_device_polling_transmit(self->spi, &tx_hdr);
+        if (hret != ESP_OK) {
+            ESP_LOGE(TAG, "Screen header tx failed: %s", esp_err_to_name(hret));
+        }
+    }
+
+    // 4. Transmit pixel data via DMA while holding CS LOW
+    const uint8_t *src = self->fb;
+    size_t remaining = self->fb_size;
+    while (remaining > 0) {
+        size_t chunk = (remaining > 4096) ? 4096 : remaining;
+        spi_transaction_t tx_data;
+        memset(&tx_data, 0, sizeof(tx_data));
+        tx_data.length = chunk * 8;
+        tx_data.tx_buffer = src;
+        esp_err_t tret = spi_device_polling_transmit(self->spi, &tx_data);
+        if (tret != ESP_OK) {
+            ESP_LOGE(TAG, "Screen tx failed: %s", esp_err_to_name(tret));
+            break;
+        }
+        src += chunk;
+        remaining -= chunk;
+    }
+
+    // 5. Postfix commands (e.g. refresh trigger)
+    if (self->driver.postfix_seq != NULL && self->driver.postfix_seq_len > 0) {
+        flow3r_bsp_display_exec_cmds(self->spi, self->cs_pin, self->dc_pin, self->driver.postfix_seq, self->driver.postfix_seq_len);
+    }
+
+    // 6. Deassert CS HIGH only after entire frame transfer is complete
+    if (self->cs_pin >= 0) {
+        gpio_set_level(self->cs_pin, 1);
+    }
+
+    spi_device_release_bus(self->spi);
+
+    if (self->ctx) {
+        ctx_set_textureclock(self->ctx, ctx_textureclock(self->ctx) + 1);
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_display_screen_end_frame_obj, 1, 2, mp_display_screen_end_frame);
+
+static mp_obj_t mp_display_screen_get_framebuffer(mp_obj_t self_in) {
+    mp_display_screen_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    if (!self->fb) {
+        return mp_const_none;
+    }
+    return mp_obj_new_bytes(self->fb, self->fb_size);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_display_screen_get_framebuffer_obj, mp_display_screen_get_framebuffer);
+
+static mp_obj_t mp_display_screen_deinit(mp_obj_t self_in) {
+    mp_display_screen_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    if (self->active) {
+        if (self->ctx_obj != MP_OBJ_NULL) {
+            ((mp_ctx_obj_t *)MP_OBJ_TO_PTR(self->ctx_obj))->ctx = NULL; // poison wrapper
+            self->ctx_obj = MP_OBJ_NULL;
+        }
+        if (self->spi) {
+            flow3r_bsp_display_spi_release(self->spi);
+            self->spi = NULL;
+        }
+        if (self->cs_pin >= 0) {
+            gpio_set_level(self->cs_pin, 1);
+            gpio_reset_pin(self->cs_pin);
+            self->cs_pin = -1;
+        }
+        if (self->dc_pin >= 0) {
+            gpio_reset_pin(self->dc_pin);
+            self->dc_pin = -1;
+        }
+        if (self->ctx) {
+            ctx_destroy(self->ctx);
+            self->ctx = NULL;
+        }
+        if (self->fb) {
+            heap_caps_free(self->fb);
+            self->fb = NULL;
+        }
+        flow3r_bsp_display_driver_free(&self->driver);
+        flow3r_bsp_display_port_release(self->port);
+        self->active = false;
+        ESP_LOGI(TAG, "Screen on port %d closed/deinitialized.", self->port);
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mp_display_screen_deinit_obj, mp_display_screen_deinit);
+
+static mp_obj_t mp_display_screen_exit(size_t n_args, const mp_obj_t *args) {
+    return mp_display_screen_deinit(args[0]);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_display_screen_exit_obj, 1, 4, mp_display_screen_exit);
+
+static void mp_display_screen_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
+    mp_display_screen_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    if (dest[0] == MP_OBJ_NULL) {
+        // Load attribute
+        if (attr == MP_QSTR_width) {
+            dest[0] = mp_obj_new_int(self->width);
+        } else if (attr == MP_QSTR_height) {
+            dest[0] = mp_obj_new_int(self->height);
+        } else if (attr == MP_QSTR_port) {
+            dest[0] = mp_obj_new_int(self->port);
+        } else if (attr == MP_QSTR_active) {
+            dest[0] = mp_obj_new_bool(self->active);
+        } else {
+            dest[1] = MP_OBJ_SENTINEL; // Look in locals dict
+        }
+    } else if (dest[1] != MP_OBJ_NULL) {
+        // Store attribute
+        mp_raise_msg(&mp_type_AttributeError, MP_ERROR_TEXT("attributes are read-only"));
+    } else {
+        // Delete attribute
+        mp_raise_msg(&mp_type_AttributeError, MP_ERROR_TEXT("attributes cannot be deleted"));
+    }
+}
+
+static const mp_rom_map_elem_t display_screen_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_get_ctx), MP_ROM_PTR(&mp_display_screen_get_ctx_obj) },
+    { MP_ROM_QSTR(MP_QSTR_end_frame), MP_ROM_PTR(&mp_display_screen_end_frame_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_framebuffer), MP_ROM_PTR(&mp_display_screen_get_framebuffer_obj) },
+    { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&mp_display_screen_deinit_obj) },
+    { MP_ROM_QSTR(MP_QSTR_close), MP_ROM_PTR(&mp_display_screen_deinit_obj) },
+    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&mp_display_screen_deinit_obj) },
+    { MP_ROM_QSTR(MP_QSTR___enter__), MP_ROM_PTR(&mp_identity_obj) },
+    { MP_ROM_QSTR(MP_QSTR___exit__), MP_ROM_PTR(&mp_display_screen_exit_obj) },
+};
+static MP_DEFINE_CONST_DICT(display_screen_locals_dict, display_screen_locals_dict_table);
+
+MP_DEFINE_CONST_OBJ_TYPE(
+    display_screen_type,
+    MP_QSTR_Screen,
+    MP_TYPE_FLAG_NONE,
+    make_new, mp_display_screen_make_new,
+    attr, mp_display_screen_attr,
+    locals_dict, &display_screen_locals_dict
+);
+
+// ----------------------------------------------------------------------------
+// Builtin Demo Graphics
+// ----------------------------------------------------------------------------
 
 static mp_obj_t splash() {
     for (int i = 0; i < 5; i++) {
@@ -136,6 +858,9 @@ static mp_obj_t hexagon(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR(hexagon_obj, 4, hexagon);
 
+// ----------------------------------------------------------------------------
+// Display Module Globals Table
+// ----------------------------------------------------------------------------
 
 static const mp_rom_map_elem_t display_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_display) },
@@ -146,6 +871,15 @@ static const mp_rom_map_elem_t display_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_get_ctx), MP_ROM_PTR(&get_ctx_obj) },
     { MP_ROM_QSTR(MP_QSTR_end_frame), MP_ROM_PTR(&end_frame_obj) },
     { MP_ROM_QSTR(MP_QSTR_hexagon), MP_ROM_PTR(&hexagon_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_framebuffer), MP_ROM_PTR(&get_framebuffer_obj) },
+    { MP_ROM_QSTR(MP_QSTR_attach_mirror), MP_ROM_PTR(&attach_mirror_obj) },
+    { MP_ROM_QSTR(MP_QSTR_detach_mirror), MP_ROM_PTR(&detach_mirror_obj) },
+    { MP_ROM_QSTR(MP_QSTR_is_mirror_active), MP_ROM_PTR(&is_mirror_active_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_port_pins), MP_ROM_PTR(&display_get_port_pins_obj) },
+
+    // Secondary Screen Class & Alias
+    { MP_ROM_QSTR(MP_QSTR_Screen), MP_ROM_PTR(&display_screen_type) },
+    { MP_ROM_QSTR(MP_QSTR_SecondaryDisplay), MP_ROM_PTR(&display_screen_type) },
 };
 static MP_DEFINE_CONST_DICT(display_module_globals, display_module_globals_table);
 
