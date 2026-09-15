@@ -4,8 +4,8 @@ FROM espressif/idf:$IDF_VERSION
 # Mark the firmware as a safe include directory for git
 RUN git config --global --add safe.directory "*"
 
-# Add Pillow to the build environment
-RUN bash -c "apt update && apt install -y python3-pillow && apt clean"
+# Add Pillow to the build environment & cmake and gdb for clion docker toolchain integration
+RUN bash -c "apt update && apt install -y python3-pillow cmake gdb && apt clean"
 
 # Copy the build script in and define that as the entrypoint
 COPY scripts/build.sh /

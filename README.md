@@ -50,6 +50,13 @@ Alternatively, to flash a badge:
 
 where /dev/ttyACM0 is the device's endpoint. This value is correct on Linux.
 
+### Debug build (JTAG over USB)
+
+`BOARD_VARIANT=USBJTAG` builds a variant with the ESP32-S3's built-in
+USB-Serial-JTAG bridge still connected, so OpenOCD and GDB work over the
+USB-C cable. See [DEBUG.md](DEBUG.md) for building, flashing and
+debugging with it.
+
 ### macOS
 
 > [!IMPORTANT]  
