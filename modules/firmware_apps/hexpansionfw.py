@@ -118,6 +118,15 @@ class HexpansionDetail:
             print("Resetting frontboard")
             print(f"Old header: {old_header}")
             i2c.writeto(87, bytes([0, 0, 0, 0, 0, 0, 0, 0]))
+            while True:
+                try:
+                    # Send an empty write to check if the device responds
+                    i2c.writeto(87, b"")
+                    break  # Chip responded with an ACK! It is ready for the next command.
+                except OSError:
+                    pass
+                finally:
+                    await asyncio.sleep_ms(1)
             frontboards.utils.detected_frontboard = None
             frontboard = frontboards.utils.detect_frontboard()
             print(f"Found frontboard {frontboard:04x}")

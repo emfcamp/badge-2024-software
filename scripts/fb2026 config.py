@@ -105,7 +105,7 @@ CY8CMBRX_SCRATCHPAD0 = 0x00
 CY8CMBRX_SCRATCHPAD1 = 0x00
 
 # follow section 6 of https://www.infineon.com/assets/row/public/documents/30/42/infineon-an90071-cy8cmbr3xxx-capsenser-design-guide-applicationnotes-en.pdf
-# to configure this. 
+# to configure this.
 cy8cmbr3116_config = [
 CY8CMBRX_CS0_ENABLE | CY8CMBRX_CS1_ENABLE | CY8CMBRX_CS2_ENABLE | CY8CMBRX_CS3_ENABLE | CY8CMBRX_CS4_ENABLE | CY8CMBRX_CS5_ENABLE | CY8CMBRX_CS6_ENABLE | CY8CMBRX_CS7_ENABLE, #0x00 SENSOR_EN LSB
 CY8CMBRX_CS8_ENABLE | CY8CMBRX_CS9_ENABLE | CY8CMBRX_CS10_ENABLE | CY8CMBRX_CS11_ENABLE | CY8CMBRX_CS12_ENABLE | CY8CMBRX_CS13_ENABLE | CY8CMBRX_CS14_ENABLE, #0x01 SENSOR_EN MSB
@@ -239,7 +239,7 @@ CY8CMBRX_ATH_EN | CY8CMBRX_GUARD_EN, #0x4F DEVICE_CFG2
 
 def cy8cmbr3116_init():
     top = I2C(0)
-    top.scan()
+    top.scan(0x37)  # Wake up the device
     device_crc = top.readfrom_mem(0x37, 0x7E, 2)
     # could look for a calibration file and alter the config to apply it
     config_crc = cy8cmbr_crc(cy8cmbr3116_config)

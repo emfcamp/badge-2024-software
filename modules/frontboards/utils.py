@@ -45,7 +45,7 @@ def detect_frontboard():
 
             if header is None:
                 print("detecting frontboard with i2c")
-                devices = i2c.scan()
+                devices = i2c.scan(range(0x57, 0x59))
                 if 0x58 in devices and 0x57 in devices:
                     header = HexpansionHeader(
                         manifest_version="2026",

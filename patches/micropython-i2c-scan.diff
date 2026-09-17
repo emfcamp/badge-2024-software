@@ -1,0 +1,88 @@
+diff --git a/docs/library/machine.I2C.rst b/docs/library/machine.I2C.rst
+index 635d58734..faab70045 100644
+--- a/docs/library/machine.I2C.rst
++++ b/docs/library/machine.I2C.rst
+@@ -103,11 +103,16 @@ General Methods
+ 
+    Availability: WiPy.
+ 
+-.. method:: I2C.scan()
++.. method:: I2C.scan(addresses=None, /)
+ 
+-   Scan all I2C addresses between 0x08 and 0x77 inclusive and return a list of
+-   those that respond.  A device responds if it pulls the SDA line low after
+-   its address (including a write bit) is sent on the bus.
++   Scan the I2C bus and return a list of the addresses that respond.  A device
++   responds if it pulls the SDA line low after its address (including a write
++   bit) is sent on the bus.
++
++   By default all addresses between 0x08 and 0x77 inclusive are scanned.  If
++   *addresses* is given it may be a single 7-bit address, or an iterable of
++   7-bit addresses (for example a `range` or list), and only those addresses are
++   probed, which is faster when only a subset is of interest.
+ 
+ Primitive I2C operations
+ ------------------------
+diff --git a/extmod/machine_i2c.c b/extmod/machine_i2c.c
+index bddf77529..0ec905423 100644
+--- a/extmod/machine_i2c.c
++++ b/extmod/machine_i2c.c
+@@ -319,23 +319,46 @@ static mp_obj_t machine_i2c_init(size_t n_args, const mp_obj_t *args, mp_map_t *
+ }
+ MP_DEFINE_CONST_FUN_OBJ_KW(machine_i2c_init_obj, 1, machine_i2c_init);
+ 
+-static mp_obj_t machine_i2c_scan(mp_obj_t self_in) {
+-    mp_obj_base_t *self = MP_OBJ_TO_PTR(self_in);
++static mp_obj_t machine_i2c_scan(size_t n_args, const mp_obj_t *args) {
++    mp_obj_base_t *self = MP_OBJ_TO_PTR(args[0]);
+     mp_obj_t list = mp_obj_new_list(0, NULL);
+-    // 7-bit addresses 0b0000xxx and 0b1111xxx are reserved
+-    for (int addr = 0x08; addr < 0x78; ++addr) {
+-        int ret = mp_machine_i2c_writeto(self, addr, NULL, 0, true);
+-        if (ret == 0) {
+-            mp_obj_list_append(list, MP_OBJ_NEW_SMALL_INT(addr));
++    if (n_args == 1) {
++        // 7-bit addresses 0b0000xxx and 0b1111xxx are reserved
++        for (int addr = 0x08; addr < 0x78; ++addr) {
++            int ret = mp_machine_i2c_writeto(self, addr, NULL, 0, true);
++            if (ret == 0) {
++                mp_obj_list_append(list, MP_OBJ_NEW_SMALL_INT(addr));
++            }
++            // This scan loop may run for some time, so process any pending events/exceptions,
++            // or allow the port to run any necessary background tasks.  But do it as fast as
++            // possible, in particular we are not waiting on any events.
++            mp_event_handle_nowait();
++        }
++    } else {
++        // Restrict the scan to a single integer address, or the addresses
++        // produced by the supplied iterable (e.g. a range or list).
++        if (mp_obj_is_int(args[1])) {
++            int ret = mp_machine_i2c_writeto(self, mp_obj_get_int(args[1]), NULL, 0, true);
++            if (ret == 0) {
++                mp_obj_list_append(list, args[1]);
++            }
++            mp_event_handle_nowait();
++        } else {
++            mp_obj_iter_buf_t iter_buf;
++            mp_obj_t iterable = mp_getiter(args[1], &iter_buf);
++            mp_obj_t item;
++            while ((item = mp_iternext(iterable)) != MP_OBJ_STOP_ITERATION) {
++                int ret = mp_machine_i2c_writeto(self, mp_obj_get_int(item), NULL, 0, true);
++                if (ret == 0) {
++                    mp_obj_list_append(list, item);
++                }
++                mp_event_handle_nowait();
++            }
+         }
+-        // This scan loop may run for some time, so process any pending events/exceptions,
+-        // or allow the port to run any necessary background tasks.  But do it as fast as
+-        // possible, in particular we are not waiting on any events.
+-        mp_event_handle_nowait();
+     }
+     return list;
+ }
+-MP_DEFINE_CONST_FUN_OBJ_1(machine_i2c_scan_obj, machine_i2c_scan);
++MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_i2c_scan_obj, 1, 2, machine_i2c_scan);
+ 
+ static mp_obj_t machine_i2c_start(mp_obj_t self_in) {
+     mp_obj_base_t *self = (mp_obj_base_t *)MP_OBJ_TO_PTR(self_in);
