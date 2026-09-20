@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
 		flow3r_bsp_display.c
+		flow3r_bsp_display_mirror.c
 		flow3r_bsp_gc9a01.c
 		flow3r_bsp_imu.c
     INCLUDE_DIRS

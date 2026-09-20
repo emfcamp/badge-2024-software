@@ -198,7 +198,16 @@ class HexpansionManagerApp(app.App):
             print("Initialized app with config")
         except TypeError as e:
             print(f"Could not pass config to app: {e}")
-            app = App()
+            try:
+                app = App()
+            except Exception as e:
+                print(f"Failed to initialize app: {e}")
+                self._cleanup_import_path(old_cwd, old_sys_path)
+                return
+        except Exception as e:
+            print(f"Failed to initialize app: {e}")
+            self._cleanup_import_path(old_cwd, old_sys_path)
+            return
 
         eventbus.emit(RequestStartAppEvent(app))
         self.hexpansion_apps[port] = app
