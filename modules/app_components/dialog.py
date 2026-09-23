@@ -297,6 +297,9 @@ class TextDialog:
             elif KEYBOARD_BUTTONS["SPACE"] in event.button:
                 key = -2
                 final = SPECIAL_KEY_SPACE
+            elif KEYBOARD_BUTTONS["ENTER"] in event.button:
+                key = -2
+                final = SPECIAL_KEY_DONE
             elif kbd_button.name in UPPERCASE_ALPHABET:
                 # This is a letter
                 if self._current_alphabet == UPPERCASE_ALPHABET:
