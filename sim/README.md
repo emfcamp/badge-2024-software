@@ -37,6 +37,23 @@ cd sim
 pipenv run python run.py
 ```
 
+You can launch an app at startup by its name in the menu:
+
+```
+pipenv run python run.py --menu "Example app"
+```
+
+or by its module path
+
+```
+pipenv run python run.py example.ExampleApp
+```
+
+Testing local apps
+---
+
+You can copy or symlink an app intp the `sim/apps/` directory. See `sim/apps/example` for an example.
+
 Known Issues
 ---
 
