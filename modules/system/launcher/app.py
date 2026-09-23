@@ -1,3 +1,4 @@
+import errno
 import os
 import sys
 
@@ -276,7 +277,7 @@ class Launcher(App):
         except Exception as e:
             # don't log file-not-found as an error because that's the default
             # for all badges.
-            if isinstance(e, OSError) and e.errno == 2:
+            if isinstance(e, OSError) and e.errno == errno.ENOENT:
                 pass
             else:
                 # log exceptions but don't propagate - an autoexec failure
