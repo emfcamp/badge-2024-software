@@ -80,20 +80,39 @@ def clear_background(ctx):
 
 def set_color(ctx, color):
     color = ui_colors.get(color, colors.get(color, color))
+    if _try_color_function(ctx, color):
+        return ctx
+    return _set_rgb_color(ctx, color)
+
+
+def _try_color_function(ctx, color):
+    if not callable(color):
+        return False
     try:
         color(ctx)
-        return ctx
+        return True
     except Exception:
-        pass
+        return False
 
-    try:
-        ctx.rgb(*color)
+
+def _set_rgb_color(ctx, color):
+    if _try_rgb_color(ctx, color):
         return ctx
-    except Exception:
-        pass
-
     ctx.rgb(0.5, 0.5, 0.5)
     return ctx
+
+
+def _try_rgb_color(ctx, color):
+    try:
+        if isinstance(color, tuple) or isinstance(color, list):
+            if len(color) != 3:
+                return False
+            ctx.rgb(color[0], color[1], color[2])
+        else:
+            ctx.rgb(*color)
+        return True
+    except Exception:
+        return False
 
 
 def button_labels(

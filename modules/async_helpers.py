@@ -2,6 +2,16 @@ import asyncio
 import sys
 import _thread
 
+_SLEEP_MS = getattr(asyncio, "sleep_ms", None)
+
+
+def sleep_ms(delay_ms: int):
+    """Return an awaitable that sleeps using the runtime's millisecond API."""
+    if _SLEEP_MS is not None:
+        return _SLEEP_MS(delay_ms)
+    return asyncio.sleep(delay_ms / 1000)
+
+
 if hasattr(sys.implementation, "_machine"):  # MicroPython
     from threadsafe import Message
 else:

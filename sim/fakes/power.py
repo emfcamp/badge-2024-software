@@ -24,8 +24,17 @@ def Icharge():
 def Vbat():
     return 3.7
 
+def VbatMilliVolts():
+    return 3700
+
 def Vin():
     return 5.0
+
+def VinMilliVolts():
+    return 5000
     
 def Vsys():
-    return 4.2    
+    return 4.2
+
+def VsysMilliVolts():
+    return 4200

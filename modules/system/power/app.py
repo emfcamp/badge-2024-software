@@ -1,6 +1,11 @@
 from app import App
 import power
 import asyncio
+from micropython import const
+
+
+_LOW_BATTERY_MILLIVOLTS = const(3500)
+_LOW_INPUT_MILLIVOLTS = const(4500)
 
 
 class PowerManager(App):
@@ -8,7 +13,10 @@ class PowerManager(App):
 
     async def background_task(self):
         while True:
-            if power.Vbat() < 3.5 and power.Vin() < 4.5:
+            if (
+                power.VbatMilliVolts() < _LOW_BATTERY_MILLIVOLTS
+                and power.VinMilliVolts() < _LOW_INPUT_MILLIVOLTS
+            ):
                 power.Off()
             await asyncio.sleep(10)
 

@@ -1,5 +1,5 @@
-import asyncio
 import time
+from async_helpers import sleep_ms
 
 from system.eventbus import eventbus
 from system.scheduler.events import RequestForegroundPopEvent
@@ -24,7 +24,7 @@ class App:
             if self.update(delta_ticks) is not False:
                 await render_update()
             else:
-                await asyncio.sleep(0.05)
+                await sleep_ms(50)
             last_time = cur_time
 
     def update(self, delta: float) -> bool:
@@ -46,7 +46,7 @@ class App:
             cur_time = time.ticks_ms()
             delta_ticks = time.ticks_diff(cur_time, last_time)
             self.background_update(delta_ticks)
-            await asyncio.sleep(0.05)
+            await sleep_ms(50)
             last_time = cur_time
 
     def background_update(self, delta):

@@ -1,8 +1,41 @@
 diff --git a/micropython/drivers/led/neopixel/neopixel.py b/micropython/drivers/led/neopixel/neopixel.py
-index caa12dc..41e1331 100644
+index caa12dc..a46a099 100644
 --- a/micropython/drivers/led/neopixel/neopixel.py
 +++ b/micropython/drivers/led/neopixel/neopixel.py
-@@ -48,3 +48,150 @@ class NeoPixel:
+@@ -30,10 +30,32 @@ class NeoPixel:
+         for i in range(self.bpp):
+             self.buf[offset + self.ORDER[i]] = v[i]
+ 
++    def set_many(self, start, values, count, values_start=0):
++        while count > 0:
++            self._set_many_pixel(start, values[values_start])
++            start += 1
++            values_start += 1
++            count -= 1
++
++    def _set_many_pixel(self, pixel, colour):
++        offset = pixel * self.bpp
++        channel = 0
++        while channel < self.bpp:
++            self.buf[offset + self.ORDER[channel]] = colour[channel]
++            channel += 1
++
+     def __getitem__(self, i):
+         offset = i * self.bpp
+         return tuple(self.buf[offset + self.ORDER[i]] for i in range(self.bpp))
+ 
++    def get_into(self, i, result):
++        offset = i * self.bpp
++        channel = 0
++        while channel < self.bpp:
++            result[channel] = self.buf[offset + self.ORDER[channel]]
++            channel += 1
++        return result
++
+     def fill(self, v):
+         b = self.buf
+         l = len(self.buf)
+@@ -48,3 +70,404 @@ class NeoPixel:
      def write(self):
          # BITSTREAM_TYPE_HIGH_LOW = 0
          bitstream(self.pin, 0, self.timing, self.buf)
@@ -19,17 +52,48 @@ index caa12dc..41e1331 100644
 +        for led in leds:
 +            self.string[led] = v
 +
++    def set_many(self, start, values, count, values_start=0):
++        while count > 0:
++            self._set_many_pixel(start, values[values_start])
++            start += 1
++            values_start += 1
++            count -= 1
++
++    def _set_many_pixel(self, pixel, colour):
++        leds = self.indices[pixel]
++        led_index = 0
++        while led_index < len(leds):
++            self.string[leds[led_index]] = colour
++            led_index += 1
++
 +    def __getitem__(self, i):
 +        leds = self.indices[i]
 +        for led in leds:
 +            return self.string[led]
 +        raise KeyError("No such LED in this string")
 +
++    def get_into(self, i, result):
++        leds = self.indices[i]
++        if len(leds) == 0:
++            raise KeyError("No such LED in this string")
++        read_into = getattr(type(self.string), "get_into", None)
++        if read_into is not None:
++            return read_into(self.string, leds[0], result)
++        colour = self.string[leds[0]]
++        channel = 0
++        while channel < len(result):
++            result[channel] = colour[channel]
++            channel += 1
++        return result
++
 +    def __len__(self):
 +        return self.n
 +
 +    def fill(self, v):
-+        self.string.fill(v)
++        index = 0
++        while index < self.n:
++            self[index] = v
++            index += 1
 +
 +    def write(self):
 +        self.string.write()
@@ -40,6 +104,14 @@ index caa12dc..41e1331 100644
 +        self.strings = []
 +        self.offsets = []
 +        self.lengths = []
++        self._batch_start = 0
++        self._batch_values = []
++        self._empty_batch_values = self._batch_values
++        self._batch_count = 0
++        self._batch_values_start = 0
++        self._batch_index = 0
++        self._batch_source_offset = 0
++        self._batch_segment_count = 0
 +        self.add_string(string, offset)
 +
 +    def add_string(self, string, offset):
@@ -48,20 +120,64 @@ index caa12dc..41e1331 100644
 +        self.lengths.append(string.n)
 +
 +    def __setitem__(self, i, v):
-+        bad_indexes = []
-+        for string_idx, (string, offset, length) in enumerate(
-+            zip(self.strings, self.offsets, self.lengths)
-+        ):
-+            index = i - offset
-+            if index >= 0 and index < length:
-+                try:
-+                    string[index] = v
-+                except:
-+                    bad_indexes.append(string_idx)
-+        for bad_idx in sorted(bad_indexes, reverse=True):
-+            del self.strings[bad_idx]
-+            del self.offsets[bad_idx]
-+            del self.lengths[bad_idx]
++        string_idx = 0
++        while string_idx < len(self.strings):
++            index = i - self.offsets[string_idx]
++            if index >= 0 and index < self.lengths[string_idx]:
++                self.strings[string_idx][index] = v
++            string_idx += 1
++
++    def set_many(self, start, values, count, values_start=0):
++        self._set_many_composed(start, values, count, values_start)
++
++    def _set_many_composed(self, start, values, count, values_start):
++        self._batch_start = start
++        self._batch_values = values
++        self._batch_count = count
++        self._batch_values_start = values_start
++        string_idx = 0
++        while string_idx < len(self.strings):
++            self._set_many_string(string_idx)
++            string_idx += 1
++        self._batch_values = self._empty_batch_values
++
++    def _set_many_string(self, string_idx):
++        index = self._batch_start - self.offsets[string_idx]
++        source_offset = 0
++        if index < 0:
++            source_offset = -index
++            index = 0
++        if source_offset >= self._batch_count or index >= self.lengths[string_idx]:
++            return
++        segment_count = self.lengths[string_idx] - index
++        remaining = self._batch_count - source_offset
++        if segment_count > remaining:
++            segment_count = remaining
++        self._batch_index = index
++        self._batch_source_offset = source_offset
++        self._batch_segment_count = segment_count
++        self._write_many_segment(self.strings[string_idx])
++
++    def _write_many_segment(self, string):
++        write_many = getattr(type(string), "set_many", None)
++        if write_many is not None:
++            write_many(
++                string,
++                self._batch_index,
++                self._batch_values,
++                self._batch_segment_count,
++                self._batch_values_start + self._batch_source_offset,
++            )
++            return
++        self._write_many_items(string)
++
++    def _write_many_items(self, string):
++        segment = 0
++        while segment < self._batch_segment_count:
++            string[self._batch_index + segment] = self._batch_values[
++                self._batch_values_start + self._batch_source_offset + segment
++            ]
++            segment += 1
 +
 +    def __getitem__(self, i):
 +        for string, offset, length in zip(self.strings, self.offsets, self.lengths):
@@ -70,12 +186,33 @@ index caa12dc..41e1331 100644
 +                return string[index]
 +        raise KeyError("No such LED in this string")
 +
++    def get_into(self, i, result):
++        string_idx = 0
++        while string_idx < len(self.strings):
++            index = i - self.offsets[string_idx]
++            if index >= 0 and index < self.lengths[string_idx]:
++                string = self.strings[string_idx]
++                read_into = getattr(type(string), "get_into", None)
++                if read_into is not None:
++                    return read_into(string, index, result)
++                colour = string[index]
++                channel = 0
++                while channel < len(result):
++                    result[channel] = colour[channel]
++                    channel += 1
++                return result
++            string_idx += 1
++        raise KeyError("No such LED in this string")
++
 +    def __len__(self):
 +        return self.n
 +
 +    def fill(self, v):
-+        for string in self.strings:
-+            string.fill(v)
++        count = self.n
++        index = 0
++        while index < count:
++            self[index] = v
++            index += 1
 +
 +    def write(self):
 +        for string in self.strings:
@@ -90,16 +227,120 @@ index caa12dc..41e1331 100644
 +    def __init__(self, string, alterations):
 +        self.string = string
 +        self.alterations = alterations
++        self._apply_into = []
++        for alteration in alterations:
++            self._apply_into.append(
++                getattr(type(alteration), "apply_into", None)
++                if alteration is not None
++                else None
++            )
++        self._correction_buffer = None
++        self._batch_buffer = None
++        self._batch_start = 0
++        self._batch_count = 0
 +        self.n = string.n
 +
 +    def __setitem__(self, i, v):
 +        alteration = self.alterations[i]
 +        if alteration is not None:
-+            v = alteration(v)
++            apply_into = self._apply_into[i]
++            if apply_into is None:
++                v = alteration(v)
++            else:
++                buffer = self._correction_buffer
++                if buffer is None or len(buffer) != len(v):
++                    buffer = [0] * len(v)
++                    self._correction_buffer = buffer
++                apply_into(alteration, v, buffer)
++                v = buffer
 +        self.string[i] = v
++
++    def set_many(self, start, values, count, values_start=0):
++        self._ensure_batch_buffer(count)
++        self._batch_start = start
++        self._batch_count = count
++        self._process_batch(values, values_start)
++        self._write_many(start, count)
++
++    def _process_batch(self, values, values_start):
++        index = 0
++        while index < self._batch_count:
++            self._set_many_pixel(
++                index, self._batch_start + index, values[values_start + index]
++            )
++            index += 1
++
++    def _ensure_batch_buffer(self, count):
++        if self._batch_buffer is None or len(self._batch_buffer) < count:
++            self._batch_buffer = [None] * count
++
++    def _set_many_pixel(self, pixel_index, alteration_index, source):
++        target = self._batch_buffer[pixel_index]
++        if target is None or len(target) != len(source):
++            target = [0] * len(source)
++            self._batch_buffer[pixel_index] = target
++        self._correct_batch_pixel(alteration_index, source, target)
++
++    def _correct_batch_pixel(self, index, source, target):
++        alteration = self.alterations[index]
++        if alteration is None:
++            self._copy_channels(source, target)
++            return
++        apply_into = self._apply_into[index]
++        if apply_into is not None:
++            apply_into(alteration, source, target)
++        else:
++            self._copy_channels(alteration(source), target)
++
++    def _copy_channels(self, source, target):
++        channel = 0
++        while channel < len(source):
++            target[channel] = source[channel]
++            channel += 1
++
++    def _write_many(self, start, count):
++        write_many = getattr(type(self.string), "set_many", None)
++        if write_many is not None:
++            write_many(self.string, start, self._batch_buffer, count, 0)
++        else:
++            self._write_many_items(start, count)
++
++    def _write_many_items(self, start, count):
++        index = 0
++        while index < count:
++            self.string[start + index] = self._batch_buffer[index]
++            index += 1
 +
 +    def __getitem__(self, i):
 +        return self.string[i]
++
++    def get_into(self, i, result):
++        read_into = getattr(type(self.string), "get_into", None)
++        if read_into is None:
++            colour = self.string[i]
++            channel = 0
++            while channel < len(result):
++                result[channel] = colour[channel]
++                channel += 1
++        else:
++            read_into(self.string, i, result)
++        alteration = self.alterations[i]
++        if alteration is not None:
++            apply_into = self._apply_into[i]
++            if apply_into is not None:
++                buffer = self._correction_buffer
++                if buffer is None or len(buffer) != len(result):
++                    buffer = [0] * len(result)
++                    self._correction_buffer = buffer
++                apply_into(alteration, result, buffer)
++                self._copy_channels(buffer, result)
++            else:
++                corrected = alteration(result)
++                channel = 0
++                while channel < len(result):
++                    result[channel] = corrected[channel]
++                    channel += 1
++        return result
 +
 +    def __len__(self):
 +        return self.n
@@ -114,13 +355,31 @@ index caa12dc..41e1331 100644
 +
 +class DimCorrection:
 +    def __init__(self, amount):
++        self._amount = None
++        self._amount_percent = None
 +        self.amount = amount
++
++    @property
++    def amount(self):
++        return self._amount
++
++    @amount.setter
++    def amount(self, amount):
++        if amount == self._amount:
++            return
++        self._amount = amount
++        amount_percent = int(amount * 100 + 0.5)
++        if amount_percent < 0:
++            amount_percent = 0
++        elif amount_percent > 100:
++            amount_percent = 100
++        self._amount_percent = amount_percent
 +
 +    def __call__(self, v):
 +        new_val = []
++        amount_percent = self._amount_percent
 +        for channel in v:
-+            channel *= self.amount
-+            channel = int(channel)
++            channel = channel * amount_percent // 100
 +            if channel > 255:
 +                channel = 255
 +            if channel < 0:
@@ -128,12 +387,26 @@ index caa12dc..41e1331 100644
 +            new_val.append(channel)
 +        return new_val
 +
++    def apply_into(self, v, result):
++        amount_percent = self._amount_percent
++        index = 0
++        while index < len(v):
++            channel = v[index] * amount_percent // 100
++            if channel > 255:
++                channel = 255
++            if channel < 0:
++                channel = 0
++            result[index] = channel
++            index += 1
++
 +
 +class ColourCorrection:
 +    def __init__(self, amounts):
 +        self.amounts = amounts
 +
 +    def __call__(self, v):
++        if len(v) != len(self.amounts):
++            raise ValueError("colour and correction lengths must match")
 +        new_val = []
 +        for channel, amount in zip(v, self.amounts):
 +            channel *= amount
@@ -144,6 +417,20 @@ index caa12dc..41e1331 100644
 +                channel = 0
 +            new_val.append(channel)
 +        return new_val
++
++    def apply_into(self, v, result):
++        amounts = self.amounts
++        if len(v) != len(amounts):
++            raise ValueError("colour and correction lengths must match")
++        index = 0
++        while index < len(v):
++            channel = int(v[index] * amounts[index])
++            if channel > 255:
++                channel = 255
++            if channel < 0:
++                channel = 0
++            result[index] = channel
++            index += 1
 +
 +
 +class CallbackCorrection:

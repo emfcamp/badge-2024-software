@@ -44,6 +44,10 @@ class Menu:
         self.speed_ms = speed_ms
         self.item_font_size = item_font_size
         self.item_line_height = item_line_height
+        self._idle_next_item_y = (
+            focused_item_margin + item_line_height,
+            focused_item_margin + 2 * item_line_height,
+        )
         self.focused_item_font_size = focused_item_font_size
         self.focused_item_margin = focused_item_margin
         self.focused_item_font_size_arr = []
@@ -51,6 +55,7 @@ class Menu:
         self.show_info = False
 
         self.animation_time_ms = 0
+        self._menu_draw_y_offset = 0
         # self.is_animating: Literal["up", "down", "none"] = "none"
         self.is_animating: Literal["up", "down", "none"] = "up"
 
@@ -138,80 +143,108 @@ class Menu:
         ctx.restore()
         return proposed_font_size
 
+    def _draw_info(self, ctx):
+        ctx.save()
+        clear_background(ctx)
+        self.layout.draw(ctx)
+        ctx.restore()
+
+    def _report_font_size_error(self, error):
+        print(f"[Menu] ERROR in font_size calc: {error}")
+        print(f"[Menu] menu_items: {self.menu_items!r}")
+        for i, item in enumerate(self.menu_items):
+            print(f"[Menu]   [{i}] type={type(item).__name__} value={item!r}")
+
+    def _calculate_focused_item_sizes(self, ctx):
+        try:
+            return [
+                self._calculate_max_focussed_font_size(item, ctx)
+                for item in self.menu_items
+            ]
+        except Exception as error:
+            self._report_font_size_error(error)
+            raise
+
+    def _ensure_focused_item_sizes(self, ctx):
+        if not self.focused_item_font_size_arr:
+            self.focused_item_font_size_arr = self._calculate_focused_item_sizes(ctx)
+
+    def _update_animation_state(self):
+        if self.is_animating == "none":
+            self._menu_draw_y_offset = 0
+            return 1.0
+        progress = ease_out_quart(self.animation_time_ms / self.speed_ms)
+        direction = 1 if self.is_animating == "up" else -1
+        self._menu_draw_y_offset = direction * 30 * (progress - 1)
+        return progress
+
+    def _draw_focused_item(self, ctx, animation_progress):
+        ctx.text_align = ctx.CENTER
+        ctx.text_baseline = ctx.MIDDLE
+        set_color(ctx, "menu_item")
+        item_count = len(self.menu_items)
+        position = self.position % item_count if item_count else 0
+        ctx.save()
+        set_color(ctx, "active_menu_item")
+        focused_font_size = self.focused_item_font_size_arr[position]
+        if self.is_animating == "none":
+            ctx.font_size = focused_font_size
+        else:
+            ctx.font_size = self.item_font_size + animation_progress * (
+                focused_font_size - self.item_font_size
+            )
+        self._draw_focused_label(ctx, position, item_count)
+        ctx.restore()
+
+    def _draw_focused_label(self, ctx, position, item_count):
+        label = self.menu_items[position] if item_count else "Empty Menu"
+        ctx.move_to(0, self._menu_draw_y_offset).text(label)
+        if ctx.a11y:
+            ctx.a11y.add_alt(self, label)
+
+    def _draw_neighboring_items(self, ctx):
+        set_color(ctx, "menu_item")
+        ctx.font_size = self.item_font_size
+        self._draw_previous_items(ctx)
+        self._draw_next_items(ctx)
+
+    def _draw_previous_items(self, ctx):
+        num_menu_items = len(self.menu_items)
+        y_offset = self._menu_draw_y_offset
+        index = 1
+        while index < 3:
+            position = self.position - index
+            if position >= 0 and num_menu_items:
+                y = -self.focused_item_margin - index * self.item_line_height + y_offset
+                ctx.move_to(0, y).text(self.menu_items[position])
+            index += 1
+
+    def _draw_next_items(self, ctx):
+        num_menu_items = len(self.menu_items)
+        y_offset = self._menu_draw_y_offset
+        index = 1
+        while index < 3:
+            position = self.position + index
+            if position < num_menu_items:
+                if self.is_animating == "none":
+                    y = self._idle_next_item_y[index - 1]
+                else:
+                    y = (
+                        self.focused_item_margin
+                        + index * self.item_line_height
+                        + y_offset
+                    )
+                ctx.move_to(0, y).text(self.menu_items[position])
+            index += 1
+
     def draw(self, ctx):
         if self.show_info and self.info_items:
-            # show info for item
-            ctx.save()
-            clear_background(ctx)
-            self.layout.draw(ctx)
-            ctx.restore()
-        else:
-            # calculate biggest font size a menu item should grow to
-            if not self.focused_item_font_size_arr:
-                try:
-                    self.focused_item_font_size_arr = [
-                        self._calculate_max_focussed_font_size(item, ctx)
-                        for item in self.menu_items
-                    ]
-                except Exception as e:
-                    print(f"[Menu] ERROR in font_size calc: {e}")
-                    print(f"[Menu] menu_items: {self.menu_items!r}")
-                    for i, item in enumerate(self.menu_items):
-                        print(
-                            f"[Menu]   [{i}] type={type(item).__name__} value={item!r}"
-                        )
-                    raise
-
-            if self.is_animating == "none":
-                animation_progress = 1.0
-                y_offset = 0
-            else:
-                animation_progress = ease_out_quart(
-                    self.animation_time_ms / self.speed_ms
-                )
-                animation_direction = 1 if self.is_animating == "up" else -1
-                y_offset = animation_direction * 30 * (animation_progress - 1)
-
-            ctx.text_align = ctx.CENTER
-            ctx.text_baseline = ctx.MIDDLE
-
-            set_color(ctx, "menu_item")
-            num_menu_items = len(self.menu_items)
-            pos = self.position % num_menu_items if num_menu_items > 0 else 0
-
-            # Current menu item
-            ctx.save()
-
-            # ctx.translate(0, y_offset)
-            set_color(ctx, "active_menu_item")
-            ctx.font_size = self.item_font_size + animation_progress * (
-                self.focused_item_font_size_arr[pos] - self.item_font_size
-            )
-            label = self.menu_items[pos] if num_menu_items > 0 else "Empty Menu"
-            ctx.move_to(0, y_offset).text(label)
-            if ctx.a11y:
-                ctx.a11y.add_alt(self, label)
-            ctx.restore()
-
-            # Previous menu items
-            set_color(ctx, "menu_item")
-            ctx.font_size = self.item_font_size
-            for i in range(1, 3):
-                if (self.position - i) >= 0 and num_menu_items:
-                    ctx.move_to(
-                        0,
-                        -self.focused_item_margin
-                        - i * self.item_line_height
-                        + y_offset,
-                    ).text(self.menu_items[self.position - i])
-
-            # Next menu items
-            for i in range(1, 3):
-                if (self.position + i) < num_menu_items:
-                    ctx.move_to(
-                        0,
-                        self.focused_item_margin + i * self.item_line_height + y_offset,
-                    ).text(self.menu_items[self.position + i])
+            self._draw_info(ctx)
+            return
+        self._ensure_focused_item_sizes(ctx)
+        animation_progress = self._update_animation_state()
+        self._draw_focused_item(ctx, animation_progress)
+        self._draw_neighboring_items(ctx)
 
     def update(self, delta):
         if self.is_animating != "none":

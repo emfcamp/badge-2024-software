@@ -3,9 +3,10 @@ import display
 import sys
 import time
 
+from async_helpers import sleep_ms
 from events.emote import EmoteNegativeEvent
 from system.a11y.events import ReplaceAccessibiltiyHandlerEvent
-from perf_timer import PerfTimer
+from perf_timer import DEBUG_PERF, PerfTimer
 from system.a11y import printer
 from system.eventbus import eventbus
 from system.scheduler.events import (
@@ -19,6 +20,38 @@ from system.capabilities.utils import (
     get_manifest_from_compact_app_format,
 )
 from system.notification.events import ShowNotificationEvent
+
+_RENDER_PERF_TIMER = PerfTimer("render")
+_APP_RENDER_PERF_TIMER = PerfTimer("")
+
+
+def _draw_app(ctx, app):
+    if DEBUG_PERF:
+        _APP_RENDER_PERF_TIMER.name = f"rendering {app}"
+    with _APP_RENDER_PERF_TIMER:
+        ctx.save()
+        _draw_app_safely(ctx, app)
+        ctx.restore()
+
+
+def _draw_app_safely(ctx, app):
+    try:
+        app.draw(ctx)
+    except Exception:
+        _handle_app_draw_error(app)
+
+
+def _handle_app_draw_error(app):
+    eventbus.emit(RequestStopAppEvent(app=app))
+    print("App draw failed")
+    _notify_app_draw_crash(app)
+    eventbus.emit(EmoteNegativeEvent())
+
+
+def _notify_app_draw_crash(app):
+    eventbus.emit(
+        ShowNotificationEvent(message=f"{app.__class__.__name__} has crashed")
+    )
 
 
 class _Scheduler:
@@ -201,13 +234,13 @@ class _Scheduler:
         async def mark_update_finished():
             # Unblock renderer
             self.render_needed.set()
-            await asyncio.sleep(0.05)
+            await sleep_ms(50)
 
             # If we're no longer foregounded, wait until it is before returning
             did_lose_focus = False
             while not self.app_is_foregrounded(app):
                 did_lose_focus = True
-                await asyncio.sleep(0.250)
+                await sleep_ms(250)
 
             # Return control to the update task
             return did_lose_focus
@@ -248,24 +281,16 @@ class _Scheduler:
             await self.render_needed.wait()
             self.render_needed.clear()
 
-            with PerfTimer("render"):
+            with _RENDER_PERF_TIMER:
                 ctx = display.get_ctx()
                 ctx.a11y = self.a11y_handler
-                for app in self.foreground_stack[-1:] + self.on_top_stack:
-                    with PerfTimer(f"rendering {app}"):
-                        ctx.save()
-                        try:
-                            app.draw(ctx)
-                        except Exception as e:
-                            eventbus.emit(RequestStopAppEvent(app=app))
-                            sys.print_exception(e, sys.stderr)
-                            eventbus.emit(
-                                ShowNotificationEvent(
-                                    message=f"{app.__class__.__name__} has crashed"
-                                )
-                            )
-                            eventbus.emit(EmoteNegativeEvent())
-                        ctx.restore()
+                if self.foreground_stack:
+                    _draw_app(ctx, self.foreground_stack[-1])
+
+                index = 0
+                while index < len(self.on_top_stack):
+                    _draw_app(ctx, self.on_top_stack[index])
+                    index += 1
                 display.end_frame(ctx)
                 if ctx.a11y:
                     try:
@@ -274,7 +299,7 @@ class _Scheduler:
                     except Exception as e:
                         print(e)
                         pass
-            await asyncio.sleep(0)
+            await sleep_ms(0)
 
     async def _handle_new_a11y_handler(self, event):
         self.a11y_handler = event.klass()

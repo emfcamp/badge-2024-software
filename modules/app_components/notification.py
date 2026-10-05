@@ -14,6 +14,9 @@ class Notification:
         self._open_time = 0
         self._close_after = 1000 * 3
         self.width_limits = [120, 180, 220, 240, 240, 240, 180, 120]
+        self._wrapped_message = None
+        self._wrapped_lines = []
+        self._a11y_message = None
 
     def __repr__(self):
         return f"<Notification '{self.message}' on port {self._port} ({self._open} - {self._open_time})>"
@@ -31,10 +34,16 @@ class Notification:
         self._open = False
 
     def update(self, delta):
+        if not self._open and self._animation_state == self._animation_target:
+            return
+
         delta_s = min((delta / 1000) * 5, 1)
         animation_delta = self._animation_target - self._animation_state
         animation_step = animation_delta * delta_s
         self._animation_state += animation_step
+
+        if self._animation_target == 0 and self._animation_state < 0.01:
+            self._animation_state = 0
 
         if self._open:
             self._open_time += delta
@@ -50,17 +59,18 @@ class Notification:
         if ctx.text_width(text) <= width_for_line:
             return text.strip(), ""
 
-        split = None
-        for i in range(1, len(text) + 1):
-            if ctx.text_width(text[:i]) > width_for_line:
-                # If there are no spaces, just hard break
-                if split is None:
-                    split = i
-                break
+        low = 0
+        high = len(text)
+        while low < high:
+            middle = (low + high + 1) // 2
+            if ctx.text_width(text[:middle]) <= width_for_line:
+                low = middle
+            else:
+                high = middle - 1
 
-            # Attempt to break on a word boundary
-            if i < len(text) and text[i] == " ":
-                split = i
+        split = text.rfind(" ", 0, low + 1)
+        if split < 0:
+            split = low if low > 0 else 1
 
         return text[:split].strip(), text[split:].strip()
 
@@ -75,17 +85,25 @@ class Notification:
             if self._port != 0:
                 ctx.rotate(self._half_hex_rotation * (self._port * 2 - 1))
 
-            lines = []
-            extra_text = self.message
-            line = 0
+            if self._wrapped_message != self.message:
+                lines = []
+                extra_text = self.message
+                line = 0
+                while extra_text:
+                    text_that_fits, extra_text = self.get_text_for_line(
+                        ctx, extra_text, line
+                    )
+                    lines.append(text_that_fits)
+                    line += 1
+                self._wrapped_message = self.message
+                self._wrapped_lines = lines
+                self._a11y_message = None
+
+            lines = self._wrapped_lines
             if ctx.a11y:
-                ctx.a11y.add_alt(None, "Notification: " + self.message, transient=True)
-            while extra_text:
-                text_that_fits, extra_text = self.get_text_for_line(
-                    ctx, extra_text, line
-                )
-                lines.append(text_that_fits)
-                line = line + 1
+                if self._a11y_message is None:
+                    self._a11y_message = "Notification: " + self.message
+                ctx.a11y.add_alt(None, self._a11y_message, transient=True)
 
             set_color(ctx, "notification")
             ctx.rectangle(

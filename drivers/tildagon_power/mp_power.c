@@ -42,6 +42,14 @@ static mp_obj_t power_Vbus( void )
 
 static MP_DEFINE_CONST_FUN_OBJ_0( Vbus_obj, power_Vbus);
 
+static mp_obj_t power_VinMilliVolts( void )
+{
+    bq_update_state( &pmic );
+    return mp_obj_new_int_from_uint((mp_uint_t)(pmic.vbus * 1000.0F + 0.5F));
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_0( VinMilliVolts_obj, power_VinMilliVolts);
+
 static mp_obj_t power_Vsys( void ) 
 {
     bq_update_state( &pmic );
@@ -50,6 +58,14 @@ static mp_obj_t power_Vsys( void )
 
 static MP_DEFINE_CONST_FUN_OBJ_0( Vsys_obj, power_Vsys);
 
+static mp_obj_t power_VsysMilliVolts( void )
+{
+    bq_update_state( &pmic );
+    return mp_obj_new_int_from_uint((mp_uint_t)(pmic.vsys * 1000.0F + 0.5F));
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_0( VsysMilliVolts_obj, power_VsysMilliVolts);
+
 static mp_obj_t power_Vbat( void ) 
 {
     bq_update_state( &pmic );
@@ -57,6 +73,14 @@ static mp_obj_t power_Vbat( void )
 }
 
 static MP_DEFINE_CONST_FUN_OBJ_0( Vbat_obj, power_Vbat);
+
+static mp_obj_t power_VbatMilliVolts( void )
+{
+    bq_update_state( &pmic );
+    return mp_obj_new_int_from_uint((mp_uint_t)(pmic.vbat * 1000.0F + 0.5F));
+}
+
+static MP_DEFINE_CONST_FUN_OBJ_0( VbatMilliVolts_obj, power_VbatMilliVolts);
 
 static mp_obj_t power_Icharge( void ) 
 {
@@ -318,8 +342,11 @@ static const mp_rom_map_elem_t power_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_Enable5V), MP_ROM_PTR(&enable5V_obj) },
     { MP_ROM_QSTR(MP_QSTR_Off), MP_ROM_PTR(&Off_obj) },
     { MP_ROM_QSTR(MP_QSTR_Vin), MP_ROM_PTR(&Vbus_obj) },
+    { MP_ROM_QSTR(MP_QSTR_VinMilliVolts), MP_ROM_PTR(&VinMilliVolts_obj) },
     { MP_ROM_QSTR(MP_QSTR_Vsys), MP_ROM_PTR(&Vsys_obj) },
+    { MP_ROM_QSTR(MP_QSTR_VsysMilliVolts), MP_ROM_PTR(&VsysMilliVolts_obj) },
     { MP_ROM_QSTR(MP_QSTR_Vbat), MP_ROM_PTR(&Vbat_obj) },
+    { MP_ROM_QSTR(MP_QSTR_VbatMilliVolts), MP_ROM_PTR(&VbatMilliVolts_obj) },
     { MP_ROM_QSTR(MP_QSTR_Icharge), MP_ROM_PTR(&Icharge_obj) },
     { MP_ROM_QSTR(MP_QSTR_BatteryLevel), MP_ROM_PTR(&BatteryLevel_obj) },
     { MP_ROM_QSTR(MP_QSTR_BatteryChargeState), MP_ROM_PTR(&BatteryChargeState_obj) },

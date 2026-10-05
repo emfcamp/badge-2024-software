@@ -1,9 +1,9 @@
 from app import App
 from tildagonos import tildagonos
 import settings
-import asyncio
 import os
 import sys
+from async_helpers import sleep_ms
 import neopixel
 from system.patterndisplay.events import (
     PatternEnable,
@@ -16,6 +16,8 @@ from app_components.utils import path_isfile
 from firmware_apps.settings_app import PAT_DIR
 from system.notification.events import ShowNotificationEvent
 from frontboards.twentysix import TwentyTwentySix
+
+_TOUCH_WHITE = (255, 255, 255)
 
 
 class PatternDisplay(App):
@@ -32,6 +34,7 @@ class PatternDisplay(App):
             neopixel.ComposedNeoPixel(tildagonos.leds, -1),
             [self.correction] * 12 + [None] * 6,
         )
+        self._frame_buffer = [None] * 12
         self.TOUCH_KEYS = [
             "TOUCH01",
             "TOUCH02",
@@ -120,21 +123,34 @@ class PatternDisplay(App):
         self._p = event.pattern_class()
 
     async def background_task(self):
+        cached_pattern = None
+        cached_fps = None
+        frame_period_ms = 1000
         while True:
-            if self._p:
+            pattern = self._p
+            if pattern:
                 try:
-                    self.correction.amount = settings.get("pattern_brightness", 0.1)
-                    next_frame = self._p.next()
+                    fps = pattern.fps
+                    if pattern is not cached_pattern or fps != cached_fps:
+                        cached_pattern = pattern
+                        cached_fps = fps
+                        frame_period_ms = int((1 / fps) * 1000) if fps else 1000
                     if self.enabled:
-                        for led in range(12):
+                        self.correction.amount = settings.get("pattern_brightness", 0.1)
+                        next_frame = pattern.next()
+                        frame = self._frame_buffer
+                        led = 0
+                        while led < 12:
                             if TwentyTwentySix.touch_states[self.TOUCH_KEYS[led]][0]:
-                                self.leds[led] = (255, 255, 255)
+                                frame[led] = _TOUCH_WHITE
                             else:
-                                self.leds[led] = next_frame[led]
+                                frame[led] = next_frame[led]
+                            led += 1
+                        self.leds.set_many(0, frame, 12)
                         self.leds.write()
-                    if not self._p.fps:
+                    if not fps:
                         break
-                    await asyncio.sleep(1 / self._p.fps)
+                    await sleep_ms(frame_period_ms)
                 except Exception as e:
                     print(f"Error creating pattern: {e}")
                     eventbus.emit(
@@ -143,9 +159,9 @@ class PatternDisplay(App):
                         )
                     )
                     self._p = None
-                    await asyncio.sleep(1)
+                    await sleep_ms(1000)
             else:
-                await asyncio.sleep(1)
+                await sleep_ms(1000)
 
 
 __app_export__ = PatternDisplay
