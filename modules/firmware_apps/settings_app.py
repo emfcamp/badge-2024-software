@@ -10,6 +10,7 @@ from system.patterndisplay.events import PatternReload
 from app_components.background import Background as bg
 from system.launcher.utils import load_info
 from system.scheduler.events import RequestForegroundPushEvent
+from app_components.tokens import MENU_HIGHLIGHT_COLOR_NAMES
 from system.notification.events import ShowNotificationEvent
 
 BG_DIR = "/backgrounds"
@@ -58,6 +59,12 @@ def on_off_formatter(value):
         return "Yes"
     else:
         return "No"
+
+
+def menu_highlight_formatter(value):
+    if value is None or value == "theme":
+        return "Theme"
+    return value.capitalize()
 
 
 def reset_wifi_settings():
@@ -194,7 +201,10 @@ class SettingsApp(app.App):
             layout_handled = await self.layout.button_event(event)
             if not layout_handled:
                 if BUTTON_TYPES["CANCEL"] in event.button:
-                    settings.save()
+                    try:
+                        settings.save()
+                    except Exception as e:
+                        print(f"Warning: could not save settings: {e}")
                     self.minimise()
         else:
             return True
@@ -390,6 +400,28 @@ class SettingsApp(app.App):
                     )
                     self.layout.items.append(entry)
 
+                if id == "menu_highlight_color":
+
+                    async def _button_event_highlight_toggle(event):
+                        if BUTTON_TYPES["CONFIRM"] in event.button:
+                            current = settings.get("menu_highlight_color", "theme")
+                            try:
+                                idx = MENU_HIGHLIGHT_COLOR_NAMES.index(current) + 1
+                            except ValueError:
+                                idx = 0
+                            if idx >= len(MENU_HIGHLIGHT_COLOR_NAMES):
+                                idx = 0
+                            settings.set(
+                                "menu_highlight_color",
+                                MENU_HIGHLIGHT_COLOR_NAMES[idx],
+                            )
+                            await self.update_values()
+                            await render_update()
+                            return True
+                        return False
+
+                    entry.button_handler = _button_event_highlight_toggle
+
                 if id == "utc_offset":
 
                     async def _button_event_utc_offset_toggle(event):
@@ -452,6 +484,7 @@ class SettingsApp(app.App):
             ("pattern_mirror_hexpansions", "Mirror pattern", on_off_formatter, None),
             ("backleds_emotes", "Flash emotes on backleds", on_off_formatter, None),
             ("background", "Background", tuple_formatter, None),
+            ("menu_highlight_color", "Menu highlight", menu_highlight_formatter, None),
             ("enable_boot_animation", "Enable Boot Animation", on_off_formatter, None),
             ("utc_offset", "UTC Offset", utc_offset_formatter, None),
             ("version", "Software version", version_formatter, self.dev_mode),
