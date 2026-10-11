@@ -3,6 +3,7 @@ import asyncio
 import display
 from events.input import Button, BUTTON_TYPES, ButtonDownEvent, ButtonUpEvent
 from events.joystick import JOYSTICK_BUTTON_TYPES
+from system.notification.events import ShowNotificationEvent
 import machine
 from system.eventbus import eventbus
 from tildagon import ePin
@@ -91,11 +92,36 @@ TOUCH = {
 }
 
 
+def buttondown(epin):
+    booped = not machine.Pin(0, mode=machine.Pin.IN).value()
+    hexindex = 1
+    for key in TwentyTwentySix.pin_assignment.keys():
+        if TwentyTwentySix.pin_assignment[key] is epin:
+            if booped:
+                now = time.ticks_ms()
+                if TwentyTwentySix.hexpansion_states[hexindex] is None:
+                    TwentyTwentySix.hexpansion_states[hexindex] = now
+                    eventbus.emit_async(HexpansionInsertionEvent(port=hexindex))
+                hexindex += 1
+            else:
+                eventbus.emit(ButtonDownEvent(button=BUTTONS[key]))
+                TwentyTwentySix.button_states[key][0] = True
+                TwentyTwentySix.button_states[key][1] = time.ticks_ms()
+
+
+def buttonup(epin):
+    for key in TwentyTwentySix.pin_assignment.keys():
+        if TwentyTwentySix.pin_assignment[key] is epin:
+            eventbus.emit(ButtonUpEvent(button=BUTTONS[key]))
+            TwentyTwentySix.button_states[key][0] = False
+
+
 def joy_down(epin):
     for key in TwentyTwentySix.joy_assignment.keys():
         if TwentyTwentySix.joy_assignment[key] is epin:
             eventbus.emit(ButtonDownEvent(button=JOYSTICK[key]))
             TwentyTwentySix.joystick_states[key][0] = True
+            TwentyTwentySix.joystick_states[key][1] = time.ticks_ms()
 
 
 def joy_up(epin):
@@ -103,19 +129,20 @@ def joy_up(epin):
         if TwentyTwentySix.joy_assignment[key] is epin:
             eventbus.emit(ButtonUpEvent(button=JOYSTICK[key]))
             TwentyTwentySix.joystick_states[key][0] = False
-            TwentyTwentySix.joystick_states[key][1] = 0
 
 
 def prox_down(prox):
     for key in TwentyTwentySix.PROX_INPUTS.keys():
         if TwentyTwentySix.PROX_INPUTS[key] is prox:
             eventbus.emit(ButtonDownEvent(button=PROX[key]))
+            TwentyTwentySix.prox_states[0] = True
 
 
 def prox_up(prox):
     for key in TwentyTwentySix.PROX_INPUTS.keys():
         if TwentyTwentySix.PROX_INPUTS[key] is prox:
             eventbus.emit(ButtonUpEvent(button=PROX[key]))
+            TwentyTwentySix.prox_states[0] = False
 
 
 def touch_down(touch):
@@ -130,7 +157,6 @@ def touch_up(touch):
         if TwentyTwentySix.TOUCH_INPUTS[key] is touch:
             eventbus.emit(ButtonUpEvent(button=TOUCH[key]))
             TwentyTwentySix.touch_states[key][0] = False
-            TwentyTwentySix.touch_states[key][1] = 0
 
 
 class TwentyTwentySix(FrontBoard):
@@ -176,6 +202,7 @@ class TwentyTwentySix(FrontBoard):
     button_states = {key: [False, 0] for key in BUTTONS.keys()}
     joystick_states = {key: [False, 0] for key in JOYSTICK.keys()}
     touch_states = {key: [False, 0] for key in TOUCH_INPUTS.keys()}
+    prox_states = {key: [False, 0] for key in PROX_INPUTS.keys()}
     hexpansion_states = {1: None, 2: None, 3: None, 4: None, 5: None, 6: None}
     year = 2026
     num_pattern_leds = 12
@@ -233,7 +260,12 @@ class TwentyTwentySix(FrontBoard):
         global sim
         reset = ePin((3, 7))
         display.gfx_init()
-        cy8cmbr3116_init()
+        try:
+            cy8cmbr3116_init()
+        except Exception:
+            eventbus.emit(ShowNotificationEvent(message="Touch board not Detected"))
+            ls1 = ePin((2, 15), ePin.IN)
+            ls1.irq()
         reset.off()
         reset.on()
 
@@ -251,6 +283,13 @@ class TwentyTwentySix(FrontBoard):
         for key in TwentyTwentySix.pin_assignment:
             gpio = self.BUTTON_PINS[BUTTONS[key]]
             TwentyTwentySix.pin_assignment[key] = ePin(gpio)
+            if not sim:
+                TwentyTwentySix.pin_assignment[key].irq(
+                    handler=buttondown, trigger=ePin.IRQ_FALLING
+                )
+                TwentyTwentySix.pin_assignment[key].irq(
+                    handler=buttonup, trigger=ePin.IRQ_RISING
+                )
         for key in TwentyTwentySix.PROX_INPUTS:
             if not sim:
                 frontboard2026.set_cb(
@@ -276,13 +315,8 @@ class TwentyTwentySix(FrontBoard):
                     frontboard2026.IRQ_FALLING,
                 )
 
-        self.run_time = 0
         while True:
             now = time.ticks_ms()
-            if time.ticks_diff(now, self.run_time) > 150:
-                frontboard2026.run()
-                self.run_time = now
-
             booped = not machine.Pin(0, mode=machine.Pin.IN).value()
             if booped:
                 for i, gpio in enumerate(
@@ -311,13 +345,7 @@ class TwentyTwentySix(FrontBoard):
                         TwentyTwentySix.button_states[key][0] = button_down
                 else:
                     for key in TwentyTwentySix.pin_assignment.keys():
-                        button_down = not TwentyTwentySix.pin_assignment[key].value()
-                        if button_down and not TwentyTwentySix.button_states[key][0]:
-                            await eventbus.emit_async(
-                                ButtonDownEvent(button=BUTTONS[key])
-                            )
-                            TwentyTwentySix.button_states[key][1] = now
-                        elif button_down:
+                        if TwentyTwentySix.button_states[key][0]:
                             if (
                                 time.ticks_diff(
                                     now, TwentyTwentySix.button_states[key][1]
@@ -328,19 +356,9 @@ class TwentyTwentySix(FrontBoard):
                                     ButtonDownEvent(button=BUTTONS[key])
                                 )
                                 TwentyTwentySix.button_states[key][1] = now
-                        if not button_down and TwentyTwentySix.button_states[key][0]:
-                            await eventbus.emit_async(
-                                ButtonUpEvent(button=BUTTONS[key])
-                            )
-                        TwentyTwentySix.button_states[key][0] = button_down
 
                     for key in TwentyTwentySix.joystick_states.keys():
-                        if (
-                            TwentyTwentySix.joystick_states[key][0]
-                            and not TwentyTwentySix.joystick_states[key][1]
-                        ):
-                            TwentyTwentySix.joystick_states[key][1] = now
-                        elif TwentyTwentySix.joystick_states[key][0]:
+                        if TwentyTwentySix.joystick_states[key][0]:
                             if (
                                 time.ticks_diff(
                                     now, TwentyTwentySix.joystick_states[key][1]
@@ -352,4 +370,4 @@ class TwentyTwentySix(FrontBoard):
                                 )
                                 TwentyTwentySix.joystick_states[key][1] = now
 
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.1)

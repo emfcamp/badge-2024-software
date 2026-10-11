@@ -5,6 +5,8 @@ The driver supports basic read write access with some helpers and setup
 
 */
 
+#include "freertos/FreeRTOS.h"
+
 #include "bq25895.h"
 
 typedef struct
@@ -33,6 +35,7 @@ static const bq_register_t     enable_HiZ     = { 0x00U, 0x80U, 7U };
 static const bq_register_t     otg_boost      = { 0x03U, 0x20U, 5U };
 static const bq_register_t     batfet_disable = { 0x09U, 0x20U, 5U };
 static const bq_register_t     register_reset = { 0x14U, 0x80U, 7U };
+static TickType_t last_tick = 0;
 
 static void write_bits( bq_state_t* state, bq_register_t reg, uint8_t value );
 static void write_scaled( bq_state_t* state, scaled_register_t scaledregister, float value );
@@ -121,38 +124,43 @@ void bq_set_input_current_limit( bq_state_t* state, float limit )
 */
 void bq_update_state( bq_state_t* state )
 {
-    uint8_t address = 0x0BU;
-    uint8_t read_buffer[8];
-    mp_machine_i2c_buf_t buffer[2] = { { .len = 1, .buf = &address },
-                                       { .len = 8, .buf = read_buffer } };
-    tildagon_mux_i2c_transaction( state->mux_port, ADDRESS, 2, buffer, READ );
-    state->status = read_buffer[0];
-    state->fault = read_buffer[1];
-    if ( ( read_buffer[3] & 0x7F ) == 0U )
+    TickType_t current_tick =  xTaskGetTickCount();
+    if ( ( ( current_tick - last_tick ) * 1000 / configTICK_RATE_HZ ) > 1000 )
     {
-        state->vbat = 0.0F;
+        uint8_t address = 0x0BU;
+        uint8_t read_buffer[8];
+        mp_machine_i2c_buf_t buffer[2] = { { .len = 1, .buf = &address },
+                                           { .len = 8, .buf = read_buffer } };
+        tildagon_mux_i2c_transaction( state->mux_port, ADDRESS, 2, buffer, READ );
+        state->status = read_buffer[0];
+        state->fault = read_buffer[1];
+        if ( ( read_buffer[3] & 0x7F ) == 0U )
+        {
+            state->vbat = 0.0F;
+        }
+        else
+        {
+            state->vbat = ((float)( read_buffer[3] & 0x7F) * 0.02F ) + 2.304F;
+        }
+        if ( ( read_buffer[4] & 0x7F ) == 0U )
+        {
+            state->vsys = 0.0F;
+        }
+        else
+        {
+            state->vsys = ((float)( read_buffer[4] & 0x7F) * 0.02F ) + 2.304F;
+        }
+        if ( ( read_buffer[6] & 0x7F) == 0U )
+        {
+            state->vbus = 0.0F;
+        }
+        else
+        {
+            state->vbus = ((float)( read_buffer[6] & 0x7F) * 0.10F ) + 2.600F;
+        }
+        state->ichrg = ((float)( read_buffer[7] & 0x7F) * 0.05F );
+        last_tick = current_tick;
     }
-    else
-    {
-        state->vbat = ((float)( read_buffer[3] & 0x7F) * 0.02F ) + 2.304F;
-    }
-    if ( ( read_buffer[4] & 0x7F ) == 0U )
-    {
-        state->vsys = 0.0F;
-    }
-    else
-    {
-        state->vsys = ((float)( read_buffer[4] & 0x7F) * 0.02F ) + 2.304F;
-    }
-    if ( ( read_buffer[6] & 0x7F) == 0U )
-    {
-        state->vbus = 0.0F;
-    }
-    else
-    {
-        state->vbus = ((float)( read_buffer[6] & 0x7F) * 0.10F ) + 2.600F;
-    }
-    state->ichrg = ((float)( read_buffer[7] & 0x7F) * 0.05F );
 }
 
 /**

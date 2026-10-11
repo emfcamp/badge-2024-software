@@ -17,6 +17,7 @@ const uint8_t reset = 7U;
 const uint8_t int_clear = 6U;
 uint8_t iox_int = 2U;
 const uint8_t ls1 = 15U;
+uint16_t board_identity = 0x2400;
 
 aw9523b_device_t top_egpio = 
 {
@@ -30,6 +31,7 @@ static void iox_cb ( void* args, uint8_t event );
  */
 void tildagon_frontboard_init( uint16_t board_id )
 {
+    board_identity = board_id;
     if ( ( board_id & 0x00FF ) == 0x01 )
     {
         iox_int = 3;
@@ -38,6 +40,7 @@ void tildagon_frontboard_init( uint16_t board_id )
     top_egpio.mux = tildagon_get_mux_obj( TILDAGON_TOP_I2C_PORT ),
     tildagon_pins_set_aux( top_egpio, 0 );
     aw9523b_init( &ext_pin[3] );    
+    
     aw9523b_pin_set_direction( &ext_pin[1], iox_int, true ); 
     aw9523b_irq_register( &ext_pin[1], iox_int, iox_cb, NULL );
     aw9523b_irq_enable( &ext_pin[1], iox_int );  
@@ -52,6 +55,17 @@ void tildagon_frontboard_init( uint16_t board_id )
         tildagon_imu_register_compass( qmc6309_update, qmc6309_read );
     }
     cy8cmbrx_init( tildagon_get_mux_obj( TILDAGON_TOP_I2C_PORT ) );
+    
+    aw9523b_pin_set_direction( &ext_pin[3], int_clear, false );
+    aw9523b_pin_set_mode( &ext_pin[3], int_clear, AW9523B_PIN_MODE_GPIO );
+    
+    aw9523b_pin_set_direction( &ext_pin[2], ls1, true );
+    aw9523b_irq_register( &ext_pin[2], ls1, cy8cmbrx_cb, NULL );
+    aw9523b_irq_enable( &ext_pin[2], ls1 );  
+ 
+    /* reset flip flop */
+    aw9523b_pin_set_output( &ext_pin[3], int_clear, false );
+    aw9523b_pin_set_output( &ext_pin[3], int_clear, true );
 }
 
 /**
@@ -60,7 +74,7 @@ void tildagon_frontboard_init( uint16_t board_id )
  */
 static void iox_cb ( void* args, uint8_t event )
 {
-    aw9523b_irq_handler( &ext_pin[3] );   
+    aw9523b_irq_handler( &ext_pin[3] );
 }
 
 /**
@@ -69,6 +83,9 @@ static void iox_cb ( void* args, uint8_t event )
 void cy8cmbrx_cb( void* args ,uint8_t event )
 {
     cy8cmbrx_status_t status = cy8cmbrx_run();
+    /* reset flip flop */
+    aw9523b_pin_set_output( &ext_pin[3], int_clear, false );
+    aw9523b_pin_set_output( &ext_pin[3], int_clear, true );
     /* push events */
     for (uint8_t i = 0U; i < 2; i++)
     {
