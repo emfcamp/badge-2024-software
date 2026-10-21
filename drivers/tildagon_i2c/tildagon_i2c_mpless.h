@@ -17,6 +17,7 @@
 #define TILDAGON_HX4_I2C_PORT (5)
 #define TILDAGON_HX5_I2C_PORT (6)
 #define TILDAGON_SYS_I2C_PORT (7)
+#define TILDAGON_MAX_I2C_PORT (7)
 
 void tildagon_i2c_init(void);
 
@@ -25,3 +26,7 @@ esp_err_t tildagon_i2c_reg_read(uint8_t port, uint16_t addr, uint8_t reg_addr, u
 
 // Write reg_addr followed by len bytes to addr on the given mux port.
 esp_err_t tildagon_i2c_reg_write(uint8_t port, uint16_t addr, uint8_t reg_addr, const uint8_t *data, uint32_t len);
+
+// 16-bit register variants used by devices such as SCD4X.
+esp_err_t tildagon_i2c_reg16_read(uint8_t port, uint16_t addr, uint16_t reg_addr, uint8_t *data, uint32_t len);
+esp_err_t tildagon_i2c_reg16_write(uint8_t port, uint16_t addr, uint16_t reg_addr, const uint8_t *data, uint32_t len);

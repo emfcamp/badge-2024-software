@@ -3,20 +3,33 @@ import sys
 
 
 class Pin:
-    IN = None
-    OUT = None
+    IN = 0
+    OUT = 1
 
     def __init__(self, *args, **kwargs):
-        pass
+        self._value = 0
 
-    def value(self):
-        return 1
+    def value(self, value=None):
+        if value is None:
+            return self._value
+        self._value = int(bool(value))
+        return self._value
 
     def on(self):
-        pass
+        self._value = 1
+        return self._value
 
     def off(self):
-        pass
+        self._value = 0
+        return self._value
+
+    def toggle(self):
+        return self.value(not self.value())
+
+    def __call__(self, value=None):
+        if value is None:
+            return self.value()
+        return self.value(value)
 
 
 class ADC:

@@ -88,10 +88,10 @@ static bool lanyard_mode = false;
  */
 void tildagon_power_fast_task(void *param __attribute__((__unused__)))
 {
-    event_queue = xQueueCreate( 10, sizeof(event_t) );     
-    usb_in.fusb.mux_port = tildagon_get_mux_obj( 7 );
-    usb_out.fusb.mux_port = tildagon_get_mux_obj( 0 );
-    pmic.mux_port = tildagon_get_mux_obj( 7 );
+    event_queue = xQueueCreate( 10, sizeof(event_t) );
+    usb_in.fusb.mux_port = tildagon_get_mux_obj( TILDAGON_SYS_I2C_PORT );
+    usb_out.fusb.mux_port = tildagon_get_mux_obj( TILDAGON_TOP_I2C_PORT );
+    pmic.mux_port = tildagon_get_mux_obj( TILDAGON_SYS_I2C_PORT );
     usb_out.pd.power_role = 1;
     usb_out.pd.data_role = 1;
     usb_out.pd.extra = &host_pd_extras;

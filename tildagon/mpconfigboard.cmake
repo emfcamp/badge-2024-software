@@ -6,7 +6,6 @@ cmake_policy(SET CMP0152 OLD)
 set(IDF_COMPONENTS
     ctx
     st3m
-    flow3r_bmi270
     flow3r_bsp
     tildagon
     esp_https_ota
@@ -62,4 +61,3 @@ set(MICROPY_SOURCE_BOARD
 if(NOT MICROPY_FROZEN_MANIFEST)
     set(MICROPY_FROZEN_MANIFEST ${CMAKE_CURRENT_LIST_DIR}/manifest.py)
 endif()
-

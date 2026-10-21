@@ -2,6 +2,33 @@ from typing import Tuple
 
 import _sim
 
+ACCEL_GYRO = 1
+TEMPERATURE = 2
+COMPASS = 3
+STEPS = 4
+OFF = 0
+
+_periods = {
+    ACCEL_GYRO: 40,
+    TEMPERATURE: 1000,
+    COMPASS: 40,
+    STEPS: 1000,
+}
+
+
+def get_period(group):
+    return _periods.get(group, 100)
+
+
+def set_period(group, period_ms, force=False):
+    if period_ms is None:
+        _periods[group] = 100
+        return True
+    if period_ms < 10 or period_ms > 1000:
+        raise ValueError("period must be between 10 and 1000 ms")
+    _periods[group] = int(period_ms)
+    return True
+
 
 def acc_read() -> Tuple[float, float, float]:
     """
@@ -17,11 +44,15 @@ def gyro_read() -> Tuple[float, float, float]:
     return (4.0, 5.0, 6.0)
 
 
-def pressure_read() -> Tuple[float, float]:
+def mag_read() -> Tuple[float, float, float]:
     """
-    Returns current pressure in Pa and temperature in degree C.
+    Returns current x, y, z magnetic field values.
     """
-    return (7.0, 8.0)
+    return (1.0, 2.0, 3.0)
+
+
+def temperature_read() -> float:
+    return 23.4
 
 
 def step_counter_read() -> int:
